@@ -34,10 +34,35 @@ fi
 mkdir -p "$BRANCH_DIR"
 echo "Created: work/$SAFE_BRANCH"
 
-for sub in wiki harness plan repo; do
+for sub in wiki harness plan; do
     mkdir -p "$BRANCH_DIR/$sub"
     echo "  Created: $sub/"
 done
+
+# 自动创建 worktree（如果 repo/ 下有 git 仓库）
+WORKTREE_CREATED=0
+if [ -d "repo" ] && [ -n "$(ls -A repo 2>/dev/null)" ]; then
+    for repo_dir in repo/*/; do
+        [ -d "$repo_dir" ] || continue
+        REPO_NAME=$(basename "$repo_dir")
+        if git -C "$repo_dir" rev-parse --git-dir >/dev/null 2>&1; then
+            echo ""
+            echo "Detected git repo: $REPO_NAME"
+            echo "Creating worktree for branch '$SAFE_BRANCH'..."
+            if sh "$SCRIPT_DIR/git-worktree-helper.sh" create "$ROOT" "$SAFE_BRANCH" "$REPO_NAME"; then
+                WORKTREE_CREATED=1
+                echo "  Created: repo/ (git worktree)"
+                break
+            fi
+        fi
+    done
+fi
+
+if [ "$WORKTREE_CREATED" -eq 0 ]; then
+    # 无 git 仓库，创建占位目录
+    mkdir -p "$BRANCH_DIR/repo"
+    echo "  Created: repo/ (placeholder)"
+fi
 
 # 生成时间戳
 CREATED_AT=$(date '+%Y-%m-%d %H:%M:%S')
@@ -48,9 +73,11 @@ sed -i "s/{{BRANCH}}/$BRANCH/g" "$BRANCH_DIR/status.yaml"
 sed -i "s/{{CREATED_AT}}/$CREATED_AT/g" "$BRANCH_DIR/status.yaml"
 echo "  Created: status.yaml"
 
-# 从 template 复制 repo README
-cp "$TEMPLATE_DIR/work/repo_readme.md" "$BRANCH_DIR/repo/README.md"
-echo "  Created: repo/README.md"
+# 从 template 复制 repo README（仅占位模式）
+if [ "$WORKTREE_CREATED" -eq 0 ]; then
+    cp "$TEMPLATE_DIR/work/repo_readme.md" "$BRANCH_DIR/repo/README.md"
+    echo "  Created: repo/README.md"
+fi
 
 echo ""
 echo "Requirement workspace created: work/$SAFE_BRANCH"

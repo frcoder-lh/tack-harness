@@ -83,6 +83,7 @@ description: "编程工作流 skill。当用户需要初始化工作区、管理
 - **脚本调用**: 需调用脚本时，读取 skill 自带脚本内容，在项目中执行
 - **状态管理**: 每个需求的进度通过 `work/<branch>/status.yaml` 跟踪，`new-req.sh` 基于 `template/work/status.yaml` 生成
 - **故障处理**: 开发遇阻时读取 `diagnosing-bugs.md`；需跨会话延续时读取 `handoff.md`
+- **Worktree 约束**: 代码改动仅限 `work/<branch>/repo/` worktree，禁止修改根目录 `repo/`
 
 ## Skill 与 AGENTS.md 的分工
 

@@ -11,6 +11,7 @@
 3. **依赖检查优先**: 执行任何命令前，先检查前置条件是否满足
 4. **Git 操作安全**: 不执行 force push、reset --hard 等破坏性操作
 5. **代码审查必选**: 每个开发任务完成后必须经过用户审核
+6. **代码改动仅限 worktree**: 所有代码改动只能在 `work/<branch>/repo/` 下进行（git worktree），禁止直接修改根目录的 `repo/`
 
 ---
 
@@ -117,7 +118,7 @@
 
 #### `/tack 开发` 或 `/tack develop`
 - **输入**: 无
-- **前置条件**: 任务清单存在，repo/ 已初始化
+- **前置条件**: 只有执行完 breakdown 并生成任务清单（`work/<branch>/plan/tasks.md`）后，才能进入代码实现阶段；repo/ 已初始化
 - **调用**: resource `implement.md` → `tdd.md` → `code-review.md`
 - **输出**: 按依赖顺序逐任务开发
 
