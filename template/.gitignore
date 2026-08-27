@@ -1,0 +1,13 @@
+# Workspace - code repositories (managed by git worktree)
+repo/
+work/*/repo/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp

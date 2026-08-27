@@ -1,0 +1,24 @@
+# 需求状态
+branch: "{{BRANCH}}"
+status: "initialized"  # initialized | in-progress | in-review | completed | blocked
+created_at: "{{CREATED_AT}}"
+updated_at: "{{CREATED_AT}}"
+
+# 进度跟踪
+progress:
+  context: false        # 需求上下文已输入
+  analysis: false       # 需求分析已完成
+  breakdown: false      # 任务拆解已完成
+  development: false    # 开发已完成
+  review: false         # 代码审查已通过
+  testing: false        # 测试已完成
+  deployed: false       # 已部署
+
+# 任务统计
+tasks:
+  total: 0
+  completed: 0
+  blocked: 0
+
+# 备注
+notes: []
