@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'V*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          zip -r dist/tack-harness-${{ steps.version.outputs.version }}.zip . \
+            -x '.git/*' \
+            -x '.github/*' \
+            -x 'dist/*' \
+            -x '.gitattributes' \
+            -x '.gitignore'
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Tack Harness ${{ steps.version.outputs.version }}
+          tag_name: ${{ steps.version.outputs.version }}
+          files: dist/tack-harness-*.zip
+          generate_release_notes: true
