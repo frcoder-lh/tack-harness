@@ -41,4 +41,4 @@
 
 通用纪律统一见 [tack/harness/rule/windows-env.md](tack/harness/rule/windows-env.md)（bash 完整路径、禁止内联含 `$`/引号/正则的命令、stderr 噪音识别、LF 换行），此处只保留本仓库特化：
 
-- 本仓库 [.gitattributes](.gitattributes) 规定 `*.sh` / `*.md` / `*.yaml` / `*.yml` 均为 eol=lf（比通用规则多出 yaml/yml），新建后用 `git status` / `git diff` 抽查是否整文件脏 diff
+- 本仓库 [.gitattributes](.gitattributes) 统一规定 `* text=auto eol=lf`——文本文件在索引与工作区一律 LF（含 `.ps1` 等未单列后缀），`auto` 保留二进制嗅探；唯一例外是 `*.bat` / `*.cmd` 强制 CRLF（cmd.exe 解析器不能可靠支持 LF-only）；新建文本文件后用 `git status` / `git diff` 抽查是否整文件脏 diff

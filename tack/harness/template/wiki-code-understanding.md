@@ -12,7 +12,7 @@
 > 锚点由 `/tack ask` 提炼候选、`/tack record` 沉淀，**人工审阅后生效**；
 > 每条锚点须可回溯来源（ask 分析文档/工作区/commit）；锚点因重构/改名失效时就地更新对应行，
 > 并在备注注明「此前指向 X，于何时因何修正」，不堆积旧条目。统一规则见 `harness/rule/record-wiki.md`。
-> 代码外事实（租户、账号、配置、部署地址等）见 `manifest.md`；业务术语的业务释义见
+> 代码外事实（租户、账号、配置等）见 `manifest.md`；业务术语的业务释义见
 > `business-understanding.md`；详细架构、模块划分与调用链等临期分析见各工作区的
 > `space/<branch>/wiki/<repo>-analysis.md`（由 `/tack ask` 产出并追加索引）。
 > **没有已接入仓库时不生成空文件。**

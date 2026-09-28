@@ -1,5 +1,10 @@
-* text=auto
-*.sh text eol=lf
-*.md text eol=lf
-*.yaml text eol=lf
-*.yml text eol=lf
+# All text files use LF in both the index and the working tree
+# (Windows included). auto keeps Git's binary detection so images and
+# archives added later are never mangled by newline conversion.
+* text=auto eol=lf
+
+# Exception: cmd.exe batch parser does not reliably support LF-only files
+# (broken parenthesized blocks, failed goto labels, caret continuation).
+# PowerShell .ps1 handles LF fine and stays under the rule above.
+*.bat text eol=crlf
+*.cmd text eol=crlf

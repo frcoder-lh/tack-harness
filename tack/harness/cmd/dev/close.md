@@ -43,7 +43,7 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
    - **branch-op 工作流分流**：工作区无 spec/plan/tech-design 与 wiki 产物，input.md 为空；`branch_op` 区块只是本次过程记录，不属于跨工作区知识。动作: 检查其中是否夹带代码外事实（一般没有），无候选时一句话说明并跳过本步，不展示空清单
    - 输入源: 工作区**原始产物**——input.md、spec.md、plan.md（含决策记录）、tech-design.md、`$work/wiki/`、status.yaml（mr_url、tech_doc_url、meego 等）；**已有根 wiki 页面只用于确定融合位置，不作为事实来源**（防合成内容循环放大，见 `harness/rule/record-wiki.md` 边界）
    - 动作: 从中提炼**跨工作区复用、且代码不应作为真源**的候选知识，按分工归类：
-     - **代码外事实**（环境配置、中间件/平台地址、部署地址、负责人、不含凭据的账号）→ `$root/wiki/manifest.md`
+     - **代码外事实**（环境配置、中间件/平台地址、不含凭据的账号）→ `$root/wiki/manifest.md`
      - **稳定导航锚点**（业务术语 ↔ 检索关键词/代码入口、接口标识 ↔ 业务场景 ↔ 代码入口）→ `$root/wiki/code-understanding.md`
      - **业务背景知识**（业务线背景、术语的业务释义、原始业务资料）→ `$root/wiki/business-understanding.md`
      - **技术决策与工程约定**（plan.md「决策记录」中的选型取舍、代码外的项目规则如重试/舍入/默认值约定）→ `$root/wiki/decisions.md`

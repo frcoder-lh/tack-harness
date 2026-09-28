@@ -26,11 +26,26 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# Locate Git for Windows bash.exe: PATH -> common install dirs -> registry
-function Find-Bash {
-    $cmd = Get-Command bash.exe -ErrorAction SilentlyContinue
-    if ($cmd) { return $cmd.Source }
+# True only when the candidate is Git for Windows bash. Git bash exports
+# MSYSTEM (e.g. MINGW64); the WSL launchers under System32/WindowsApps do not.
+function Test-GitBash {
+    param([string]$Path)
+    if (-not (Test-Path -LiteralPath $Path)) { return $false }
+    try {
+        $out = & $Path -c 'printf %s "${MSYSTEM:-}"' 2>$null
+        return ("$out" -match '^MINGW')
+    } catch {
+        return $false
+    }
+}
 
+# Locate Git for Windows bash.exe: common install dirs -> registry -> PATH.
+# PATH is deliberately last: on Windows 10/11 System32\bash.exe and the
+# WindowsApps stub are WSL launchers. They cannot run POSIX scripts passed a
+# Windows drive path (D:/...) and fail with a confusing exit code 127, so PATH
+# hits under System32/SysWOW64/WindowsApps are skipped and other PATH hits
+# must pass the MSYSTEM probe.
+function Find-Bash {
     $candidates = @(
         (Join-Path $env:ProgramFiles 'Git\bin\bash.exe'),
         (Join-Path ${env:ProgramFiles(x86)} 'Git\bin\bash.exe'),
@@ -46,6 +61,13 @@ function Find-Bash {
             $p = Join-Path $props.InstallPath 'bin\bash.exe'
             if (Test-Path -LiteralPath $p) { return $p }
         }
+    }
+
+    foreach ($cmd in (Get-Command bash.exe -All -ErrorAction SilentlyContinue)) {
+        if ($cmd.CommandType -ne 'Application') { continue }
+        $dir = Split-Path $cmd.Source -Parent
+        if ($dir -match '\\(System32|SysWOW64|WindowsApps)$') { continue }
+        if (Test-GitBash $cmd.Source) { return $cmd.Source }
     }
     return $null
 }
