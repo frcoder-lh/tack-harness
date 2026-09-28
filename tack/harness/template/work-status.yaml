@@ -1,0 +1,81 @@
+# ============================================================
+# 工作区状态文件（$work/status.yaml，新建工作区时由 harness/template 模板复制 + sed 替换）
+#
+# 定位：工作区属性 + 日志 + 待办。
+#   AI 当前在处理哪个任务、处理到什么程度、下一步做什么，都记在这里；
+#   这是工作区下唯一有状态的文件，AI 在执行每个任务前后都应更新；
+#   内容尽量简洁，细节放在 plan.md。
+#
+# 状态枚举：status 的合法取值由 harness/workflow/ 下所属工作流的「状态流转」定义。
+# ============================================================
+
+# 工作 ID（默认与分支同名）
+work_id: "{{BRANCH}}"
+# 工作状态（取值见 harness/workflow/ 所属工作流）
+status: "initialized"
+# 所属工作流（development / testing / bugfix / merge-conflict，或项目自定义工作流）
+workflow: "development"
+# 工作分支
+branch: "{{BRANCH}}"
+# 本工作区涉及的服务/仓库
+services: []
+# MR / PR 地址（push 或平台合并后回填）
+mr_url: ""
+# 需求/工作项地址（如 Meego）
+meego: ""
+# 技术文档外链（如飞书）
+tech_doc_url: ""
+
+created_at: "{{CREATED_AT}}"
+updated_at: "{{CREATED_AT}}"
+
+# 当前进展（日志 + 待办；细节放 plan.md，不要堆在这里）
+current:
+  stage: ""          # 当前环节：ask / spec / plan / tech-design / code / fix / testcode / review / merge
+  task: ""           # 当前正在处理的任务 ID 与标题（对应下方 tasks 列表）
+  next: ""           # 下一步该做什么
+
+# 阶段进度（每完成一个环节置 true，命令执行前后同步更新）
+progress:
+  ask: false          # 代码理解产物（分析文档/问答文档）已生成
+  spec: false         # spec.md 已确认
+  plan: false         # plan.md（含任务清单）已确认
+  tech-design: false  # tech-design.md 已确认
+  code: false         # 开发已完成
+  testcode: false     # 单测覆盖率达标（可选环节；跳过时置 testcode_skipped: true）
+  testcode_skipped: false  # 用户明确跳过单测阶段
+  review: false       # 代码审查已通过
+  merged: false       # 已合并
+
+# 任务清单（由 plan 命令生成，code/testcode 推进状态；状态枚举：pending / in_progress / done / blocked）
+# 每条结构：id / title / module / repo / deps(依赖任务) / acceptance / parallel_with(可并行任务) / status
+tasks: []
+
+# 遗留后续项（merge 审查三选一分流中选择「记录后续」时登记；不阻塞本次合并）
+follow_ups: []
+# 每条结构：
+#   - id: "F-01"
+#     issue: ""            # 问题描述
+#     location: ""         # 位置（文件:行号 或模块）
+#     source: "review"     # 来源：merge 审查 / 用户补充
+#     severity: ""         # 严重度：critical / warning / suggestion
+#     plan: ""             # 计划处理时间或承接 issue 链接
+#     status: "open"       # open / done / wontdo
+
+# 用户引导记录（harness 自进化的原始素材，AGENTS.md 核心约束第 9 条）
+# 采集时机：每个任务/环节结束时，凡用户对 AI 的做法有过引导、纠偏、补充约定，自动追加一条（无需用户要求）
+# 固化时机：close 工作区时自动触发、或手动执行 evolution/record——将可复用的操作习惯固化到
+#           workflow/cmd/rule（能融合则融合，经用户确认后落盘），随后将该条 status 置 distilled
+# 边界：只记事实，不直接改动 harness；一次性过程信息也先采集，由固化环节按 record-classification 判据筛选
+guidance: []
+# 每条结构：
+#   - id: "G-01"              # 本工作区内顺序编号
+#     at: ""                  # 记录时间（ISO 8601）
+#     stage: ""               # 发生环节：ask / spec / plan / tech-design / code / fix / testcode / review / merge
+#     task: ""                # 关联任务 ID（无则留空）
+#     situation: ""           # 场景：当时 AI 原本怎么做 / 遇到什么情况
+#     guidance: ""            # 用户的引导、纠偏或补充约定（原话事实，不演绎）
+#     candidate: ""           # 建议固化点：落到哪个 workflow/cmd/rule、如何改
+#     status: "raw"           # raw 待固化 / distilled 已固化（须补落点行）/ dismissed 评估后不固化
+#     落点: ""                 # 仅 distilled 时填写：相对 $root 的路径（如 harness/cmd/dev/code.md），
+#                             # 多落点空格分隔；close/evolution 后由 check-guidance.sh 校验文件存在

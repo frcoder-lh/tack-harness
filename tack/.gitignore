@@ -1,0 +1,16 @@
+# Tackspace - code repositories (managed by git worktree)
+repo/
+space/*/repo/
+
+# Local backups (created by `update`)
+.backup/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp

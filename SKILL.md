@@ -1,95 +1,50 @@
 ---
 name: "tack"
-version: "V0.0.1"
-description: "编程工作流 skill。当用户需要初始化工作区、管理代码仓库、输入/分析需求、任务拆解、按 spec 开发、单元测试、代码审查、Bug 诊断、会话交接时触发。Invoke when user wants to init workspace, manage repos, handle requirement/PRD, break down tasks, develop by spec, unit-test, code-review, debug bugs, or handoff sessions."
+version: "V0.0.2"
+description: "编程工作流 skill，本体只做引导：空目录执行即初始化 tack 空间（物化 AGENTS.md + harness 骨架），随后加载 AGENTS.md 完成命令路由。覆盖需求规划 spec/plan、编码 code、单测 testcode、改 bug、Git 提交/推送/合并/冲突、知识沉淀 record 等开发全流程；命令支持中英文触发词与简写，可省略 /tack 前缀或用自然语言描述意图。"
 ---
 
-# Tack Harness
+# tack —— 编程工作流引导器
 
-精简克制、人类可读、任意配置的编程工作流 skill。通过 `/tack` 触发，内置 12 个 resource，覆盖从初始化到上线的完整开发流程。
+skill 本体职责单一：**把 tack 安装进项目空间，并引导加载 AGENTS.md 完成命令路由**。工作流、命令、规则、脚本调用约定、核心纪律全部是空间内的文件（`AGENTS.md`、`harness/`），本文件不重复——进入 tack 空间后一切以 `$root/AGENTS.md` 为准。
 
-## 加载时执行
+## 调用方式
 
-1. 读取项目根目录 `AGENTS.md`，加载项目级约束与路由覆盖
-2. 若 `AGENTS.md` 不存在，使用 skill 默认路由
+- `/tack <命令|简写|触发词> [参数]`（显式）
+- 直接输入 `<命令|简写|触发词> [参数]`（省略 `/tack`）
+- 自然语言描述意图（如「我要做需求规划」「提交代码」「解决合并冲突」），由 skill 语义识别后路由
 
-## Skill 内置文件
+## 启动流程
 
-### Resource（resources/）— 执行指令
+### 1. 判定 tack 空间（确定 `$root`）
 
-| 文件 | 用途 | 触发环节 |
-|------|------|----------|
-| `grill-with-docs.md` | 带文档的深入访谈 | init-context, req-context |
-| `grilling.md` | 澄清设计的深入访谈 | analyze-req, fix-req |
-| `domain-modeling.md` | 构建领域模型与术语表 | init-context, req-context |
-| `research.md` | 代码库后台研究 | init-repos |
-| `codebase-design.md` | 代码架构理解 | init-repos |
-| `to-spec.md` | 生成技术设计文档 | analyze-req |
-| `to-tickets.md` | 任务拆解 | breakdown |
-| `implement.md` | 按 spec/tickets 构建 | develop |
-| `tdd.md` | 测试驱动开发 | develop, unit-test |
-| `code-review.md` | 双轴代码审查 | develop（每任务后） |
-| `diagnosing-bugs.md` | Bug 诊断流程 | 遇到问题时 |
-| `handoff.md` | 会话交接 | 跨会话继续时 |
+从当前工作目录向上查找，第一个内容包含「本空间由tack harness驱动」的 `AGENTS.md` 所在目录即为 `$root`。
 
-### 脚本（script/）— 自动化操作
+### 2. 按目录状态分流
 
-| 文件 | 用途 |
-|------|------|
-| `init-workspace.sh` | 创建项目目录骨架与占位文档 |
-| `init-repos.sh` | 克隆/拉取代码仓库 |
-| `new-req.sh` | 创建需求工作目录 |
-| `git-worktree-helper.sh` | Git worktree 辅助 |
+- **空目录（无 AGENTS.md 且目录为空）**：执行 `init-tack <目录>`——自动确保 Git 可用、物化 tack 空间骨架（AGENTS.md、harness/、wiki/、space/ 等）、将该目录初始化为 Git 仓库并完成框架首次提交；随后按 `init` 命令引导项目信息与仓库接入。
+- **非空且不是 tack 空间**：不改动任何文件，提示用户在空目录执行 `/tack`，或经用户显式确认后再初始化。
+- **已是 tack 空间**：进入第 3 步。
 
-### 模板（template/）— 项目初始化时复制
+`init-tack` 脚本位于 skill 安装目录（注意双层 `tack`：外层是 skill 名，内层是空间骨架目录名）：
 
-| 路径 | 用途 |
-|------|------|
-| `template/AGENTS.md` | 项目常驻说明书模板 |
-| `template/wiki/` | 全局上下文占位文档 |
-| `template/work/` | 需求工作区模板（含 status.yaml、repo_readme.md） |
-| `template/harness/doc/` | PRD / 技术设计 / 测试计划模板 |
-| `template/harness/rule/` | 编码规范、开发流程说明 |
-| `template/harness/script/` | 项目级脚本副本 |
+| 平台 | TRAE 国内版 | TRAE 国际版 |
+|------|------------|------------|
+| Windows | `%USERPROFILE%\.trae-cn\skills\tack` | `%USERPROFILE%\.trae\skills\tack` |
+| macOS/Linux | `~/.trae-cn/skills/tack` | `~/.trae/skills/tack` |
 
-> **规则**: 执行任何环节前，必须**先读取**对应的 resource 文件获取详细指令。
+Windows（PowerShell；必须带 `-ExecutionPolicy Bypass`，路径参数一律用正斜杠；`run.ps1` 会自动定位 Git for Windows 的 bash.exe，缺失时通过 winget 自动安装）：
 
-## 命令路由
+```powershell
+powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.trae-cn\skills\tack\tack\harness\script\run.ps1" init-tack "D:/path/to/workspace"
+```
 
-格式: `/tack <关键词> [参数]`
+macOS / Linux：
 
-| 中文关键词 | 英文关键词 | 参数 | 调用链 |
-|-----------|-----------|------|--------|
-| `初始化工作区` / `初始化` | `init-workspace` | 根目录路径 | `script/init-workspace.sh` |
-| `初始化上下文` | `init-context` | 文档路径(多个) | `grill-with-docs.md` → `domain-modeling.md` |
-| `初始化仓库` | `init-repos` | 仓库地址(多个) | `research.md` → `codebase-design.md` + `script/init-repos.sh` |
-| `新建需求` / `新建` | `new-req` | 分支名称 | `script/new-req.sh` |
-| `输入需求` / `需求上下文` | `req-context` | PRD 文档路径 | `grill-with-docs.md` |
-| `分析需求` / `分析` | `analyze-req` | — | `grilling.md` → `to-spec.md` |
-| `任务拆解` / `拆解` | `breakdown` | — | `to-tickets.md` |
-| `开发` | `develop` | — | `implement.md` + `tdd.md` + `code-review.md` + `script/git-worktree-helper.sh` |
-| `需求修正` / `修正` | `fix-req` | 修正说明 | `grilling.md` |
-| `单测` | `unit-test` | — | `tdd.md` |
+```sh
+sh ~/.trae-cn/skills/tack/tack/harness/script/init-tack.sh /path/to/workspace
+```
 
-### 匹配规则
+### 3. 加载并遵从 AGENTS.md
 
-1. 先精确匹配中文 → 2. 精确匹配英文 → 3. 部分匹配（列出候选项供用户选择）
-2. 仅输入 `/tack` 时，展示命令选项列表
-
-## 执行约定
-
-- **前置检查**: 执行命令前先验证前置条件（如 `init-context` 需先 `init-workspace`）
-- **Resource 优先**: 每个环节的详细流程由 resource 文件定义，必须先读取再执行
-- **脚本调用**: 需调用脚本时，读取 skill 自带脚本内容，在项目中执行
-- **状态管理**: 每个需求的进度通过 `work/<branch>/status.yaml` 跟踪，`new-req.sh` 基于 `template/work/status.yaml` 生成
-- **故障处理**: 开发遇阻时读取 `diagnosing-bugs.md`；需跨会话延续时读取 `handoff.md`
-- **Worktree 约束**: 代码改动仅限 `work/<branch>/repo/` worktree，禁止修改根目录 `repo/`
-
-## Skill 与 AGENTS.md 的分工
-
-| | SKILL.md | AGENTS.md |
-|---|----------|-----------|
-| 角色 | 通用能力工具箱 | 项目常驻说明书 |
-| 定义 | "能做什么"（所有项目通用） | "在这个项目里怎么做"（项目专属） |
-| 内容 | 命令路由、资源索引、执行约定 | 目录结构、编码规范、路由覆盖 |
-| 优先级 | 默认行为 | 可覆盖 skill 默认路由 |
+读取 `$root/AGENTS.md`：若工作流与命令路由尚未加载，按其「加载 tack harness」一节执行 `scan-routes list`。此后的输入解析（`scan-routes resolve` 精确路由与语义识别兜底）、脚本跨平台调用约定、工作流状态引导与全部核心纪律，均以 `$root/AGENTS.md` 为唯一权威，本文件不再重复。
