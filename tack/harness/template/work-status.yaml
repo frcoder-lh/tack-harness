@@ -13,7 +13,7 @@
 work_id: "{{BRANCH}}"
 # 工作状态（取值见 harness/workflow/ 所属工作流）
 status: "initialized"
-# 所属工作流（development / testing / bugfix / merge-conflict，或项目自定义工作流）
+# 所属工作流（development / testing / bugfix / merge-conflict / branch-op，或项目自定义工作流）
 workflow: "development"
 # 工作分支
 branch: "{{BRANCH}}"
@@ -32,6 +32,7 @@ updated_at: "{{CREATED_AT}}"
 # 当前进展（日志 + 待办；细节放 plan.md，不要堆在这里）
 current:
   stage: ""          # 当前环节：ask / spec / plan / tech-design / code / fix / testcode / review / merge
+                     # branch-op 工作流：prepare / integrate / resolve / push / cleanup
   task: ""           # 当前正在处理的任务 ID 与标题（对应下方 tasks 列表）
   next: ""           # 下一步该做什么
 
@@ -61,6 +62,23 @@ follow_ups: []
 #     severity: ""         # 严重度：critical / warning / suggestion
 #     plan: ""             # 计划处理时间或承接 issue 链接
 #     status: "open"       # open / done / wontdo
+
+# 分支操作信息（仅 branch-op 工作流使用，由 work 分流时写入；续跑与 close 清理以此为准）
+branch_op: null
+# 结构：
+# branch_op:
+#   op: "merge"               # merge / rebase
+#   source: "feature-a"       # 源分支 A
+#   target: "release-x"       # 目标分支 B
+#   ts: "20260928183000"      # 时间戳（临时分支后缀）
+#   repos:
+#     - repo: "repo-name"
+#       source_tmp: "feature-a-20260928183000"
+#       target_tmp: "release-x-20260928183000"
+#       working: "release-x-20260928183000"   # worktree 实际检出的工作分支
+#       pushed: false
+#   force_lease_authorized: false   # rebase：用户当次明确授权后置 true（脚本仍需环境变量双验证）
+#   cleaned: false                  # close cleanup 完成后置 true
 
 # 用户引导记录（harness 自进化的原始素材，AGENTS.md 核心约束第 9 条）
 # 采集时机：每个任务/环节结束时，凡用户对 AI 的做法有过引导、纠偏、补充约定，自动追加一条（无需用户要求）

@@ -26,15 +26,21 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
 
 3. **输出交付摘要**
    - 时机: worktree 移除前（仍可取到提交与文件清单），wiki 提炼前
-   - 输入源: spec.md（交付故事）、plan.md（方案选定与决策记录）、status.yaml（done tasks、`follow_ups`、mr_url）、各仓库 `git log <目标分支>..HEAD --stat`
-   - 动作: 向用户输出固定四段结构：
-     1. **构建内容**：本次交付的功能点（对照 spec 故事与 done tasks）
-     2. **关键决策**：plan 中选定的实现方案与重要决策记录
-     3. **改动文件**：按仓库分组的提交与主要改动文件清单（来自 git 事实，附 MR 链接）
-     4. **建议后续步骤**：merge 时登记的 follow_ups、遗留/跳过项、测试与上线建议
+   - **branch-op 工作流分流**（无 spec/plan）：输出简版摘要，事实只取 status.yaml 的 `branch_op` 区块与各仓库 git 记录：
+     1. **操作内容**：op（merge/rebase）、源分支 A、目标分支 B、涉及仓库
+     2. **执行结果**：逐仓库 pushed 状态、结果实际落入的原分支（merge→B，rebase→A）
+     3. **建议后续**：提示关注目标分支状态；若有 abort/blocked 仓库在此列明
+   - **其他工作流**：
+     - 输入源: spec.md（交付故事）、plan.md（方案选定与决策记录）、status.yaml（done tasks、`follow_ups`、mr_url）、各仓库 `git log <目标分支>..HEAD --stat`
+     - 动作: 向用户输出固定四段结构：
+       1. **构建内容**：本次交付的功能点（对照 spec 故事与 done tasks）
+       2. **关键决策**：plan 中选定的实现方案与重要决策记录
+       3. **改动文件**：按仓库分组的提交与主要改动文件清单（来自 git 事实，附 MR 链接）
+       4. **建议后续步骤**：merge 时登记的 follow_ups、遗留/跳过项、测试与上线建议
    - 边界: 只汇总工作区产物与 git 事实，不杜撰未做的内容；摘要当场呈现，不新建文件（用户要求留存时可写入 status.yaml 备注）
 
 4. **提炼工作区内容，确认是否记入 wiki**
+   - **branch-op 工作流分流**：工作区无 spec/plan/tech-design 与 wiki 产物，input.md 为空；`branch_op` 区块只是本次过程记录，不属于跨工作区知识。动作: 检查其中是否夹带代码外事实（一般没有），无候选时一句话说明并跳过本步，不展示空清单
    - 输入源: 工作区**原始产物**——input.md、spec.md、plan.md（含决策记录）、tech-design.md、`$work/wiki/`、status.yaml（mr_url、tech_doc_url、meego 等）；**已有根 wiki 页面只用于确定融合位置，不作为事实来源**（防合成内容循环放大，见 `harness/rule/record-wiki.md` 边界）
    - 动作: 从中提炼**跨工作区复用、且代码不应作为真源**的候选知识，按分工归类：
      - **代码外事实**（环境配置、中间件/平台地址、部署地址、负责人、不含凭据的账号）→ `$root/wiki/manifest.md`
@@ -55,10 +61,14 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
    - 边界: guidance 只作为候选素材，事实存疑、无法从工作区过程证实的不固化；wiki 类知识已在第 4 步处理，本步只面向 workflow/cmd/rule
 
 6. **移除 worktree**
-   - 动作: 执行 `sh $root/harness/script/git-worktree-helper.sh remove $root <branch>`，移除各仓库在 `$work/repo/` 下的 worktree
+   - **branch-op 工作流**：从 status.yaml 的 `branch_op.repos` 逐仓库读取临时分支名，执行
+     `sh $root/harness/script/branch-op.sh cleanup $root space/<branch> <repo> <source_tmp> <target_tmp>`
+     一次性移除工作 worktree 并删除 `A-ts`、`B-ts` 两个临时分支；worktree 存在未提交改动时脚本停止，报告事实并经用户确认后追加 `force` 参数；成功后在 `branch_op` 区块置 `cleaned: true`
+   - **其他工作流**：执行 `sh $root/harness/script/git-worktree-helper.sh remove $root <branch>`，移除各仓库在 `$work/repo/` 下的 worktree
 
 7. **归档工作区**
-   - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml set status completed progress.merged true`（自动刷新 updated_at），并执行
+   - 动作: 执行
+     `sh $root/harness/script/work-status.sh $work/status.yaml set status completed`（自动刷新 updated_at；branch-op 不传 progress.merged，该工作流不使用此开关；其他工作流可同时 `progress.merged true`），并执行
      `sh $root/harness/script/project.sh work-set $root <work_id> completed`
      更新 AGENTS.md 项目信息区块中的 work 条目；询问用户保留 `$work` 文档（spec.md、plan.md、tech-design.md、status.yaml）还是一并归档清理
 
@@ -75,6 +85,7 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
 - [ ] 非完成态关闭已有用户明确确认；完成态未做多余追问
 - [ ] 已按四段结构（构建内容/关键决策/改动文件/建议后续步骤）输出交付摘要，内容均有工作区产物或 git 事实来源
 - [ ] `git worktree list` 中不再有该工作区的 worktree
+- [ ] branch-op：`A-ts`、`B-ts` 两个临时分支均已删除，status.yaml 的 `branch_op.cleaned` 为 true
 - [ ] 工作区 status.yaml 与 AGENTS.md work 条目状态均为 completed
 - [ ] 记入 wiki 的内容符合边界（无易变代码逻辑、均有来源、无凭据明文）、四类分工归类正确且经人工审阅；用户放弃时未强行写入
 - [ ] guidance 的 raw 条目已逐条处理：固化项经用户确认落盘并置 distilled（按 `落点: <相对 $root 路径>` 注明），不固化项置 dismissed；未确认落盘的条目保留 raw 且不阻塞关闭

@@ -2,8 +2,10 @@
 # work.sh — 新建工作区（space/<branch>/）
 #
 # Usage:
-#   sh work.sh <root> <branch> [repo-name ...]
+#   sh work.sh [--no-worktree] <root> <branch> [repo-name ...]
 #     repo-name 可传多个；不传则默认为 root/repo 下的全部仓库创建 worktree
+#     --no-worktree：只建目录骨架与模板文件，不创建任何 worktree
+#       （branch-op 工作流使用，临时分支 worktree 由 branch-op.sh prepare 另行创建）
 #
 # 工作区结构（扁平，工作区级文档放 wiki/）：
 #   space/<branch>/
@@ -16,6 +18,11 @@
 #       在 AGENTS.md 项目信息区块登记工作条目由 project.sh work-add 完成（见 work 命令）。
 
 set -e
+
+NO_WORKTREE=0
+case "${1:-}" in
+  --no-worktree) NO_WORKTREE=1; shift ;;
+esac
 
 ROOT="${1:-.}"
 BRANCH="$2"
@@ -47,7 +54,9 @@ echo "已创建: $BRANCH_DIR/"
 # 2. 确定要建 worktree 的仓库列表
 shift 2
 REPO_NAMES="$*"
-if [ -z "$REPO_NAMES" ] && [ -d "repo" ]; then
+if [ "$NO_WORKTREE" = 1 ]; then
+    REPO_NAMES=""
+elif [ -z "$REPO_NAMES" ] && [ -d "repo" ]; then
     REPO_NAMES=$(ls -1 "repo" 2>/dev/null)
 fi
 
@@ -68,7 +77,11 @@ fi
 
 # 4. 无可用仓库时保留空 repo/ 占位目录
 if [ "$WORKTREE_CREATED" -eq 0 ]; then
-    echo "提示: $BRANCH_DIR/repo/ 为占位目录（当前无可用 git 仓库，稍后可用 worktree 命令补建）"
+    if [ "$NO_WORKTREE" = 1 ]; then
+        echo "骨架模式: 未创建 worktree，由调用方（branch-op.sh prepare）接手"
+    else
+        echo "提示: $BRANCH_DIR/repo/ 为占位目录（当前无可用 git 仓库，稍后可用 worktree 命令补建）"
+    fi
 fi
 
 # 5. status.yaml + input.md（模板复制 + sed 占位替换）

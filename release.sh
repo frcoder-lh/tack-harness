@@ -5,6 +5,8 @@
 #   1) 将本地所有「未推送到远程」的 commit 压缩为一个 commit（soft reset 到
 #      origin/<branch>，新提交父节点仍是远端分支头 → 推送为 fast-forward，
 #      不使用 force）；被压缩的提交清单保留在新 commit 的 body 中；
+#      同时把 SKILL.md front matter 的 version 字段同步为新版本号——多个提交时
+#      随压缩提交一起提交，仅 1 个未推送提交时 amend 进该提交（已一致则跳过）；
 #   2) 打 annotated tag（Vx.y.z，匹配 .github/workflows/release.yml 触发规则）；
 #   3) 推送分支与 tag；tag 推送后由 CI 自动创建 GitHub Release。
 #
@@ -132,6 +134,18 @@ if git show-ref --tags --quiet -- "refs/tags/$TAG"; then
     echo "错误：tag $TAG 已存在" >&2; exit 1
 fi
 
+# 读取 SKILL.md front matter 中的当前 version（仅匹配开头与第二个 --- 之间）
+SKILL_FILE="SKILL.md"
+if [ ! -f "$SKILL_FILE" ]; then
+    echo "错误：未找到 $SKILL_FILE，无法同步 version 字段" >&2
+    exit 1
+fi
+current_version=$(sed -n '2,/^---$/ s/^version:[[:space:]]*"\(.*\)"[[:space:]]*$/\1/p' "$SKILL_FILE" | head -1)
+if [ -z "$current_version" ]; then
+    echo "错误：$SKILL_FILE front matter 中未找到 version 字段（应为 version: \"Vx.y.z\" 形式）" >&2
+    exit 1
+fi
+
 # —— 3. 准备提交信息 ——
 [ -n "$MSG" ] || MSG="release: $TAG"
 msg_file=$(mktemp)
@@ -149,8 +163,15 @@ echo ""
 echo "======== 发布计划 ========"
 echo "分支      : $branch（基点 $base）"
 echo "版本 tag  : $TAG"
+if [ "$current_version" = "$TAG" ]; then
+    echo "版本同步  : $SKILL_FILE version 已是 $TAG，无需修改"
+else
+    echo "版本同步  : $SKILL_FILE version: \"$current_version\" → \"$TAG\""
+fi
 if [ "$ahead" -gt 1 ]; then
     echo "压缩提交  : $ahead 个未推送提交 → 1 个"
+elif [ "$current_version" != "$TAG" ]; then
+    echo "压缩提交  : 仅 1 个未推送提交，不压缩；版本号修正将 amend 进该提交"
 else
     echo "压缩提交  : 仅 1 个未推送提交，保持原样"
 fi
@@ -174,18 +195,41 @@ if [ "$ASSUME_YES" -ne 1 ]; then
     esac
 fi
 
-# —— 5. 压缩提交（ahead=1 时跳过）——
+# —— 5. 同步 SKILL.md 版本号 ——
+if [ "$current_version" = "$TAG" ]; then
+    echo ">> $SKILL_FILE 版本号已是 $TAG，跳过同步"
+    version_changed=0
+else
+    echo ">> 同步 $SKILL_FILE 版本号：$current_version → $TAG"
+    version_tmp=$(mktemp)
+    if ! sed "2,/^---\$/ s|^version:.*|version: \"$TAG\"|" "$SKILL_FILE" > "$version_tmp"; then
+        rm -f "$version_tmp"
+        echo "错误：更新 $SKILL_FILE 失败" >&2
+        exit 1
+    fi
+    mv "$version_tmp" "$SKILL_FILE"
+    version_changed=1
+fi
+
+# —— 6. 压缩提交（ahead=1 时把版本修正 amend 进唯一提交）——
 if [ "$ahead" -gt 1 ]; then
     echo ">> 压缩 $ahead 个提交为 1 个（reset --soft $base）"
     git reset --soft "$base"
+    if [ "$version_changed" -eq 1 ]; then
+        git add "$SKILL_FILE"
+    fi
     git commit -F "$msg_file" --quiet
+elif [ "$version_changed" -eq 1 ]; then
+    echo ">> 将版本号修正 amend 进当前未推送提交"
+    git add "$SKILL_FILE"
+    git commit --amend --no-edit --quiet
 fi
 
-# —— 6. 打 tag ——
+# —— 7. 打 tag ——
 echo ">> 创建 annotated tag $TAG"
 git tag -a "$TAG" -m "Tack Harness $TAG"
 
-# —— 7. 推送（fast-forward）——
+# —— 8. 推送（fast-forward）——
 echo ">> 推送 $branch → $REMOTE"
 git push "$REMOTE" "$branch"
 

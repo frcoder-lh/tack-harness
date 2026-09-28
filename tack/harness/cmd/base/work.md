@@ -1,9 +1,9 @@
 ---
 command: work
 short: w
-triggers: 工作区, 新建工作区, 切换工作区, work
+triggers: 工作区, 新建工作区, 切换工作区, 分支合并, 分支变基, 合并分支, 变基分支, work
 params: [目的或分支名]
-summary: 工作区管理——新建、重命名、切换、列出工作区（space/<branch>/），自动推断服务并登记到 AGENTS.md
+summary: 工作区管理——新建、重命名、切换、列出工作区（space/<branch>/）；意图分流支持 branch-op 分支级 merge/rebase，自动推断服务并登记到 AGENTS.md
 ---
 
 # work 工作区管理
@@ -17,7 +17,12 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 
 ## 指令内容
 
-先将用户意图识别为四类之一：**新建 / 重命名 / 切换 / 列出**。
+先做第一层意图分流：
+
+- **分支操作（branch-op）**：输入明确指向「两个已存在分支之间的集成」，形如「把 A merge/合并 到 B」「将 A rebase/变基 到 B」，同时给出源分支、目标分支与操作词、且不含业务需求 → 走下文「分支操作（branch-op）」精简流程，完成后由 branch-op 工作流承接
+- **工作区管理**：其余意图识别为四类之一：**新建 / 重命名 / 切换 / 列出**
+
+判定边界：单独说「合并/merge」且指向当前工作区交付，是 development 收尾的 git 组 `merge` 命令；仅当输入给出「源分支 A → 目标分支 B」两个分支、目的纯为分支搬运时才判定为 branch-op。拿不准归属时先向用户确认。
 
 ### 新建工作区
 
@@ -56,6 +61,43 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
      3. **冷仓库提示**：已选仓库在索引中无任何分析记录时，提示「该仓库尚无分析文档，建议在 spec/plan 前执行 `ask <仓库名>` 整体分析」（仅建议，不自动执行）
    - 边界: 清单是可选读的导航，不把 wiki 全文塞入上下文；知识不足时按三级降级取用（wiki → `$work/wiki/` → 直接读代码，代码永远是真源，见 development 工作流「上下文加载原则」）
 
+### 分支操作（branch-op）
+
+> 本流程只建区与准备，后续状态流转按 `harness/workflow/branch-op-workflow.md` 执行。
+> 不录入需求、不做 ask/spec/plan、不做审查与测试（跳过项以工作流文件为准）。
+
+1. **解析分支操作参数**
+   - 动作: 从原始输入解析 op（「合并」→merge，「变基」→rebase）、源分支 A、目标分支 B
+   - 边界: 无法同时解析出两个分支、或操作词有歧义（如只说「处理一下 A 和 B」）时，追问补齐，不得带模糊参数建区
+
+2. **确认涉及仓库**
+   - 动作: 在 `$root/repo/` 各仓库内 `git fetch origin --prune`，检查 A、B 是否存在（远端优先、本地兜底）；逐仓库记录检查结果
+   - 输入: 多个仓库同时具备这两个分支时，列出清单由用户多选确认；仅一个仓库满足时直接请用户确认；无仓库满足时回报事实并停止
+
+3. **生成并确认工作区名**（意图明确之后才命名）
+   - 动作: 生成 3 个英文 kebab-case 候选，如 `bop-<a>-to-<b>`（分支名中的 `/` 替换为 `-`）
+   - 输入: 用户选择候选或自行输入，确认最终名称
+
+4. **创建工作区骨架（不建默认 worktree）**
+   - 动作: 执行
+     `sh $root/harness/script/work.sh --no-worktree $root <branch>`
+     只生成 status.yaml、input.md、wiki/ 与空 repo/ 占位
+
+5. **prepare：临时分支与工作 worktree**
+   - 动作: 逐仓库执行
+     `sh $root/harness/script/branch-op.sh prepare $root space/<branch> <repo> <op> <A> <B>`
+     fetch 后创建 `A-<时间戳>`、`B-<时间戳>` 临时分支，并为工作分支（merge 取 B-ts，rebase 取 A-ts）创建 worktree 到 `space/<branch>/repo/<repo>`
+   - 解析输出: `BRANCH_OP_TS`、`BRANCH_OP_SOURCE_TMP`、`BRANCH_OP_TARGET_TMP`、`BRANCH_OP_WORKING`
+
+6. **登记并切换上下文**
+   - 动作: 执行
+     `sh $root/harness/script/project.sh work-add $root <branch> "branch-op: <op> <A> → <B>" "$root/space/<branch>" <branch> "<repo1,repo2>"`
+     并直接编辑 `$work/status.yaml`：`workflow` 改为 `branch-op`、`status` 置 `preparing`、`services` 写入选定仓库，且按 `harness/template/work-status.yaml` 的结构写入 `branch_op` 区块（每仓库的临时分支名与 pushed: false）
+   - 为上下文赋值 `$work=$root/space/<branch>`
+
+7. **跳过常规开场动作**
+   - 边界: 不输出 roster、不引导 input.md/spec；登记完成即按 branch-op 工作流进入 integrate 环节
+
 ### 重命名工作区
 
 1. 输入新的目的描述；描述宽泛时按「新建工作区」第 2 步先澄清意图，再生成并确认新分支名
@@ -85,8 +127,10 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 - [ ] `space/<branch>/status.yaml`、`input.md` 已生成
 - [ ] 已选仓库在 `space/<branch>/repo/` 下有可用 worktree
 - [ ] AGENTS.md 项目信息区块的 work 列表与磁盘一致
-- [ ] 已输出开场知识清单（roster）：已列 wiki 页面与相关分析文档（含新鲜度），冷仓库已建议 ask；未向上下文塞入 wiki 全文
+- [ ] 常规建区：已输出开场知识清单（roster）——wiki 页面与相关分析文档（含新鲜度），冷仓库已建议 ask；未向上下文塞入 wiki 全文
+- [ ] branch-op：op/A/B 已解析且仓库经用户确认；prepare 成功，status.yaml 已置 `workflow: branch-op`、`status: preparing` 并写入 `branch_op` 区块（临时分支名齐全）
 
 ## 下一步建议
 
-- 向 `$work/input.md` 录入原始需求，然后执行 `spec`
+- 常规建区：向 `$work/input.md` 录入原始需求，然后执行 `spec`
+- branch-op：执行 `branch-op.sh integrate` 进入集成环节，冲突转 `solve` 后 `continue`；完成后 `push`（rebase 须先取得用户当次授权），收尾在 `close`

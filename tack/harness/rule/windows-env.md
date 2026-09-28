@@ -5,11 +5,19 @@
 
 ## Shell 调用
 
-- **多行 bash 脚本禁止内联在 PowerShell 命令行**（会被逐行解析、引号截断）：先写入临时 `.sh` 文件，再 `bash -l <file>` 执行
+- **bash 脚本禁止内联在 PowerShell 命令行**：多行脚本会被逐行解析、引号截断；**单行命令只要含 `$`、双引号、正则等特殊字符，也会被 PowerShell 先解析破坏**（实战：sed 正则 `\(.*\)` 被截断后当成命令名执行）。一律先写入临时 `.sh` 文件，再 `bash -l <file>` 执行
 - **PowerShell 不支持 heredoc**（`<<EOF`）：多行字符串用 here-string `@"..."@`
 - **PowerShell 不支持 `&&` / `||`**：用 `;` 分隔，或写入脚本文件
 - **`bash` / `sed` 等 GNU 工具不在 PowerShell PATH**：经 `& "C:\Program Files\Git\bin\bash.exe" -c "<cmd>"` 调用；文件读写改优先用内置 Read/Write/Edit 工具
 - `harness/script/` 脚本一律走 `run.ps1` 启动器（见 AGENTS.md「脚本调用约定」）
+
+## 输出噪音识别
+
+PowerShell 会把外部程序的 stderr 包装成 Error 记录，以下输出**不是失败信号**，判断成败以退出码与预期产物（如 git 的 ref 更新行）为准，不要据此类噪音中止或误报：
+
+- PowerShell profile 的 `PSSecurityException` / `UnauthorizedAccess`（执行策略禁止加载 profile，不影响完整路径调用 bash）
+- Git 的 `LF will be replaced by CRLF the next time Git touches it` 警告
+- git push/pull 成功时 stderr 中的远端 banner、trace 信息（PowerShell 5 下显示为 `NativeCommandError`）
 
 ## 文件换行约定
 
@@ -19,3 +27,4 @@
 - 新建 `.sh` 后必须 `sh -n` 语法检查并实跑最小用例
 
 来源: 用户沉淀 2026-09-28（evolution 执行实战：heredoc/`&&`/多行内联/sed 缺失/CRLF 五类异常）
+补充: 2026-09-28（release.sh 优化实战：单行含 `$`/正则内联同样被截断；profile 异常与 CRLF 警告等 stderr 噪音不得误判为失败）

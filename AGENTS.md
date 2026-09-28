@@ -1,0 +1,44 @@
+# AGENTS.md
+
+> 本文件面向在 **tack-harness 源仓库**工作的 AI 代理，沉淀在此开发、改脚本、发版时必须遵守的约定。
+> 随发布包分发、驱动用户 tack 空间的说明在 [tack/AGENTS.md](tack/AGENTS.md)，两者用途不同，不互相复制内容。
+
+## 仓库定位
+
+- 本仓库是 tack skill 的源仓库：[SKILL.md](SKILL.md)（AI 消费的 skill 入口，含版本号）、`tack/harness/`（物化到用户空间的骨架）、`install.sh` / `release.sh`（安装与发布脚本）
+- 发布由 CI 完成：推送匹配 `V*.*.*` 的 tag 触发 [.github/workflows/release.yml](.github/workflows/release.yml)，自动打包并创建 GitHub Release，**不手工制作发布包**
+- README.md 面向人类读者，SKILL.md 面向运行时AI，AGENTS.md 面向开发时AI，三处内容不重复
+
+## 发布与版本号（release.sh）
+
+1. **版本号单一事实源（single source of truth）**：Git tag（`Vx.y.z`）与 [SKILL.md](SKILL.md) front matter 的 `version: "Vx.y.z"` 必须一致。发版时由 `release.sh` 自动同步，禁止只打 tag 不改正文，也禁止手工改两处
+2. 同步随发布提交一起落库，不产生游离的「bump version」提交：
+   - 多个未推送提交：`reset --soft` 压缩时把 SKILL.md 修正并入唯一的 release 提交
+   - 仅 1 个未推送提交：不压缩，用 `git commit --amend --no-edit` 把修正折入该提交，保留原提交信息
+   - 版本已与目标 tag 一致：跳过修改、不 amend，直接打 tag
+3. **fast-forward 安全模型**：只压缩/amend「尚未推送」的提交，新提交父节点始终是 `origin/<branch>` 头，普通 push 即为 fast-forward，**严禁 force push**；远端有本地缺失提交时脚本会中止，先 rebase/merge 后再发
+4. 修改发布流程后先 `sh release.sh -n` dry-run，确认「发布计划」（版本同步前后值、压缩方式、提交清单）无误再执行
+
+## POSIX sh 脚本规范
+
+仓库内 `.sh` 均为 `#!/bin/sh`，须同时兼容 Git for Windows（GNU 工具）与 macOS（BSD 工具）：
+
+- **禁止依赖 `sed -i`**：GNU 与 BSD 的 `-i` 参数语义不同；就地修改一律「写临时文件 + `mv`」，例如 `sed '...' file > tmp && mv tmp file`
+- 结构化文本的替换必须限定地址范围，防止误伤正文——如 SKILL.md front matter 用 `2,/^---$/`；执行前先校验目标字段存在（文件缺失/字段缺失即报错中止），避免静默产出错误结果
+- 只用 POSIX 特性（`set -eu`、`[ ]`、`case`），不引入 bashism
+- 新建或修改 `.sh` 后必须 `sh -n` 语法检查
+
+## 变更验证纪律
+
+`release.sh` 等带写操作的脚本，不得仅凭静态阅读交付，按以下顺序验证：
+
+1. `sh -n <script>.sh` 语法检查
+2. 关键片段（如 sed 读写）先在**临时副本**上验证输入输出
+3. 端到端在**隔离临时仓库**验证：`mktemp -d` 下 `git init --bare` 模拟 origin，clone 出工作副本，构造不同状态覆盖全部分支路径（本次覆盖：dry-run 零改动、多提交压缩、单提交 amend、版本已一致跳过），并断言 HEAD 位置、工作区干净、本地/远端 tag、被改文件内容
+4. **绝不在真实仓库直接试跑发布脚本**；临时测试脚本放系统 temp 目录，验证完毕立即删除
+
+## Windows（PowerShell 宿主）执行要点
+
+通用纪律统一见 [tack/harness/rule/windows-env.md](tack/harness/rule/windows-env.md)（bash 完整路径、禁止内联含 `$`/引号/正则的命令、stderr 噪音识别、LF 换行），此处只保留本仓库特化：
+
+- 本仓库 [.gitattributes](.gitattributes) 规定 `*.sh` / `*.md` / `*.yaml` / `*.yml` 均为 eol=lf（比通用规则多出 yaml/yml），新建后用 `git status` / `git diff` 抽查是否整文件脏 diff
