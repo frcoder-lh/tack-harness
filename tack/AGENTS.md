@@ -72,7 +72,7 @@
 | `harness/cmd/` | 命令入口（base/dev/git 分组），定义准入准出 |
 | `harness/agents/` | 可委派角色（code-explorer / code-architect / code-reviewer）：被 cmd 引用后经 Task 子代理在独立上下文执行，可多实例并行；只供发现与委派，不参与命令路由 |
 | `harness/workflow/` | 工作流状态机（development/testing/bugfix/merge-conflict/branch-op） |
-| `harness/script/` | 固定流程脚本（init-tack、space、scan-routes、lint-harness、scan-secrets、check-guidance、work-status、project、repo、work、git-worktree-helper、branch-op；Windows 统一经 `run.ps1` 启动器调用） |
+| `harness/script/` | 固定流程脚本（init-tack、space、scan-routes、lint-harness、scan-secrets、check-guidance、work-status、project、repo、work、git-worktree-helper、branch-op、skill-update；Windows 统一经 `run.ps1` 启动器调用） |
 | `harness/rule/` | 业务、代码与安全规则（coding-standards、security、git-boundary、context-loading、windows-env、record-* 等；不参与路由，按需加载） |
 | `harness/template/` | 命令/工作流/文档/工作区模板 |
 | `harness/reference/` | 通用方法论与复杂独立能力（随 harness 分发、不接受项目级沉淀，项目做法归 rule/wiki；须被 cmd/workflow/agents/rule 引用后才加载，不参与路由） |
