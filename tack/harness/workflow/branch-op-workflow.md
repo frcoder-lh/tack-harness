@@ -77,4 +77,4 @@ initialized → preparing → integrating → pushing → completed
 - 工作区 `status.yaml`：`workflow: branch-op`；`status` 按上表流转；`current.stage` 取 prepare/integrate/resolve/push/cleanup
 - `branch_op` 区块记录每仓库的临时分支名与推送状态（结构见 `harness/template/work-status.yaml`），是续跑与 close 清理的依据
 - push 成功后置 `status: completed`；本工作流不使用 progress.merged
-- 用户引导/纠偏照常采集到 `guidance`（AGENTS.md 核心约束第 9 条）
+- 用户引导/纠偏照常采集到 `guidance`（AGENTS.md 核心约束第 11 条）

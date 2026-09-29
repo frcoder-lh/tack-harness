@@ -10,6 +10,7 @@
 
 - 编码规范、研发规则：代码风格、评审要求等
 - 仅在编码/评审活动中加载（区别于需要常驻上下文的 agents）
+- **语言/技术栈特定约束落点**：`coding-standards-<语言>.md`（如 `coding-standards-python.md`），按需新建，不并入通用 `coding-standards.md`
 
 ## 融合原则
 

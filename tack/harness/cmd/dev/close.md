@@ -55,7 +55,7 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
    - 输入: 读取 `$work/status.yaml` 的 `guidance` 列表中所有 `status: raw` 条目（无 raw 条目则向用户一句话说明并跳过本步）
    - 动作: 逐条按 `harness/rule/record-classification.md` 判据评估——筛出**跨工作区可复用的操作习惯/流程修正**（应固化为 workflow/cmd/rule 的内容），一次性过程信息标记为不固化；汇总为候选清单：来源条目 id | 场景与用户引导 | 建议落点（workflow/cmd/rule 及具体文件）| 融合或新建
    - 询问: 向用户展示候选清单，可全部采纳、挑选部分或放弃（**落盘必须经用户确认**，本步不擅自改 harness）
-   - 落盘: 采纳项走 `record` 流程——先扫描对应 workflow/cmd/rule，**能融合则融合**，确无合适条目才新建；同时遵守核心约束第 8 条，发现确定性固定步骤一并提议固化为 script
+   - 落盘: 采纳项走 `record` 流程——先扫描对应 workflow/cmd/rule，**能融合则融合**，确无合适条目才新建；同时遵守核心约束第 10 条，发现确定性固定步骤一并提议固化为 script
    - 回写: 落盘完成的条目的 `status` 置 `distilled`，并在条目内另起一行按固定格式注明落点：`落点: <相对 $root 的路径>`（如 `落点: harness/cmd/dev/code.md`，多落点空格分隔；格式见 `harness/template/work-status.yaml`）；放弃或评估为不固化的置 `dismissed`；用户暂缓决断的保留 `raw`（不阻塞关闭，可日后手动 `evolution`/`record` 处理）
    - 校验: 回写后执行 `sh $root/harness/script/check-guidance.sh $root <work_id>`，确认本工作区 distilled 条目引用的落点文件均存在；报失效时先修复（补回文件或更正落点路径）再继续，不删除来源条目
    - 边界: guidance 只作为候选素材，事实存疑、无法从工作区过程证实的不固化；wiki 类知识已在第 4 步处理，本步只面向 workflow/cmd/rule

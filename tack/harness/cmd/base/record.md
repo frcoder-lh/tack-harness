@@ -21,7 +21,7 @@ summary: 沉淀知识或扩展能力——优先融合已有条目；可落命�
 
 1. **获取记录内容（两种触发方式）**
    - 用户给了明确内容: 以参数/用户原话为准
-   - 用户未给具体内容（如只说「记录一下」「把最近的引导沉淀一下」）: 读取 `$work/status.yaml` 的 `guidance` 中 `status: raw` 条目（不存在 `$work` 时扫描 `$root/space/*/status.yaml`），列出候选请用户挑选；这些条目是任务结束时自动采集的用户引导（AGENTS.md 第 9 条）
+   - 用户未给具体内容（如只说「记录一下」「把最近的引导沉淀一下」）: 读取 `$work/status.yaml` 的 `guidance` 中 `status: raw` 条目（不存在 `$work` 时扫描 `$root/space/*/status.yaml`），列出候选请用户挑选；这些条目是任务结束时自动采集的用户引导（AGENTS.md 第 11 条）
 
 2. **判断内容类型**
    - 动作: 按 `harness/rule/record-classification.md` 的判据归入 **agents / cmd / workflow / rule / wiki**；类型存疑时按该文件的路由归类，并向用户确认

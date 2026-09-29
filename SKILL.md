@@ -1,6 +1,6 @@
 ---
 name: "tack"
-version: "V0.0.6"
+version: "V0.0.7"
 description: "编程工作流 skill，本体只做引导：空目录执行即初始化 tack 空间（物化 AGENTS.md + harness 骨架），随后加载 AGENTS.md 完成命令路由。覆盖需求规划 spec/plan、编码 code、单测 testcode、改 bug、Git 提交/推送/合并/冲突、知识沉淀 record 等开发全流程；命令支持中英文触发词与简写，可省略 /tack 前缀或用自然语言描述意图。"
 ---
 

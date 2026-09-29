@@ -52,7 +52,7 @@ summary: 编码前先判定涉及仓库并确保就绪（主仓库缺失转 crea
    - 执行 `sh $root/harness/script/work-status.sh $work/status.yaml set status developing stage code next "<本批目标>"`（自动刷新 updated_at）；本批首个任务在 tasks 中置 `in_progress`（任务级状态直接编辑 YAML）
 
 3. **加载规则**
-   - 动作: 按任务涉及的代码类型（后端/前端/配置/SQL/脚本等）加载 `$root/harness/rule/` 匹配规则：加载 `coding-standards.md` 中**已有实质条目的小节**（空小节不构成约束，无内容可加载时直接跳过，以模仿仓库既有代码模式为默认基线），并加载类型专属规则（项目可自行扩展）
+   - 动作: 按任务涉及的代码类型（后端/前端/配置/SQL/脚本等）加载 `$root/harness/rule/` 匹配规则：加载 `coding-standards.md` 中**已有实质条目的小节**（空小节不构成约束，无内容可加载时直接跳过，以模仿仓库既有代码模式为默认基线）；任务涉及某语言时，若存在对应语言规则文件 `coding-standards-<语言>.md`（如 `coding-standards-python.md`）则一并加载——这些文件按需新建，不存在即该语言无项目级约束；再加载类型专属规则（项目可自行扩展）
    - 涉及外部输入、命令/进程执行、数据库查询、Web 输出、文件路径、鉴权、凭据与加密、新依赖时，**必须加载 `security.md`**，命中清单模式即按其正确做法实现
    - 按需参考 reference: `implement.md`、`codebase-design.md`、`research.md`
 

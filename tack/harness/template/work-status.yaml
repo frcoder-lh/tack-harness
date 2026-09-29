@@ -93,7 +93,7 @@ branch_op: null
 #   force_lease_authorized: false   # rebase：用户当次明确授权后置 true（脚本仍需环境变量双验证）
 #   cleaned: false                  # close cleanup 完成后置 true
 
-# 用户引导记录（harness 自进化的原始素材，AGENTS.md 核心约束第 9 条）
+# 用户引导记录（harness 自进化的原始素材，AGENTS.md 核心约束第 11 条）
 # 采集时机：每个任务/环节结束时，凡用户对 AI 的做法有过引导、纠偏、补充约定，自动追加一条（无需用户要求）
 # 固化时机：close 工作区时自动触发、或手动执行 evolution/record——将可复用的操作习惯固化到
 #           workflow/cmd/rule（能融合则融合，经用户确认后落盘），随后将该条 status 置 distilled

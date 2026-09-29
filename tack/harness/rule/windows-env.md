@@ -9,6 +9,7 @@
 - **PowerShell 不支持 heredoc**（`<<EOF`）：多行字符串用 here-string `@"..."@`
 - **PowerShell 不支持 `&&` / `||`**：用 `;` 分隔，或写入脚本文件
 - **`bash` / `sed` 等 GNU 工具不在 PowerShell PATH**：经 `& "C:\Program Files\Git\bin\bash.exe" -c "<cmd>"` 调用；文件读写改优先用内置 Read/Write/Edit 工具
+- **PATH 里的 `bash` 可能是 WSL 的（`C:\Windows\System32\bash.exe`）**：它不能解析 Windows 盘符路径（如 `D:/...`），跑 `sh -n` / 执行脚本会报 "No such file or directory"。须用 Git for Windows 的 `sh.exe`（`C:\Program Files\Git\bin\sh.exe`，可从 `(Get-Command git).Source` 同目录 `bin\sh.exe` 推断）；跑 `harness/script/` 脚本走 `run.ps1` 即可（已内置正确 bash 定位）
 - `harness/script/` 脚本一律走 `run.ps1` 启动器（见 AGENTS.md「脚本调用约定」）
 
 ## 输出噪音识别
@@ -28,3 +29,4 @@ PowerShell 会把外部程序的 stderr 包装成 Error 记录，以下输出**�
 
 来源: 用户沉淀 2026-09-28（evolution 执行实战：heredoc/`&&`/多行内联/sed 缺失/CRLF 五类异常）
 补充: 2026-09-28（release.sh 优化实战：单行含 `$`/正则内联同样被截断；profile 异常与 CRLF 警告等 stderr 噪音不得误判为失败）
+补充: 2026-09-29（evolution sh 跨平台审查实战：PATH 里的 `bash` 命中 WSL 无法解析 Windows 盘符路径，跑 `sh -n` 报 "No such file or directory"；改用 Git for Windows `sh.exe`）
