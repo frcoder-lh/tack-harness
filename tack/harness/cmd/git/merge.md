@@ -44,6 +44,7 @@ summary: 将目标分支合并进当前工作区分支（或在平台上发起�
 
 6. **合并后同步**
    - 动作: 本地合并成功后提示 `push`；平台合并后回填 MR 链接到 `$work/status.yaml`（mr_url），并置 `progress.merged: true`；冲突解决可转入 merge-conflict 工作流
+   - 合并 ≠ 上线: 用户需要在 PPE/PROD 等环境继续验证或上线时，把各环境的上线计划与泳道/版本事实登记到 `$work/status.yaml` 的 `deploy` 区块（结构见 `harness/template/work-status.yaml`）；BOE 验证泳道不再使用时将对应条目置 `recycled`
 
 ## 后置完成检验
 
@@ -52,6 +53,7 @@ summary: 将目标分支合并进当前工作区分支（或在平台上发起�
 - [ ] 每个仓库合并结果明确（成功 / 冲突转 solve / 用户选择跳过）
 - [ ] 合并后构建与测试通过
 - [ ] `$work/status.yaml` 的 mr_url 已更新（平台合并时）
+- [ ] `deploy` 区块已按需登记上线计划或泳道回收（无部署需求时向用户说明并跳过）
 
 ## 下一步建议
 

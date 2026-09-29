@@ -1,8 +1,8 @@
-# Tack Harness
+# [Tack Harness](https://github.com/frcoder-lh/tack-harness)
 
 **精简克制・人类可读・任意配置** — 专为软件研发打造的编程工作流框架
 
-![stars](https://img.shields.io/github/stars/frcoder-lh/tack-harness?style=flat-square&label=stars)
+[![stars](https://img.shields.io/github/stars/frcoder-lh/tack-harness?style=flat-square&label=stars)](https://github.com/frcoder-lh/tack-harness)
 ![last-commit](https://img.shields.io/github/last-commit/frcoder-lh/tack-harness?style=flat-square)
 ![license](https://img.shields.io/badge/license-MIT-yellow?style=flat-square)
 ![shell](https://img.shields.io/badge/shell-POSIX%20sh-4e8cff?style=flat-square)

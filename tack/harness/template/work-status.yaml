@@ -63,6 +63,19 @@ follow_ups: []
 #     plan: ""             # 计划处理时间或承接 issue 链接
 #     status: "open"       # open / done / wontdo
 
+# 部署/泳道登记（需求在各环境的小流量与上线事实；testcode 部署验证、merge 登记上线计划时写入，close 检查回收）
+# 泳道本质是「需求分支代码部署到共享环境的隔离实例 + 流量路由规则」，不新增代码分支概念；
+# 环境拓扑、泳道申请方式等静态事实记在 $root/wiki/manifest.md 的「部署环境与泳道」，不在这里
+deploy: []
+# 每条结构：
+#   - repo: ""              # 仓库名
+#     env: ""               # 环境：BOE / PPE / PROD（或项目自定义环境）
+#     lane: ""              # 泳道标识（建议从 work_id 派生，如 tack-<work_id>，便于与部署平台对账）
+#     route: ""             # 进泳道的流量路由方式（header / cookie / uid 白名单）
+#     build: ""             # 部署版本 / 镜像 tag
+#     url: ""               # 访问地址（或部署平台入口链接）
+#     status: "deploying"   # deploying / deployed / verified / recycled
+
 # 分支操作信息（仅 branch-op 工作流使用，由 work 分流时写入；续跑与 close 清理以此为准）
 branch_op: null
 # 结构：
