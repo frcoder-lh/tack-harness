@@ -11,12 +11,12 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
 ## 前置准入条件
 
 - 已是 tack 空间
-- AGENTS.md 项目信息区块中存在 skill_version 与 skill_update_url（缺失时以本机已安装 skill 的版本为准）
+- AGENTS.md 项目信息区块中 `skill_update_url` 为出厂固定值（`https://github.com/frcoder-lh/tack-harness`）；`skill_version` 由 init 自动填充，老空间为空时以本机已安装 skill 的 SKILL.md 版本号为准
 
 ## 指令内容
 
 1. **检测版本**
-   - 动作: 读取 AGENTS.md 项目信息区块的 skill_version，与 skill_update_url 指向的最新版本（或本机已安装 skill 的 SKILL.md 版本号）对比；无网络时以本机版本为准并提示
+   - 动作: 读取 AGENTS.md 项目信息区块的 `skill_version`（为空时取本机已安装 skill 的 SKILL.md front matter 版本号）；通过 `skill_update_url` 指向仓库的最新 release tag（`Vx.y.z`）获取最新版本进行对比；无网络时以本机版本为准并提示
    - 动作: 若版本一致且无本地差异（见第 2 步），提示"已是最新"并结束
 
 2. **检测本地改动**
@@ -55,12 +55,14 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
      - "保留本地"的文件跳过
      - "融合"的文件写入经用户确认后的融合结果
      - `cmd/` 只增补新增命令文件，不覆盖同名文件
-   - 不触碰 AGENTS.md（包括项目信息区块）
+   - 文件覆盖阶段不触碰 AGENTS.md（项目信息区块仅由下一步 project.sh 单独写入 skill_version，其余字段一律不动）
 
 7. **验证与收尾**
    - 动作: 执行 `sh $root/harness/script/scan-routes.sh list $root/harness` 确认工作流与命令路由正常
    - 动作: 对执行过"融合"的脚本文件执行 `sh -n` 语法校验，不通过则回滚该文件并提示用户
-   - 动作: 更新 AGENTS.md 项目信息区块的 skill_version（直接编辑 YAML 或由用户确认后写入）；展示备份位置与本次更新摘要
+   - 动作: 调用 project.sh 把新版本写入 AGENTS.md 项目信息区块（禁止手工编辑 YAML）：
+     `sh $root/harness/script/project.sh skill-version $root <新版本> --no-commit`（Windows 经 run.ps1 启动）；`--no-commit` 表示由下一步框架提交统一入库
+   - 动作: 展示备份位置与本次更新摘要
 
 ## 框架自动提交（无需用户操作）
 
@@ -72,8 +74,8 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
 - [ ] scan-routes.sh list 正常输出工作流与全部命令
 - [ ] 所有"本地已修改"文件均已按用户确认的方案处理，无遗漏
 - [ ] 融合文件通过 `sh -n` 校验，融合结果经用户确认
-- [ ] 用户自定义的 cmd、rule，以及 AGENTS.md 项目信息未被改动
-- [ ] skill_version 已更新
+- [ ] 用户自定义的 cmd、rule 未被改动；AGENTS.md 项目信息仅 skill_version 经 project.sh 更新，其余字段不变
+- [ ] skill_version 已更新为最新版本号
 
 ## 下一步建议
 

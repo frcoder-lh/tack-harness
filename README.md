@@ -143,8 +143,8 @@ sh install.sh
 ```
 my-project/
 ├── AGENTS.md            # 常驻说明书：核心约束 + 项目信息（项目名/关键词/仓库映射/工作列表）
-├── README.md            # skill 使用说明（自 skill 安装目录复制）
 ├── harness/             # 开发过程定义（需求无关，可自定义，升级不覆盖）
+│   ├── README.md        #   harness 的使用说明
 │   ├── cmd/             #   命令：发现、路由、准入准出
 │   ├── agents/          #   可委派角色：独立上下文并行执行（explorer/architect/reviewer）
 │   ├── workflow/        #   工作流：状态机与命令编排

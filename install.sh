@@ -6,6 +6,7 @@
 #   sh install.sh --target <path>     安装到自定义目录
 #   sh install.sh --list              列出支持的 agent
 #   sh install.sh --dry-run --agent trae  预览安装
+#   curl -fsSL <raw>/install.sh | sh -s [--agent <name>]  免克隆一键安装（自动下载源码）
 #
 # 交互式安装时，若目标已存在 tack，会询问覆盖方式
 # （全部覆盖 / 全部跳过 / 逐个选择）；非交互环境请用 --force 控制。
@@ -25,6 +26,9 @@ set -e
 
 SKILL_NAME="tack"
 SKILL_FILES="SKILL.md README.md install.sh tack"
+
+# 管道安装（curl | sh）时下载源码压缩包的地址
+REPO_ARCHIVE_URL="https://github.com/frcoder-lh/tack-harness/archive/refs/heads/master.tar.gz"
 
 # —— 预设 agent 目录 ——
 # 格式: "agent_name|检测目录|skill 安装目录"
@@ -110,12 +114,54 @@ if [ "$DO_LIST" -eq 1 ]; then
     exit 0
 fi
 
-# —— 解析脚本所在目录 ——
+# —— 解析脚本所在目录（管道安装时自动下载源码） ——
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+TMP_SRC=""
+
+cleanup_tmp() {
+    if [ -n "$TMP_SRC" ] && [ -d "$TMP_SRC" ]; then
+        rm -rf "$TMP_SRC"
+    fi
+}
+trap cleanup_tmp EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
 if [ ! -f "$SCRIPT_DIR/SKILL.md" ]; then
-    echo "错误: 找不到 SKILL.md，请在 skill 仓库根目录运行此脚本"
-    echo "  当前目录: $SCRIPT_DIR"
-    exit 1
+    # 经 curl | sh 等方式运行时脚本脱离仓库，本地没有源码，自动下载压缩包到临时目录
+    echo "==> 未检测到本地源码，正在下载 tack-harness ..."
+    TMP_SRC="$(mktemp -d)"
+    ARCHIVE="$TMP_SRC/src.tar.gz"
+    DOWNLOAD_OK=0
+    if command -v curl >/dev/null 2>&1; then
+        if curl -fsSL "$REPO_ARCHIVE_URL" -o "$ARCHIVE"; then
+            DOWNLOAD_OK=1
+        elif curl -fsSL --ssl-no-revoke "$REPO_ARCHIVE_URL" -o "$ARCHIVE"; then
+            # Windows Git Bash 的 schannel 后端在受限网络下需关闭证书吊销检查
+            DOWNLOAD_OK=1
+        fi
+    elif command -v wget >/dev/null 2>&1; then
+        if wget -q -O "$ARCHIVE" "$REPO_ARCHIVE_URL"; then
+            DOWNLOAD_OK=1
+        fi
+    fi
+    if [ "$DOWNLOAD_OK" -ne 1 ]; then
+        echo "错误: 源码下载失败（需要可用的 curl 或 wget）: $REPO_ARCHIVE_URL"
+        exit 1
+    fi
+    if ! tar -xzf "$ARCHIVE" -C "$TMP_SRC"; then
+        echo "错误: 源码压缩包解压失败"
+        exit 1
+    fi
+    # GitHub 压缩包解压后为 <repo>-<branch>/ 单层目录
+    SRC_SKILL="$(find "$TMP_SRC" -mindepth 2 -maxdepth 2 -name SKILL.md | head -n 1)"
+    if [ -z "$SRC_SKILL" ]; then
+        echo "错误: 下载包中未找到 SKILL.md"
+        exit 1
+    fi
+    SCRIPT_DIR="$(dirname "$SRC_SKILL")"
+    echo "    源码已下载至临时目录，安装结束后自动清理"
+    echo ""
 fi
 
 # SELECTIONS 保存最终安装目标，每行格式: "名称|路径"
@@ -136,6 +182,21 @@ add_selection() {
     IFS="$OLD_IFS"
     SELECTIONS="${SELECTIONS}
 ${new_line}"
+}
+
+# —— 交互输入来源 ——
+# 经管道运行（curl | sh）时 stdin 已被脚本占用，交互输入改读控制终端 /dev/tty
+USE_DEV_TTY=0
+if [ ! -t 0 ] && (: < /dev/tty) 2>/dev/null; then
+    USE_DEV_TTY=1
+fi
+
+read_input() {
+    if [ "$USE_DEV_TTY" -eq 1 ]; then
+        read "$@" < /dev/tty
+    else
+        read "$@"
+    fi
 }
 
 # —— 确定目标路径 ——
@@ -180,7 +241,7 @@ elif [ -n "$TARGET" ]; then
     add_selection "custom|${TARGET}|${TARGET}"
 else
     # —— 无参数：自动检测已安装的 agent，交互选择 ——
-    if [ ! -t 0 ]; then
+    if [ ! -t 0 ] && [ "$USE_DEV_TTY" -ne 1 ]; then
         echo "错误: 当前为非交互环境，无法选择 agent"
         echo "请使用 --agent <name>（多个用逗号分隔）或 --target <path>"
         echo "使用 --list 查看支持的 agent"
@@ -222,7 +283,7 @@ ${line}"
 
     echo ""
     printf "请选择要安装的 Agent（输入编号，逗号分隔；直接回车=全部；q=取消）: "
-    read CHOICE
+    read_input CHOICE
 
     # 归一化为小写判断关键字
     CHOICE_KEY=$(printf '%s' "$CHOICE" | tr 'A-Z' 'a-z' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
@@ -272,7 +333,7 @@ ${line}"
     esac
 
     # —— 询问是否覆盖已存在的安装 ——
-    # 仅交互分支可达（上方已校验 [ -t 0 ]）；dry-run 为预览，不询问。
+    # 仅交互分支可达（上方已校验 stdin 为终端或可读取 /dev/tty）；dry-run 为预览，不询问。
     # 已通过 --force 指定时同样无需询问。
     if [ "$FORCE" -ne 1 ] && [ "$DRY_RUN" -ne 1 ]; then
         EXISTING=""
@@ -314,7 +375,7 @@ ${line}"
             set +f
             echo ""
             printf "请选择覆盖方式 [y=全部覆盖 / n=全部跳过(默认) / e=逐个选择]: "
-            read OW
+            read_input OW
             OW_KEY=$(printf '%s' "$OW" | tr 'A-Z' 'a-z' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
             case "$OW_KEY" in
                 y|yes)
@@ -333,7 +394,7 @@ ${line}"
                         _p=${_r#*|}
                         while :; do
                             printf "  覆盖 %s (%s)？[y/N]: " "$_n" "$_p"
-                            read ONE
+                            read_input ONE
                             ONE_KEY=$(printf '%s' "$ONE" | tr 'A-Z' 'a-z' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
                             case "$ONE_KEY" in
                                 y|yes)

@@ -98,10 +98,11 @@ cp -rn "$TACK_DIR/." "$ROOT/"
 # （Git 不跟踪空目录；wiki 文件由 init 命令按需物化），显式创建
 mkdir -p "$ROOT/space" "$ROOT/repo" "$ROOT/wiki"
 
-# README.md 是 skill 安装目录根的使用说明，一并物化到 tack 空间根（-n 不覆盖）
+# README.md 是 skill 安装目录根的使用说明，物化到 harness/ 目录（已存在则跳过）；
+# 不放空间根——根目录 README.md 位置留给用户项目自身
 SKILL_ROOT="$(cd "$TACK_DIR/.." && pwd)"
-[ -f "$SKILL_ROOT/README.md" ] && [ ! -e "$ROOT/README.md" ] && \
-    cp "$SKILL_ROOT/README.md" "$ROOT/README.md"
+[ -f "$SKILL_ROOT/README.md" ] && [ ! -e "$ROOT/harness/README.md" ] && \
+    cp "$SKILL_ROOT/README.md" "$ROOT/harness/README.md"
 
 # 将 tack 空间根初始化为 Git 仓库（$ROOT/.git 已存在则跳过；重复执行安全）。
 # 空间仓库的 Git 操作全部由框架自动完成：init 后立即做首次提交，
@@ -112,6 +113,20 @@ if [ -d "$ROOT/.git" ]; then
 else
     git -C "$ROOT" init >/dev/null
     echo "Git repository initialized: $ABS_ROOT"
+fi
+
+# 回填 skill_version：版本号以本机 skill 的 SKILL.md front matter 为唯一事实源，
+# 物化后写入 AGENTS.md 项目信息区块（skill_update_url 已在出厂模板中固定）。
+# --if-empty 保证重复执行或已 update 过的空间不被本机旧版本降级；
+# --no-commit 抑制单次提交，交由下方首次提交统一入库。
+SKILL_VER=""
+if [ -f "$SKILL_ROOT/SKILL.md" ]; then
+    SKILL_VER=$(sed -n '2,/^---$/ s/^version:[[:space:]]*"\(.*\)"[[:space:]]*$/\1/p' "$SKILL_ROOT/SKILL.md" | head -1)
+fi
+if [ -n "$SKILL_VER" ]; then
+    sh "$ABS_ROOT/harness/script/project.sh" skill-version "$ABS_ROOT" "$SKILL_VER" --if-empty --no-commit
+else
+    echo "Warning: 未在 $SKILL_ROOT/SKILL.md front matter 找到 version 字段，skill_version 留空（可稍后执行 update 修正）" >&2
 fi
 
 # 首次/补漏自动提交（space.sh 内部判断无变更则跳过，重复执行安全）
