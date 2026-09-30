@@ -63,6 +63,7 @@
    - **手动更新**：用户明确要求记录/沉淀某个技能时走 `record`（更新优化 cmd/workflow/rule/wiki 或本文件常驻约定）；用户手动发起 harness 优化时走 `evolution`
    - **自动采集**：每个任务/环节结束时，凡用户对 AI 的做法有过引导、纠偏、补充约定，自动向 `$work/status.yaml` 的 `guidance` 列表追加一条原始记录（无需用户要求；只记事实与建议固化点，**不直接改动 harness**）。记录格式与字段见 `harness/template/work-status.yaml`
    - **自动固化**：执行 `close` 关闭工作区时自动触发一次自进化审查——把 `guidance` 中 `raw` 条目的可复用操作习惯固化到 workflow/cmd/rule（先扫描、能融合则融合），经用户确认后落盘并将条目置 `distilled`；未消化完的 raw 条目不阻塞关闭。用户也可随时手动执行 `evolution` 或 `record` 提前固化
+12. **markdown 引用可定位**：生成 markdown 文件时，引用文件或代码一律采用 GitHub 风格的可定位行数锚点格式（如 `path/to/file.md#L12-L15`），读者可直接跳到对应行，禁止只给文件名或"某行附近"式模糊指向
 
 ## 目录概览
 
