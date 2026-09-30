@@ -18,6 +18,12 @@
    - 版本已与目标 tag 一致：跳过修改、不 amend，直接打 tag
 3. **fast-forward 安全模型**：只压缩/amend「尚未推送」的提交，新提交父节点始终是 `origin/<branch>` 头，普通 push 即为 fast-forward，**严禁 force push**；远端有本地缺失提交时脚本会中止，先 rebase/merge 后再发
 4. 修改发布流程后先 `sh release.sh -n` dry-run，确认「发布计划」（版本同步前后值、压缩方式、提交清单）无误再执行
+5. **README 随发版更新（AI 职责，非脚本）**：发版前由 AI 全仓扫描本次新增/变更能力，在保持 README 整体结构不变的前提下融入对应章节；扫描源与落点——
+   - `tack/harness/script/*.sh` → README「空间结构」script/ 清单、「安全模型」表
+   - `tack/harness/cmd/**/*.md` → README「命令参考」表（7.1/7.2/7.3）
+   - `tack/harness/workflow/*.md` → README「工作流模型」表
+   - `CHANGELOG.md` 本版本段落 → 够格的新能力补入「核心特性」表
+   - 原则：只融入已落地的新增/变更能力，不重写既有条目、不动章节结构
 
 ## POSIX sh 脚本规范
 

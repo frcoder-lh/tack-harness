@@ -75,6 +75,10 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
 8. **清理上下文**
    - 动作: 清空 `$work` 上下文变量，输出当前剩余工作区列表（读 AGENTS.md 项目信息区块）
 
+9. **版本检查（更新提醒挂载点）**
+   - 动作: 收尾完成、下一步建议之前，执行 `sh $root/harness/script/check-update.sh $root`（Windows 经 run.ps1 启动；脚本内部双节流：距上次检查不足 7 天或同版本已提醒过则静默返回）
+   - 输出协议: 无输出则不提及；stdout 非空时为「有新版本」提醒（首行）+ 本机版本至最新版本区间的更新内容摘要（其后各行，可能没有），在下一步建议中原样转述，并告知「说『更新』即可升级」；脚本非零退出时忽略，不向用户报错
+
 ## 框架自动提交（无需用户操作）
 
 - 动作: 上述收尾完成后，执行 `sh $root/harness/script/space.sh commit $root "chore(tack): close workspace <branch>"`，把 wiki 沉淀、第 5 步自进化对 harness（workflow/cmd/rule/script）的固化改动、status.yaml（含 guidance 回写）、AGENTS.md work 条目及文档保留/清理的结果自动提交到 tack 空间根仓库；无变更自动跳过
@@ -92,6 +96,7 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
 - [ ] `check-guidance.sh` 校验通过：本工作区 distilled 条目无失效落点
 - [ ] `deploy` 区块无未回收泳道（deploying/deployed），或用户已确认处理方式
 - [ ] 文档保留/清理符合用户选择
+- [ ] 版本检查已执行；有新版本时已原样转述提醒与更新内容，并建议执行 `update`
 
 ## 下一步建议
 

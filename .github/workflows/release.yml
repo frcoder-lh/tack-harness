@@ -29,10 +29,17 @@ jobs:
             -x '.gitattributes' \
             -x '.gitignore'
 
+      - name: Extract changelog section
+        run: |
+          [ -f CHANGELOG.md ] || touch CHANGELOG.md
+          TAG="${GITHUB_REF_NAME}"
+          awk -v tag="$TAG" '(index($0, "## " tag " ") == 1 || $0 == "## " tag) {f=1; next} f && /^## / {exit} f {print}' CHANGELOG.md > release-notes.md
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           name: Tack Harness ${{ steps.version.outputs.version }}
           tag_name: ${{ steps.version.outputs.version }}
+          body_path: release-notes.md
           files: dist/tack-harness-*.zip
           generate_release_notes: true

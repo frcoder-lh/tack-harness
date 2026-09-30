@@ -17,6 +17,7 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
 
 1. **检测版本**
    - 动作: 读取 AGENTS.md 项目信息区块的 `skill_version`（为空时取本机已安装 skill 的 SKILL.md front matter 版本号）；通过 `skill_update_url` 指向仓库的最新 release tag（`Vx.y.z`）获取最新版本进行对比；无网络时以本机版本为准并提示
+   - 动作: 远端有新版本时，先展示「本次更新内容」让用户了解变更再继续：拉取 `skill_update_url` 仓库的 `raw/master/CHANGELOG.md`，抽取「本机版本（不含）→ 最新版本」区间的全部版本段落向用户展示（多版本升级展示区间所有段落）；拉取失败或段落缺失时提示变更说明不可得并继续，不阻塞
    - 动作: 若版本一致且无本地差异（见第 3 步），提示"已是最新"并结束
 
 2. **更新本机 skill**（远端有新版本时执行）
@@ -69,7 +70,10 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
    - 动作: 对执行过"融合"的脚本文件执行 `sh -n` 语法校验，不通过则回滚该文件并提示用户
    - 动作: 调用 project.sh 把新版本写入 AGENTS.md 项目信息区块（禁止手工编辑 YAML）：
      `sh $root/harness/script/project.sh skill-version $root <新版本> --no-commit`（Windows 经 run.ps1 启动）；`--no-commit` 表示由下一步框架提交统一入库
-   - 动作: 展示备份位置与本次更新摘要
+   - 动作: 引导老空间接入自动更新检查（一次性，仅当以下任一缺失时执行；新空间经 init-tack 物化已自带）：
+     - `close` / `evolution` / `record` / `help` 命令文件缺少「版本检查（更新提醒挂载点）」步骤时，经用户确认后按本机 skill 的 `tack/harness/cmd/` 同名文件同节内容增补（检查命令与输出协议）
+     - `$root/.gitignore` 缺少 `.update-state` 条目时追加一行（check-update.sh 的本机状态文件，不入库）
+   - 动作: 展示备份位置与本次更新摘要；摘要须含**实际落盘清单**（基于第 7 步执行事实：新增/覆盖/融合的文件逐个列出），禁止臆测
 
 ## 框架自动提交（无需用户操作）
 
@@ -84,6 +88,7 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
 - [ ] 融合文件通过 `sh -n` 校验，融合结果经用户确认
 - [ ] 用户自定义的 cmd、rule 未被改动；AGENTS.md 项目信息仅 skill_version 经 project.sh 更新，其余字段不变
 - [ ] skill_version 已更新为最新版本号
+- [ ] `close` / `evolution` / `record` / `help` 命令文件含版本检查步骤且 `.gitignore` 忽略 `.update-state`（老空间本次经确认补写，新空间已自带）
 
 ## 下一步建议
 

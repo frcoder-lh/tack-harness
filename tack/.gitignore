@@ -5,6 +5,9 @@ space/*/repo/
 # Local backups (created by `update`)
 .backup/
 
+# Local update-check state (created by check-update.sh)
+.update-state
+
 # OS files
 .DS_Store
 Thumbs.db

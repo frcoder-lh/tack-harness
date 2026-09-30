@@ -51,6 +51,10 @@ summary: 沉淀知识或扩展能力——优先融合已有条目；可落命�
      - agents：重新读取 `$root/AGENTS.md`，确认条目位置正确、区块标记与项目信息区块完好
      - 本次内容来自 guidance 条目: 在来源 status.yaml 中将该条 `status` 置 `distilled`，并另起一行按固定格式注明落点：`落点: <相对 $root 的路径>`（多落点空格分隔，格式见 `harness/template/work-status.yaml`）；用户挑选后放弃的条目置 `dismissed`
 
+7. **版本检查（更新提醒挂载点）**
+   - 动作: 沉淀完成、下一步建议之前，执行 `sh $root/harness/script/check-update.sh $root`（Windows 经 run.ps1 启动；脚本内部双节流，无新版本时静默）
+   - 输出协议: 无输出则不提及；stdout 非空时为「有新版本」提醒（首行）+ 本机版本至最新版本区间的更新内容摘要（其后各行，可能没有），原样转述并**建议先执行 `update` 再继续沉淀**（避免在旧版 harness 上落盘，改动可能与新版冲突）；脚本非零退出时忽略，不向用户报错
+
 ## 框架自动提交（无需用户操作）
 
 - 动作: 人工审阅生效后，执行 `sh $root/harness/script/space.sh commit $root "chore(tack): record distilled knowledge"`，把新增/融合的 cmd、workflow、rule、wiki、AGENTS.md 沉淀条目自动提交到 tack 空间根仓库；无变更自动跳过
@@ -65,6 +69,7 @@ summary: 沉淀知识或扩展能力——优先融合已有条目；可落命�
 - [ ] agents 条目落在「沉淀约定」区块且未触碰项目信息 YAML 区块与 harness 固定章节；scan-routes 能扫描到新 cmd/workflow 条目
 - [ ] 素材来自 guidance 时，来源条目已回写 distilled（含落点）或 dismissed
 - [ ] 用户已审阅确认
+- [ ] 版本检查已执行；有新版本时已原样转述提醒与更新内容，并建议先执行 `update`
 
 ## 规则文件索引
 

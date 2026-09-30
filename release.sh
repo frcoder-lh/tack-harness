@@ -2,13 +2,14 @@
 # release.sh — 发布新版本
 #
 # 流程：
-#   1) 将本地所有「未推送到远程」的 commit 压缩为一个 commit（soft reset 到
+#   1) 校验工作区干净、CHANGELOG.md 含目标版本段落；
+#   2) 将本地所有「未推送到远程」的 commit 压缩为一个 commit（soft reset 到
 #      origin/<branch>，新提交父节点仍是远端分支头 → 推送为 fast-forward，
 #      不使用 force）；被压缩的提交清单保留在新 commit 的 body 中；
 #      同时把 SKILL.md front matter 的 version 字段同步为新版本号——多个提交时
 #      随压缩提交一起提交，仅 1 个未推送提交时 amend 进该提交（已一致则跳过）；
-#   2) 打 annotated tag（Vx.y.z，匹配 .github/workflows/release.yml 触发规则）；
-#   3) 推送分支与 tag；tag 推送后由 CI 自动创建 GitHub Release。
+#   3) 打 annotated tag（Vx.y.z，匹配 .github/workflows/release.yml 触发规则）；
+#   4) 推送分支与 tag；tag 推送后由 CI 自动创建 GitHub Release。
 #
 # Usage:
 #   sh release.sh                     自动递增 patch（基于最新本地 tag）
@@ -134,6 +135,17 @@ if git show-ref --tags --quiet -- "refs/tags/$TAG"; then
     echo "错误：tag $TAG 已存在" >&2; exit 1
 fi
 
+# 校验 CHANGELOG.md 含目标版本段落（变更说明单一事实源，缺失即中止）
+CHANGELOG_FILE="CHANGELOG.md"
+if [ ! -f "$CHANGELOG_FILE" ]; then
+    echo "错误：未找到 $CHANGELOG_FILE，发版前请补充变更说明（新增 \"## $TAG\" 段落）" >&2
+    exit 1
+fi
+if ! grep -qF "## ${TAG}" "$CHANGELOG_FILE"; then
+    echo "错误：$CHANGELOG_FILE 缺少 \"## $TAG\" 段落，发版前请补充本次变更说明" >&2
+    exit 1
+fi
+
 # 读取 SKILL.md front matter 中的当前 version（仅匹配开头与第二个 --- 之间）
 SKILL_FILE="SKILL.md"
 if [ ! -f "$SKILL_FILE" ]; then
@@ -163,6 +175,7 @@ echo ""
 echo "======== 发布计划 ========"
 echo "分支      : $branch（基点 $base）"
 echo "版本 tag  : $TAG"
+echo "变更说明  : $CHANGELOG_FILE 已含 $TAG 段落"
 if [ "$current_version" = "$TAG" ]; then
     echo "版本同步  : $SKILL_FILE version 已是 $TAG，无需修改"
 else

@@ -23,7 +23,11 @@ summary: 进化 harness——审查 cmd 下每个指令与 AGENTS.md，识别可
    - 存在 ERROR（frontmatter 缺失/名实不符/四段缺失/路由 token 冲突）：先修复后再进入审查——这类问题属于结构损坏，不作为候选讨论；WARN（short 缺失、reference 孤儿）列入候选清单一并评估
    - 退出码 0 时直接进入下一步
 
-2. **枚举全部指令并收集 guidance 素材**
+2. **版本检查（更新提醒挂载点）**
+   - 动作: 执行 `sh $root/harness/script/check-update.sh $root`（Windows 经 run.ps1；脚本内部双节流，无新版本时静默）
+   - 输出协议: 无输出则不提及、直接进入下一步；stdout 非空时为「有新版本」提醒（首行）+ 本机版本至最新版本区间的更新内容摘要（其后各行，可能没有），原样转述并**建议先执行 `update` 再进化**（避免在旧版 harness 上做审查与沉淀，改动可能与新版冲突）；用户坚持继续时进入下一步，不阻塞
+
+3. **枚举全部指令并收集 guidance 素材**
    - 动作: 执行 `sh $root/harness/script/scan-routes.sh commands $root/harness`，取得 base/dev/git 全量命令清单与文件路径；逐个重新读取正文（不相信上下文旧内容）
    - AGENTS.md: 重新读取 `$root/AGENTS.md` 全文（核心约束编号条目、环境变量、沉淀约定等章节）；`<!-- tack:info:start/end -->` 项目信息区块由 project.sh 维护，只读不改
    - guidance: 读取当前工作区 `$work/status.yaml` 的 `guidance`（存在 `$work` 时优先），并扫描 `$root/space/*/status.yaml` 中其余 `status: raw` 条目；汇总去重（同一引导在多个工作区重复出现视为高优先级信号）
