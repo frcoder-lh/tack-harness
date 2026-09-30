@@ -39,7 +39,7 @@ summary: 可选阶段——基于 spec/plan 与代码生成单元测试，循环
 
 3. **生成单元测试**
    - 输入: spec 的业务规则/验收标准 + plan 的测试策略 + 被测代码
-   - 动作: 按需参考 `reference/tdd.md` 与 `harness/template/test-plan.md`，为核心分支、边界条件、异常路径编写测试；**断言对准 spec/plan 的预期行为**；测试代码只能落在 `$work/repo/`
+   - 动作: 先加载 `harness/rule/coding-standards.md` 中已有实质条目的小节（空小节跳过；存在 `coding-standards-<语言>.md` 时一并加载）；按需参考 `reference/tdd.md` 与 `harness/template/test-plan.md`，为核心分支、边界条件、异常路径编写测试；**断言对准 spec/plan 的预期行为**；测试代码只能落在 `$work/repo/`
    - 模仿仓库中已有测试的风格与组织方式
 
 4. **循环生成与检测（覆盖率准出）**
