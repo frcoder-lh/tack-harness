@@ -33,6 +33,7 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
      - **新增**: 远端有、本地无 → 直接列入新增清单
      - **本地已修改**: 同名文件内容不一致 → 列入融合候选清单（可能是用户本地改动，也可能是远端新版本变更，需结合版本号与 diff 判断）
      - **一致**: 内容相同 → 跳过
+   - 动作: 空间根 `.gitignore` 单独对比：对比 `<skill>/tack/.gitignore`（新版模板）与 `$root/.gitignore`（用户当前），按同样的新增/本地已修改/一致分类；`.gitignore` 不在 `harness/` 下，故单独处理
    - 以下内容不参与对比，永不覆盖：`AGENTS.md`（含项目信息区块）、`cmd/` 中用户自建文件、`rule/`、`wiki/`、`space/`
    - 临时产物约束：本步对比/diff 产生的临时文件一律放 `$root/.tack/tmp/`，本步结束后及时清理，禁止写系统临时目录
 
@@ -65,6 +66,7 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
      - "保留本地"的文件跳过
      - "融合"的文件写入经用户确认后的融合结果
      - `cmd/` 只增补新增命令文件，不覆盖同名文件
+     - `$root/.gitignore` 按同样的新增/覆盖/保留/融合流程处理（与 `harness/` 内文件一致，无特殊规则）
    - 文件覆盖阶段不触碰 AGENTS.md（项目信息区块仅由下一步 project.sh 单独写入 skill_version，其余字段一律不动）
 
 8. **验证与收尾**
@@ -74,7 +76,7 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
      `sh $root/harness/script/project.sh skill-version $root <新版本> --no-commit`（Windows 经 run.ps1 启动）；`--no-commit` 表示由下一步框架提交统一入库
    - 动作: 引导老空间接入自动更新检查（一次性，仅当以下任一缺失时执行；新空间经 init-tack 物化已自带）：
      - `close` / `evolution` / `record` / `help` 命令文件缺少「版本检查（更新提醒挂载点）」步骤时，经用户确认后按本机 skill 的 `tack/harness/cmd/` 同名文件同节内容增补（检查命令与输出协议）
-     - `$root/.gitignore` 缺少 `.tack/` 条目时追加一行（tack 本地运行时数据根：log/backup/tmp/state，含 check-update.sh 的本机状态文件，不入库）
+     - `$root/.gitignore` 缺少 `.tack/` 条目时追加一行（tack 本地运行时数据根：log/backup/tmp/state，含 check-update.sh 的本机状态文件，不入库；本项为框架强制兜底——即便用户对 `.gitignore` 选择「保留本地」，`.tack/` 也必须被忽略，否则运行时数据会误入空间仓库）
    - 动作: 展示备份位置与本次更新摘要；摘要须含**实际落盘清单**（基于第 7 步执行事实：新增/覆盖/融合的文件逐个列出），禁止臆测
 
 ## 框架自动提交（无需用户操作）

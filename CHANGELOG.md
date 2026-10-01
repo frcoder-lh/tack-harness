@@ -6,6 +6,12 @@
 - `release.sh` 发版时校验目标 tag 在本文件中有对应段落，缺失即中止
 - CI 创建 GitHub Release 时抽取对应段落作为 Release body；`check-update.sh` 检查提醒与 `update` 命令展示「本次更新内容」均以本文件为来源
 
+## V0.0.12 (2026-10-01)
+
+- 优化: `commit` 命令取消二次确认——用户发起命令即确认提交意图，提交信息自动生成（用户参数优先，否则结合实际 diff 与 `current.task`，Conventional Commits 风格）后直接提交，完成后如实汇报 commit hash、提交信息与改动文件清单；`push` 等影响远端的操作仍需用户明确指令
+- 优化: 空间根 `.gitignore` 显式忽略任意层级 `local/` 目录（`local/` → `**/local/`，覆盖 `run/local/`、`space/*/local/` 等所有位置的敏感数据目录）
+- 优化: `update` 指令融合空间根 `.gitignore`——新版模板与用户本地文件按新增/已修改/一致分类对比，走与 harness 文件一致的新增/覆盖/保留/融合流程；`.tack/` 条目为框架强制兜底，即便用户选择保留本地 `.gitignore` 也必须追加，防止运行时数据误入空间仓库
+
 ## V0.0.11 (2026-10-01)
 
 - 新增: bugfix 工作流缺陷溯源环节——`harness/script/git-bug-trace.sh` 给定缺陷代码行，一键追溯引入缺陷的 commit、时间、作者、对应需求/工单 ID（`#123`/`MEEGO-456` 等）、commit 链接与合并到主干的 MR 链接（支持 GitHub/GitLab/Bitbucket）；结果写入 `status.yaml` 的 `bug_origin` 区块，诊断参考 `diagnosing-bugs.md` 新增对应阶段

@@ -6,7 +6,8 @@
 #     space/<YYYYMMDD>-<branch>/ 下的工作文档（status.yaml、spec.md、plan.md 等）。
 #     它的全部 Git 操作由框架自动完成，用户不需要也不允许直接对 $root 执行 git。
 #   - 用户的 Git 操作只作用于工作区代码仓库 $work/repo/<repo-name>/（git worktree），
-#     由 fetch/commit/push/merge/solve 命令在人工确认下执行。
+#     由 fetch/commit/push/merge/solve 命令在用户发起下执行（框架不自动执行）；
+#     其中 commit 生成提交信息后直接提交、无需二次确认，push 等远端操作仍需用户明确指令。
 #     .gitignore 已排除 repo/ 与 space/*/repo/，代码仓库内容永不进入空间仓库。
 #
 # Usage:

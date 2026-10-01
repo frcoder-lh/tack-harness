@@ -2,8 +2,8 @@
 repo/
 space/*/repo/
 
-# 敏感数据目录：用户密钥/token/账号等，AI 生成的敏感数据同样落此；全局忽略
-local/
+# 敏感数据目录：用户密钥/token/账号等，AI 生成的敏感数据同样落此；任意层级的 local 目录均忽略（含 run/local/、space/*/local/ 等）
+**/local/
 
 # Tack 本地运行时数据：log/backup/tmp/state（框架产生，不入库、可随时清理）
 .tack/

@@ -75,7 +75,7 @@ summary: 按需命令（非开发必经环节，用户需要时触发）——�
 ## 框架自动提交（无需用户操作）
 
 - 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): workspace state <branch>"`，把本命令对 status.yaml 的变更自动提交到 tack 空间根仓库；无变更自动跳过
-- 边界: 遵守 `harness/rule/git-boundary.md`；测试代码与缺陷修复属于工作区代码仓库改动，由 `commit` 命令经用户确认后提交，本步骤不代为提交
+- 边界: 遵守 `harness/rule/git-boundary.md`；测试代码与缺陷修复属于工作区代码仓库改动，由 `commit` 命令提交（提交信息自动生成后直接提交，无需二次确认），本步骤不代为提交
 
 ## 后置完成检验
 

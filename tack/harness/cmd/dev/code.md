@@ -82,7 +82,7 @@ summary: 编码前先判定涉及仓库并确保就绪（主仓库缺失转 crea
 ## 框架自动提交（无需用户操作）
 
 - 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): workspace state <branch>"`，把本命令对 status.yaml（任务状态）的变更自动提交到 tack 空间根仓库；无变更自动跳过
-- 边界: 遵守 `harness/rule/git-boundary.md`；代码改动在 `$work/repo/` 工作区代码仓库内，其提交由 `commit` 命令经用户确认后执行，本步骤绝不代为提交代码
+- 边界: 遵守 `harness/rule/git-boundary.md`；代码改动在 `$work/repo/` 工作区代码仓库内，其提交由 `commit` 命令执行（自动生成提交信息后直接提交，无需二次确认），本步骤绝不代为提交代码
 
 ## 后置完成检验
 

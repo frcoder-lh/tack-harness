@@ -10,7 +10,7 @@
 ## 边界
 
 - 所有代码修改只能在 `space/<workspace>/repo/<repo-name>/`（git worktree）内进行，禁止直接修改 `repo/` 主仓库（只读基准）；Git 操作边界统一遵守 `harness/rule/git-boundary.md`
-- 编码过程不代为提交：代码提交由 `commit` 命令经用户确认后执行
+- 编码过程不代为提交：代码提交由 `commit` 命令执行——自动生成提交信息后直接提交，无需用户二次确认
 
 ## 过程
 

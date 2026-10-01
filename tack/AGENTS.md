@@ -67,7 +67,7 @@
 5. **收到用户指令后，先确认是否为base指令，如果是则直接执行，否则确认用户当前在进行哪项工作，必须明确，如果不明确，先向用户确认。然后识别用户在进行哪个类型的 workflow，按照 workflow 进行状态流转和命令引导**
 6. **Git 双层边界——空间仓库框架托管，用户只操作工作区代码仓库**：
    - `$root` 空间根仓库（保存 harness/、wiki/、AGENTS.md、space/ 下的工作文档）的 Git 操作**全部由框架自动完成**（初始化首次提交、各命令阶段末经 `harness/script/space.sh commit` 自动提交），**不引导、不要求用户对 `$root` 执行任何 git 命令**
-   - 用户的 Git 操作（fetch/commit/push/merge/solve）只作用于 `$work/repo/<repo-name>/` 工作区代码仓库，且需人工确认；worktree 的创建/移除也由框架脚本自动完成
+   - 用户的 Git 操作（fetch/commit/push/merge/solve）只作用于 `$work/repo/<repo-name>/` 工作区代码仓库，由用户主动发起命令触发（框架不自动执行）；其中 `commit` 生成提交信息后直接提交、无需二次确认（提交后如实汇报 hash/信息/文件清单），`push` 等影响远端的操作仍需用户明确指令；worktree 的创建/移除也由框架脚本自动完成
    - `.gitignore` 已排除 `repo/` 与 `space/*/repo/`，代码仓库内容与空间仓库互不串扰
 7. 每个任务/环节执行结束后，凡用户对 AI 的做法有过引导、纠偏、补充约定，自动把原始事实追加到 `$work/status.yaml` 的 `guidance` 列表（采集时机与固化时机见第 11 条）；用户要求立即沉淀时走 `record`
 8. **耗时较长任务完成后的主动沉淀预判**：除第 7 条（用户引导触发）与第 10 条（改 cmd 文件触发）外，凡耗时较长的任务（多步骤、跨文件、多轮试错）完成前，AI 主动做一次沉淀预判——本次是否暴露了可复用的操作模式、可固化的机械流程、或值得入 `wiki/`、`decisions/` 的事实？预判结果**不直接改动 harness**，而是作为 `guidance` 原始记录追加到 `$work/status.yaml`（标注建议固化点：cmd/workflow/rule/script/wiki），由第 11 条的 close 自进化审查统一消化。固化门槛同第 10 条：只有"未来会以同样方式重复"的机械步骤才提炼为 `harness/script/` 脚本，一次性操作不固化

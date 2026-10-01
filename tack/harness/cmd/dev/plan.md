@@ -107,7 +107,7 @@ summary: 读 spec、input、wiki（root/work）与代码事实，产出 plan.md�
 ## 框架自动提交（无需用户操作）
 
 - 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): plan <branch>"`，把 plan.md 与 status.yaml（tasks）的变更自动提交到 tack 空间根仓库；无变更自动跳过
-- 边界: 遵守 `harness/rule/git-boundary.md`；代码仓库的提交仍由 `commit` 命令经用户确认后执行
+- 边界: 遵守 `harness/rule/git-boundary.md`；代码仓库的提交仍由 `commit` 命令执行（自动生成提交信息后直接提交，无需二次确认）
 
 ## 后置完成检验
 

@@ -204,7 +204,7 @@ my-project/
 
 ```bash
 /tack fetch         # 拉取各仓库最新代码
-/tack commit        # 生成 Conventional Commits 提交信息，经确认后提交
+/tack commit        # 自动生成 Conventional Commits 提交信息后直接提交（无需二次确认）
 /tack push          # 推送，未关联远端时先引导关联
 /tack merge         # 委派 reviewer 审查（三视角并行），审查结论三选一：修复/记录后续/维持现状；优先平台发起 MR/PR，冲突时 /tack solve 逐文件引导解决
 /tack close         # 交付检查 → 输出交付摘要 → 提炼 wiki（含技术决策）→ 消费 guidance 自进化固化 → 移除 worktree → 状态置 completed
@@ -287,7 +287,7 @@ flowchart LR
 | `init` | i | 初始化 /init | 提炼项目信息写入 AGENTS.md，扫描软链或克隆仓库 |
 | `work` | w | 工作区 /work | 新建 / 重命名 / 切换 / 列出工作区，自动推断服务、创建 worktree |
 | `help` | h | 帮助 /help | 扫描 harness，输出工作流与全部命令 |
-| `update` | u | 更新 /update | 更新 harness，保留自定义 cmd/rule 与 AGENTS.md |
+| `update` | u | 更新 /update | 更新 harness 与空间根 .gitignore（.tack/ 强制兜底），保留自定义 cmd/rule 与 AGENTS.md |
 | `create-repo` | cr | 新建仓库 /createrepo /create-repo | 新建并初始化本地代码仓库，纳入项目空间管理 |
 | `record` | r | 记录 /record | 优先融合已有条目；可落命令 / 工作流 / 规则 / wiki / AGENTS.md 常驻约定，新建时仅需提供 command |
 | `evolution` | evo | 进化 / 进化harness /evolution | 结构自检（lint-harness）并审查指令，提炼 rule/reference/script 候选，人工确认后落盘 |
@@ -314,7 +314,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | `fetch` | f | 拉取 /fetch | 拉取各仓库最新代码（仅 fetch，不 merge） |
 | `worktree` | wt | 工作树 /worktree | 为指定仓库补建 worktree |
-| `commit` | ci | 提交 /commit | 本地提交，非 git 目录先 init |
+| `commit` | ci | 提交 /commit | 本地提交，非 git 目录先 init；提交信息自动生成后直接提交，无需二次确认 |
 | `push` | ps | 推送 /push | 推送远端，未关联时引导关联 |
 | `merge` | m | 合并 /merge | 委派 reviewer 审查并三选一分流，平台 MR/PR 或本地合并，冲突转 solve |
 | `solve` | s | 冲突 / 解决冲突 /solve | 引导式逐文件解决冲突 |
@@ -370,7 +370,7 @@ sh harness/script/lint-harness.sh          harness   # 结构自检：frontmatte
 | **worktree 隔离** | 代码改动仅限工作区 worktree，主仓库 `repo/` 只读 |
 | **Git 双层边界** | 空间根仓库由框架自动提交托管（`space.sh`），用户不直接操作；用户 Git 命令仅作用于工作区代码仓库 |
 | **命令准入准出** | 破坏性 Git 操作被禁用，命令执行受准入准出约束 |
-| **人工审阅关口** | 分析结论、提交、合并均需人工确认后方可生效 |
+| **人工审阅关口** | 分析结论、合并均需人工确认后方可生效；提交由用户主动发起 commit 命令触发（发起即确认意图，信息自动生成后直接提交） |
 | **凭据明文拦截** | `scan-secrets.sh` 在空间文档（wiki/、space/）提交前做高置信凭据扫描，命中即阻断自动提交；支持 `tack:allow-secret` 豁免标记与占位值过滤 |
 | **落点证据链校验** | `check-guidance.sh` 校验 guidance distilled 条目的落点文件仍然存在，失效即阻断 close，防止固化证据链悬空 |
 | **Hook 边界观察层** | `PreToolUse` Hook 观察 Git 双层边界、`--force`/`--no-verify` 等破坏性操作；默认仅探针记录（`$root/.tack/log/hook-observe.log`），不拦截；`TACK_HOOK_ENFORCE=1` 预留 deny 路径，启用前须先用日志校准误判 |
