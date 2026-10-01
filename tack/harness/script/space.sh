@@ -3,7 +3,7 @@
 #
 # 【Git 双层边界】
 #   - $root（tack 空间根仓库）：保存 harness/、wiki/、AGENTS.md、
-#     space/<branch>/ 下的工作文档（status.yaml、spec.md、plan.md 等）。
+#     space/<YYYYMMDD>-<branch>/ 下的工作文档（status.yaml、spec.md、plan.md 等）。
 #     它的全部 Git 操作由框架自动完成，用户不需要也不允许直接对 $root 执行 git。
 #   - 用户的 Git 操作只作用于工作区代码仓库 $work/repo/<repo-name>/（git worktree），
 #     由 fetch/commit/push/merge/solve 命令在人工确认下执行。

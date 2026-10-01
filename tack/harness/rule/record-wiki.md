@@ -25,8 +25,8 @@
 ## 来源链（每条必带）
 
 - 每条新增/更新的条目必须可回溯，来源按素材类型标注其一：
-  - 工作区产物：`space/<branch>/<文件>#<环节或章节>`（如 `space/login/plan.md#决策记录`）
-  - 用户引导：guidance 条目 id（如 `space/login/status.yaml G-03`）
+  - 工作区产物：`space/<workspace>/<文件>#<环节或章节>`（如 `space/20261001-login/plan.md#决策记录`）
+  - 用户引导：guidance 条目 id（如 `space/20261001-login/status.yaml G-03`）
   - git history：`commit <short-hash>`（结论须能由该 commit message 证实）
   - 用户资料：文档链接或「用户口述 <日期>」
 - 表格类条目在「来源/备注」列标注；ADR 条目填「来源」字段

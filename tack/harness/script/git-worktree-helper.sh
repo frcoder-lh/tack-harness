@@ -1,11 +1,13 @@
 #!/bin/sh
 # git-worktree-helper.sh — Git worktree 辅助脚本
 #
-# 多仓库布局：每个仓库的 worktree 位于 space/<branch>/repo/<repo-name>
+# 多仓库布局：每个仓库的 worktree 位于 space/<workspace>/repo/<repo-name>，
+#   <workspace> 为工作区目录名（<YYYYMMDD>-<branch>，由 work.sh 生成）；
+#   worktree 实际检出的 git 分支由 <branch> 参数指定（不带日期前缀）。
 #
 # Usage:
-#   sh git-worktree-helper.sh create <root-path> <branch> <repo-name>
-#   sh git-worktree-helper.sh remove <root-path> <branch> [repo-name]
+#   sh git-worktree-helper.sh create <root-path> <workspace> <branch> <repo-name>
+#   sh git-worktree-helper.sh remove <root-path> <workspace> [repo-name]
 #   sh git-worktree-helper.sh list   <root-path>
 
 set -e
@@ -14,7 +16,7 @@ ACTION="$1"
 ROOT="${2:-.}"
 
 if [ -z "$ACTION" ]; then
-    echo "Usage: $0 <create|remove|list> <root-path> [branch] [repo-name]"
+    echo "Usage: $0 <create|remove|list> <root-path> [workspace] [branch] [repo-name]"
     exit 1
 fi
 
@@ -24,17 +26,18 @@ ABS_ROOT="$(pwd)"
 
 case "$ACTION" in
     create|Create)
-        BRANCH="$3"
-        REPO_NAME="$4"
+        WORKSPACE="$3"
+        BRANCH="$4"
+        REPO_NAME="$5"
 
-        if [ -z "$BRANCH" ] || [ -z "$REPO_NAME" ]; then
-            echo "Error: <branch> and <repo-name> are required for create"
-            echo "Usage: $0 create <root-path> <branch> <repo-name>"
+        if [ -z "$WORKSPACE" ] || [ -z "$BRANCH" ] || [ -z "$REPO_NAME" ]; then
+            echo "Error: <workspace> <branch> and <repo-name> are required for create"
+            echo "Usage: $0 create <root-path> <workspace> <branch> <repo-name>"
             exit 1
         fi
 
         REPO_PATH="repo/$REPO_NAME"
-        WORKTREE_PATH="$ABS_ROOT/space/$BRANCH/repo/$REPO_NAME"
+        WORKTREE_PATH="$ABS_ROOT/space/$WORKSPACE/repo/$REPO_NAME"
 
         if [ ! -d "$REPO_PATH" ]; then
             echo "Error: Repo not found at $REPO_PATH"
@@ -48,7 +51,7 @@ case "$ACTION" in
             echo "Worktree already exists: $WORKTREE_PATH"
         else
             echo "Creating worktree: $BRANCH -> $WORKTREE_PATH"
-            mkdir -p "$ABS_ROOT/space/$BRANCH/repo"
+            mkdir -p "$ABS_ROOT/space/$WORKSPACE/repo"
             if git -C "$REPO_PATH" worktree add "$WORKTREE_PATH" "$BRANCH" 2>/dev/null; then
                 echo "Worktree created successfully."
             else
@@ -59,12 +62,12 @@ case "$ACTION" in
         ;;
 
     remove|Remove)
-        BRANCH="$3"
+        WORKSPACE="$3"
         REPO_NAME="$4"
 
-        if [ -z "$BRANCH" ]; then
-            echo "Error: <branch> is required for remove"
-            echo "Usage: $0 remove <root-path> <branch> [repo-name]"
+        if [ -z "$WORKSPACE" ]; then
+            echo "Error: <workspace> is required for remove"
+            echo "Usage: $0 remove <root-path> <workspace> [repo-name]"
             exit 1
         fi
 
@@ -79,7 +82,7 @@ case "$ACTION" in
         for name in "$@"; do
             repo_dir="repo/$name"
             [ -d "$repo_dir" ] || continue
-            WT="$ABS_ROOT/space/$BRANCH/repo/$name"
+            WT="$ABS_ROOT/space/$WORKSPACE/repo/$name"
             # 同样以目录存在为准；直接让 git 执行 remove，失败则 prune 登记信息
             if [ -d "$WT" ]; then
                 echo "Removing worktree from $name..."
@@ -93,7 +96,7 @@ case "$ACTION" in
             fi
         done
 
-        [ "$FOUND" -eq 1 ] || echo "No worktree found for branch: $BRANCH"
+        [ "$FOUND" -eq 1 ] || echo "No worktree found for workspace: $WORKSPACE"
         ;;
 
     list|List)

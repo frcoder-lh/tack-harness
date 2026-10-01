@@ -1,7 +1,7 @@
 ---
 name: "tack"
-version: "V0.0.10"
-description: "编程工作流 skill，本体只做引导：空目录执行即初始化 tack 空间（物化 AGENTS.md + harness 骨架），随后加载 AGENTS.md 完成命令路由。覆盖需求规划 spec/plan、编码 code、单测 testcode、改 bug、Git 提交/推送/合并/冲突、知识沉淀 record 等开发全流程；命令支持中英文触发词与简写，可省略 /tack 前缀或用自然语言描述意图。"
+version: "V0.0.11"
+description: "编程工作流 skill，本体只做引导：空目录执行即初始化 tack 空间（物化 AGENTS.md + harness 骨架），随后加载 AGENTS.md 完成命令路由。覆盖需求规划 spec/plan、编码 code、改 bug、Git 提交/推送/合并/冲突、知识沉淀 record 等开发全流程；单测 testcode、系统测试 test、脚本执行 run 为按需命令，用户需要时才触发；命令支持中英文触发词与简写，可省略 /tack 前缀或用自然语言描述意图。"
 ---
 
 # tack —— 编程工作流引导器
@@ -18,7 +18,7 @@ skill 本体职责单一：**把 tack 安装进项目空间，并引导加载 AG
 
 ### 1. 判定 tack 空间（确定 `$root`）
 
-从当前工作目录向上查找，第一个内容包含「本空间由tack harness驱动」的 `AGENTS.md` 所在目录即为 `$root`。
+从当前工作目录向上查找，第一个内容包含「本空间由 tack harness 驱动」的 `AGENTS.md` 所在目录即为 `$root`。
 
 ### 2. 按目录状态分流
 

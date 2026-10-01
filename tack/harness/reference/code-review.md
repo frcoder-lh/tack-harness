@@ -16,7 +16,7 @@
 ### 2. 识别规范来源
 
 按以下顺序查找原始技术设计：
-1. 当前需求的技术评审文档（`space/<branch>/tech-design.md`）与开发计划（`space/<branch>/plan.md`）
+1. 当前需求的技术评审文档（`space/<workspace>/tech-design.md`）与开发计划（`space/<workspace>/plan.md`）
 2. 用户传入的路径
 3. 如果找不到，询问用户规范在哪里
 

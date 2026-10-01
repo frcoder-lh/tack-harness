@@ -44,6 +44,25 @@
 
 每个探针必须映射到阶段 3 的具体预测。**一次只改变一个变量。**
 
+## 阶段 4.5：缺陷溯源（根因确认后）
+
+定位到缺陷代码行后，追溯缺陷的引入来源，回答：**这个 bug 是什么时候、由哪个需求、经哪个 commit/MR 引入的？**
+
+调用 `harness/script/git-bug-trace.sh <repo> <file> <line> [end-line] [target-branch]`：
+
+- **git blame** 定位最后修改该行为缺陷代码的 commit
+- 提取 commit 的作者、时间、message
+- 从 message 中识别需求/工单 ID（`#123` / `MEEGO-456` / `JIRA-789` 等）
+- 查找把该 commit 带入主干的合并提交（`git log --merges --ancestry-path`）
+- 由 remote URL 推导 commit 链接与 MR/PR 链接（支持 GitHub / GitLab / Bitbucket）
+
+溯源价值：
+1. 区分「需求引入的缺陷」与「历史遗留问题」，判断修复范围
+2. 同需求关联代码可能有同类问题，可扩大排查面
+3. MR 链接可回溯当时的审查结论与关联改动，避免重复踩坑
+
+结果写入 `$work/status.yaml` 的 `bug_origin` 区块（结构见 `harness/template/work-status.yaml`）。
+
 ## 阶段 5：修复 + 回归测试
 
 在修复之前写回归测试，但只有在存在**正确接缝**时才写。

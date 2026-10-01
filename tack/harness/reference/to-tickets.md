@@ -39,4 +39,4 @@
 
 ### 5. 输出到工作区
 
-将批准的任务清单按 `harness/template/plan.md` 的「任务清单」章节格式写入 `space/<branch>/plan.md` 末尾，同时同步到 `space/<branch>/status.yaml` 的 `tasks` 列表（字段结构以 plan 命令与 `harness/template/work-status.yaml` 为准；对应 `/tack plan`）。格式骨架只维护模板一份，本文件不重复定义。
+将批准的任务清单按 `harness/template/plan.md` 的「任务清单」章节格式写入 `space/<workspace>/plan.md` 末尾，同时同步到 `space/<workspace>/status.yaml` 的 `tasks` 列表（字段结构以 plan 命令与 `harness/template/work-status.yaml` 为准；对应 `/tack plan`）。格式骨架只维护模板一份，本文件不重复定义。

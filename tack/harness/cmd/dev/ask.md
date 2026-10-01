@@ -16,7 +16,7 @@ summary: 代码理解——整体分析仓库结构生成分析文档；或针�
 
 ## 前置准入条件
 
-- 已确定当前工作区 `$work`（`$root/space/<branch>/`）
+- 已确定当前工作区 `$work`（`$root/space/<workspace>/`）
 - `$work/repo/` 下至少有一个可访问的 git worktree（`git status` 正常）
 - 执行前重新读取 `$work/status.yaml`，尊重本地最新状态（已有工作区里的旧字段 `progress.analysis` 视为本环节进度）
 

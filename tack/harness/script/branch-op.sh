@@ -19,7 +19,7 @@
 #
 # Usage:
 #   sh branch-op.sh prepare <root> <workspace> <repo> <op> <source> <target>
-#       workspace 为相对 root 的工作区目录（space/<branch>）；输出 KEY=VALUE 结果行
+#       workspace 为相对 root 的工作区目录（space/<YYYYMMDD>-<branch>）；输出 KEY=VALUE 结果行
 #   sh branch-op.sh integrate <root> <workspace> <repo> <op> <source-tmp> <target-tmp>
 #   sh branch-op.sh continue <root> <workspace> <repo> <op>
 #   sh branch-op.sh abort <root> <workspace> <repo> <op>

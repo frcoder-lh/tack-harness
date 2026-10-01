@@ -43,8 +43,11 @@ if [ -z "$SCAN_DIRS" ]; then
     exit 0
 fi
 
-TMP_HITS="${TMPDIR:-/tmp}/scan-secrets.$$.txt"
-trap 'rm -f "$TMP_HITS"' EXIT INT TERM
+# 临时文件统一放空间 .tack/tmp/（不写系统 temp），退出即清；目录空时顺手移除
+TMP_DIR="$ROOT/.tack/tmp"
+mkdir -p "$TMP_DIR"
+TMP_HITS="$TMP_DIR/scan-secrets.$$.txt"
+trap 'rm -f "$TMP_HITS"; rmdir "$TMP_DIR" 2>/dev/null || true' EXIT INT TERM
 : > "$TMP_HITS"
 
 # 高置信凭据模式（ERE；两侧显式边界字符类，兼容 GNU/BSD grep）

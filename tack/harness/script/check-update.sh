@@ -25,7 +25,7 @@
 #   不走 GitHub API、无响应体）。变更说明取 <update-url>/raw/master/CHANGELOG.md
 #   中「本机版本(不含)→最新版本」区间的全部版本段落。update-url 默认取出厂仓库地址，
 #   环境变量 TACK_UPDATE_URL 可覆盖（隔离测试用）。
-# 状态文件: <root>/.update-state（本机运行时状态，.gitignore 已排除），行格式:
+# 状态文件: <root>/.tack/state/update-state（本机运行时状态，.gitignore 已排除），行格式:
 #   last_check=<epoch 秒>   上次发起真实检查的时间（含失败尝试）
 #   notified=<tag>          已提醒过的版本
 
@@ -45,8 +45,17 @@ esac
 ROOT="$1"
 [ -f "$ROOT/AGENTS.md" ] || { echo "错误：不是 tack 空间（缺 AGENTS.md）: $ROOT" >&2; exit 1; }
 
-STATE="$ROOT/.update-state"
+STATE="$ROOT/.tack/state/update-state"
 UPDATE_URL="${TACK_UPDATE_URL:-$DEFAULT_UPDATE_URL}"
+
+# 临时文件统一放空间 .tack/tmp/ 下的运行私有目录（不写系统 temp），退出即清；
+# state 目录与临时目录一并确保存在（state 文件首次写入前父目录必须就位）
+TMP_DIR="$ROOT/.tack/tmp/check-update.$$"
+mkdir -p "$TMP_DIR" "$ROOT/.tack/state"
+cleanup_tmp() { rm -rf "$TMP_DIR" 2>/dev/null || true; }
+trap cleanup_tmp EXIT
+trap 'cleanup_tmp; exit 130' INT
+trap 'cleanup_tmp; exit 143' TERM
 
 # now — 当前 epoch 秒（GNU/BSD date 通用）
 now() { date +%s; }
@@ -58,10 +67,11 @@ read_state() {
 }
 
 # write_state <key> <value> — 写入/更新状态文件的一个 key（保留其余行）
-# 禁 sed -i：写临时文件 + mv（GNU/BSD 兼容）
+# 禁 sed -i：写临时文件 + mv（GNU/BSD 兼容）；临时文件在 TMP_DIR 内，退出统一清理
 write_state() {
     _k="$1"; _v="$2"
-    _tmp="$(mktemp)"
+    _tmp="$TMP_DIR/state"
+    : > "$_tmp"
     if [ -f "$STATE" ]; then
         sed "/^${_k}=/d" "$STATE" > "$_tmp" || :
     fi
@@ -182,7 +192,7 @@ write_state notified "$_tag"
 
 # —— 6. 拉取变更说明（CHANGELOG 区间段落：本机版本(不含)→最新版本；失败降级为仅一行提醒，不阻塞） ——
 _changes=""
-_tmp_cl="$(mktemp)"
+_tmp_cl="$TMP_DIR/changelog"
 _changelog_url="${UPDATE_URL%/}/raw/master/CHANGELOG.md"
 if curl -fsSL "$_changelog_url" -o "$_tmp_cl" 2>/dev/null \
     || curl -fsSL --ssl-no-revoke "$_changelog_url" -o "$_tmp_cl" 2>/dev/null \

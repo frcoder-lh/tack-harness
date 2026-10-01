@@ -1,5 +1,5 @@
 #!/bin/sh
-# work.sh — 新建工作区（space/<branch>/）
+# work.sh — 新建工作区（space/<YYYYMMDD>-<branch>/）
 #
 # Usage:
 #   sh work.sh [--no-worktree] <root> <branch> [repo-name ...]
@@ -7,8 +7,15 @@
 #     --no-worktree：只建目录骨架与模板文件，不创建任何 worktree
 #       （branch-op 工作流使用，临时分支 worktree 由 branch-op.sh prepare 另行创建）
 #
+# 目录命名：工作区目录名 = 创建日期(YYYYMMDD) + '-' + 安全化分支名，如 20261001-user-login。
+#   日期前缀使 space/ 下「按目录名排序」即「按创建时间排序」；git 分支名本身不带日期，
+#   目录（空间管理概念）与分支名由此解耦。
+#
+# 结果行（stdout 末尾输出 KEY=VALUE，供调用方解析实际工作区路径）：
+#   WORKSPACE=<工作区目录名>   BRANCH=<安全化分支名>
+#
 # 工作区结构（扁平，工作区级文档放 wiki/）：
-#   space/<branch>/
+#   space/<YYYYMMDD>-<branch>/
 #   ├── status.yaml        # 工作区状态（属性 + 当前任务/进度/下一步），由模板复制 + sed 替换
 #   ├── input.md           # 原始需求输入
 #   ├── wiki/              # 工作区级代码理解产物（ask 命令产出，如 <repo>-analysis.md、问答文档）
@@ -40,10 +47,14 @@ cd "$ROOT"
 
 # 分支名安全化（只保留字母数字 _ - /；- 置于字符类末尾按字面量处理，/ 不需转义）
 SAFE_BRANCH=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9/_-]/_/g')
-BRANCH_DIR="space/$SAFE_BRANCH"
+# 工作区目录名 = 创建日期 + 安全化分支名（目录名带日期前缀便于排序，git 分支名保持纯净）
+WORK_BASENAME="$(date +%Y%m%d)-$SAFE_BRANCH"
+BRANCH_DIR="space/$WORK_BASENAME"
 
 if [ -d "$BRANCH_DIR" ]; then
     echo "工作区已存在: $BRANCH_DIR"
+    echo "WORKSPACE=$WORK_BASENAME"
+    echo "BRANCH=$SAFE_BRANCH"
     exit 0
 fi
 
@@ -66,7 +77,7 @@ if [ -n "$REPO_NAMES" ]; then
     for name in $REPO_NAMES; do
         if [ -d "repo/$name" ] && git -C "repo/$name" rev-parse --git-dir >/dev/null 2>&1; then
             echo "为仓库 '$name' 创建 worktree（分支 $SAFE_BRANCH）..."
-            if sh "$SCRIPT_DIR/git-worktree-helper.sh" create "$ROOT" "$SAFE_BRANCH" "$name"; then
+            if sh "$SCRIPT_DIR/git-worktree-helper.sh" create "$ROOT" "$WORK_BASENAME" "$SAFE_BRANCH" "$name"; then
                 WORKTREE_CREATED=1
             fi
         else
@@ -88,8 +99,11 @@ fi
 CREATED_AT=$(date '+%Y-%m-%d %H:%M:%S')
 if [ -f "$TEMPLATE_DIR/work-status.yaml" ]; then
     cp "$TEMPLATE_DIR/work-status.yaml" "$BRANCH_DIR/status.yaml"
-    sed -i.bak "s/{{BRANCH}}/$SAFE_BRANCH/g; s/{{CREATED_AT}}/$CREATED_AT/g" "$BRANCH_DIR/status.yaml"
-    rm -f "$BRANCH_DIR/status.yaml.bak"
+    # sed 分隔符用 | ：目录名/分支名允许含 /（如 feature/x），用 / 作分隔符会误伤替换值；
+    # 就地改写走临时文件 + mv（兼容 GNU/BSD，不依赖 sed -i）
+    sed "s|{{WORK_DIR}}|$WORK_BASENAME|g; s|{{BRANCH}}|$SAFE_BRANCH|g; s|{{CREATED_AT}}|$CREATED_AT|g" \
+        "$BRANCH_DIR/status.yaml" > "$BRANCH_DIR/status.yaml.tmp" \
+        && mv "$BRANCH_DIR/status.yaml.tmp" "$BRANCH_DIR/status.yaml"
     echo "已创建: status.yaml"
 else
     echo "Warn: 未找到 work-status.yaml，status.yaml 未生成" >&2
@@ -102,9 +116,11 @@ else
 fi
 
 echo ""
-echo "工作区已就绪: space/$SAFE_BRANCH"
+echo "工作区已就绪: $BRANCH_DIR"
+echo "WORKSPACE=$WORK_BASENAME"
+echo "BRANCH=$SAFE_BRANCH"
 
 # 框架自动提交空间仓库（space/*/repo/ 已被 .gitignore 排除，只提交工作区文档）
-sh "$SCRIPT_DIR/space.sh" commit "$ROOT" "chore(tack): create workspace $SAFE_BRANCH"
+sh "$SCRIPT_DIR/space.sh" commit "$ROOT" "chore(tack): create workspace $WORK_BASENAME"
 
 echo "下一步: 1) 执行 project.sh work-add 登记工作  2) 向 input.md 录入原始需求  3) 执行 spec"

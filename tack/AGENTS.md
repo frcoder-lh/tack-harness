@@ -5,7 +5,7 @@
 ## 环境变量
 
 - `$root` = tack 空间的根目录（本文件所在目录）
-- `$work` = 当前正在进行的工作目录（`$root/space/<branch>/`）
+- `$work` = 当前正在进行的工作目录（`$root/space/<workspace>/`；工作区目录名 `<workspace>` = `<YYYYMMDD>-<branch>`，如 `20261001-user-login`——日期前缀使目录按名排序即按创建时间排序；目录内 worktree 检出的 git 分支名仍为 `<branch>`，不含日期前缀）
 
 ## 加载 tack harness
 
@@ -25,6 +25,18 @@
 
 版本检查不在会话加载时执行（避免与任务抢占）——挂载点为 `close` / `evolution` / `record` / `help` 命令收尾，见对应 cmd 文件。
 
+## Hook 可选加速层（TRAE / Claude Code）
+
+`tack/harness/script/hook/` 提供三个 IDE Hook 的可选加速层，**仅做确定性事实搬运，不承载语义判断，AGENTS.md 与 `scan-routes.sh` 始终是唯一事实源**。Hook 需在 IDE「设置 > Hooks」中手动启用后才生效；不启用或删除整个目录，框架行为不变。
+
+| 事件 | 加速内容 | 对会话的影响 |
+|------|----------|--------------|
+| SessionStart | 注入命令/工作流路由全表、`$root`/`$work` 路径、当前工作区快照；向环境写入 `TACK_ROOT`/`TACK_WORK` | 省去首轮 `scan-routes list` 往返 |
+| UserPromptSubmit | 对用户输入做 `scan-routes resolve`，唯一命中时直接注入对应 cmd/workflow 正文与状态快照，多命中列候选，无命中给全表 | 省去路由解析往返 |
+| PreToolUse | 观察模式：仅在 `TACK_HOOK_LOG=1` 时把命令调用与边界规则命中写入 `$root/.tack/log/hook-observe.log`（探针校准真实 payload）；`TACK_HOOK_ENFORCE=1` 才输出 deny（**当前预留，默认不拦截**） | 默认零输出、零拦截 |
+
+降级：删除 `$root/.trae/hooks.json` 与 `$root/.claude/settings.json` 即完全回退到「AI 主动调用 `scan-routes.sh`」的原有路径。
+
 ## 命令路由
 
 用户输入以 `/tack` 为可选前缀（可省略，也可直接用自然语言）。去掉开头的 `/tack`（含后续空格）后，按以下顺序解析：
@@ -34,7 +46,7 @@
    - 退出码 **2**（多命中）：列出候选项让用户选择
    - 退出码 **1**（无命中）：进入语义识别
 2. **语义识别**：执行 `scan-routes workflows "$root/harness"` 与 `scan-routes commands "$root/harness"` 取得全部触发词，与输入做语义匹配（中英文同义词、意图归类），挑出最可能的 1-3 条向用户确认；仍不明确时展示路由表让用户选择
-3. **确认当前工作**：按核心约束第 5 条确认用户当前工作（`$work=$root/space/<branch>`），识别意图所属 workflow，按状态机引导命令
+3. **确认当前工作**：按核心约束第 5 条确认用户当前工作（`$work=$root/space/<workspace>`，`<workspace>` = `<YYYYMMDD>-<branch>`），识别意图所属 workflow，按状态机引导命令
 
 ## 脚本调用约定（跨平台）
 
@@ -75,13 +87,15 @@
 | `harness/cmd/` | 命令入口（base/dev/git 分组），定义准入准出 |
 | `harness/agents/` | 可委派角色（code-explorer / code-architect / code-reviewer）：被 cmd 引用后经 Task 子代理在独立上下文执行，可多实例并行；只供发现与委派，不参与命令路由 |
 | `harness/workflow/` | 工作流状态机（development/testing/bugfix/merge-conflict/branch-op） |
-| `harness/script/` | 固定流程脚本（init-tack、space、scan-routes、lint-harness、scan-secrets、check-guidance、work-status、project、repo、work、git-worktree-helper、branch-op、skill-update、check-update；Windows 统一经 `run.ps1` 启动器调用） |
+| `harness/script/` | 固定流程脚本（init-tack、space、scan-routes、lint-harness、scan-secrets、check-guidance、work-status、project、repo、work、git-worktree-helper、git-bug-trace、branch-op、skill-update、check-update；Windows 统一经 `run.ps1` 启动器调用） |
+| `harness/script/hook/` | TRAE/Claude Code Hooks 可选加速层（SessionStart 预载路由、UserPromptSubmit 零往返路由、PreToolUse 观察层；默认不启用、不拦截，删掉整个目录框架仍完整可用） |
 | `harness/rule/` | 业务、代码与安全规则（coding-standards、security、git-boundary、context-loading、windows-env、record-* 等；不参与路由，按需加载） |
 | `harness/template/` | 命令/工作流/文档/工作区模板 |
 | `harness/reference/` | 通用方法论与复杂独立能力（随 harness 分发、不接受项目级沉淀，项目做法归 rule/wiki；须被 cmd/workflow/agents/rule 引用后才加载，不参与路由） |
 | `wiki/` | 公共知识：业务背景、代码导航锚点（术语→代码入口、接口→场景）、服务清单与代码外事实、技术决策与工程约定（decisions）；条目带来源、矛盾保留演变；不记易变代码逻辑（人工可读写，AI 蒸馏内容须人工审阅） |
-| `space/<branch>/` | 每个工作的工作区（status.yaml、input.md、spec/plan/tech-design、wiki/、repo worktree） |
+| `space/<workspace>/`（`<workspace>` = `<YYYYMMDD>-<branch>`） | 每个工作的工作区（status.yaml、input.md、spec/plan/tech-design、test.md、wiki/、repo worktree、run/）；日期前缀目录名便于按创建时间排序 |
 | `repo/` | 代码主仓库（只保留一份，只读基准；worktree 用到哪个仓库再从这里获取） |
+| `.tack/` | 框架本地运行时数据根（不入库、可随时清理）：`log/` 运行日志、`backup/` 回滚备份（study/update/skill 各带时间戳）、`tmp/` 临时文件（退出即清）、`state/` 本机状态（如 update-state） |
 
 ## 沉淀约定
 

@@ -11,6 +11,8 @@
 #   powershell -ExecutionPolicy Bypass -File run.ps1 init-tack D:/Code/AI/my-space
 #   powershell -ExecutionPolicy Bypass -File "$root\harness\script\run.ps1" scan-routes list "$root/harness"
 #   powershell -ExecutionPolicy Bypass -File "$root\harness\script\run.ps1" resolve "$root/harness" "<keyword>"
+#   powershell -ExecutionPolicy Bypass -File "$root\harness\script\run.ps1" hook/on-prompt-submit
+#     (hook scripts live in the hook/ subdirectory; stdin JSON is passed through)
 #
 # Note: path arguments must use forward slashes (D:/Code/AI/test), not backslashes.
 # Keep this file ASCII-only: Windows PowerShell 5.1 parses BOM-less .ps1 as the

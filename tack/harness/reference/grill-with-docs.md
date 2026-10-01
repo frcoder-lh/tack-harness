@@ -15,7 +15,7 @@
 在访谈过程中，按照 `reference/domain-modeling.md` 的流程：
 
 - 当术语被澄清时，即时更新 `wiki/business-understanding.md`（文件不存在时按 `harness/template/wiki-business-understanding.md` 创建并填入）
-- 当架构决策被确认时，即时记录技术决策到 `space/<branch>/spec.md`（边界与交互）与 `space/<branch>/tech-design.md`（技术决策）
+- 当架构决策被确认时，即时记录技术决策到 `space/<workspace>/spec.md`（边界与交互）与 `space/<workspace>/tech-design.md`（技术决策）
 - 挑战模糊术语，提出精确的 canonical 术语
 - 用具体场景压力测试领域关系
 - 与代码库交叉验证陈述

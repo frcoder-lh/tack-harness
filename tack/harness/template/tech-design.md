@@ -1,6 +1,6 @@
 # 技术设计文档模板
 
-> 技术评审文档模板。由 `/tack tech-design` 命令读取，结合需求输入与 spec/plan 产物，生成 `space/<branch>/tech-design.md`。
+> 技术评审文档模板。由 `/tack tech-design` 命令读取，结合需求输入与 spec/plan 产物，生成 `space/<workspace>/tech-design.md`。
 
 ## 1. 概述
 

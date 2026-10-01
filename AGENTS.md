@@ -43,6 +43,15 @@
 3. 端到端在**隔离临时仓库**验证：`mktemp -d` 下 `git init --bare` 模拟 origin，clone 出工作副本，构造不同状态覆盖全部分支路径（本次覆盖：dry-run 零改动、多提交压缩、单提交 amend、版本已一致跳过），并断言 HEAD 位置、工作区干净、本地/远端 tag、被改文件内容
 4. **绝不在真实仓库直接试跑发布脚本**；临时测试脚本放系统 temp 目录，验证完毕立即删除
 
+## 提交约定（任务完成自动本地提交）
+
+- 一项任务完成且按「变更验证纪律」验证通过（`sh -n`、E2E/ lint 等该过的检查全过）后，**自动本地 commit，无需等用户下达"提交"指令**；提交后在汇报中说明 commit 哈希与内容
+- **一次任务一个 commit**：以用户交付的任务为粒度，不把任务内部的实施步骤拆成多个 commit，也不自行制造"内部子任务"提交
+- **只本地提交，不自动 push**：commit 是默认动作，push 与打 tag/发版仍必须有用户明确指令（发版走 release.sh，见上节）
+- **精确暂存**：只 `git add` 本次任务实际改动的文件，禁止 `git add -A` / `git add .`——工作区可能存在 CRLF 噪音（整文件脏 diff、无内容变化）或会话前遗留改动，须先 `git status` / `git diff` 甄别后排除
+- 不 amend、不 reset 历史、不 force push（与 fast-forward 安全模型一致）；commit message 概括任务意图，多行正文用多个 `-m`（PowerShell 宿主不支持 heredoc）
+- 例外：用户明确要求"先不提交/攒着"时遵从；拿不准任务是否已完成（验证未过、等待用户确认）时先问再提
+
 ## Windows（PowerShell 宿主）执行要点
 
 通用纪律统一见 [tack/harness/rule/windows-env.md](tack/harness/rule/windows-env.md)（bash 完整路径、禁止内联含 `$`/引号/正则的命令、stderr 噪音识别、LF 换行），此处只保留本仓库特化：

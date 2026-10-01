@@ -34,7 +34,7 @@
 
 - **状态**: 生效
 - **日期**:
-- **来源**: （必填：`space/<branch>/plan.md` 决策记录 / guidance G-id / commit <hash> / 用户资料链接或口述日期）
+- **来源**: （必填：`space/<workspace>/plan.md` 决策记录 / guidance G-id / commit <hash> / 用户资料链接或口述日期）
 - **背景与问题**:
 - **备选方案**:
 - **决策**:

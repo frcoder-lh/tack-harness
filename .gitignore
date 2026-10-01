@@ -1,3 +1,6 @@
+# 敏感数据目录：用户密钥/token/账号等，全局忽略
+local/
+
 # OS files
 .DS_Store
 Thumbs.db

@@ -11,11 +11,13 @@
 
 # 工作 ID（默认与分支同名）
 work_id: "{{BRANCH}}"
+# 工作区目录名（$root/space/ 下的目录 = 创建日期 YYYYMMDD + 分支名，便于按时间排序；与 branch 解耦）
+work_dir: "{{WORK_DIR}}"
 # 工作状态（取值见 harness/workflow/ 所属工作流）
 status: "initialized"
 # 所属工作流（development / testing / bugfix / merge-conflict / branch-op，或项目自定义工作流）
 workflow: "development"
-# 工作分支
+# 工作分支（git 分支名，不带日期前缀）
 branch: "{{BRANCH}}"
 # 本工作区涉及的服务/仓库
 services: []
@@ -31,20 +33,22 @@ updated_at: "{{CREATED_AT}}"
 
 # 当前进展（日志 + 待办；细节放 plan.md，不要堆在这里）
 current:
-  stage: ""          # 当前环节：ask / spec / plan / tech-design / code / fix / testcode / review / merge
+  stage: ""          # 当前环节：ask / spec / plan / tech-design / code / fix / testcode / test / run / review / merge
                      # branch-op 工作流：prepare / integrate / resolve / push / cleanup
   task: ""           # 当前正在处理的任务 ID 与标题（对应下方 tasks 列表）
   next: ""           # 下一步该做什么
 
-# 阶段进度（每完成一个环节置 true，命令执行前后同步更新）
+# 阶段进度（主链路环节每完成一个置 true，命令执行前后同步更新）
 progress:
   ask: false          # 代码理解产物（分析文档/问答文档）已生成
   spec: false         # spec.md 已确认
   plan: false         # plan.md（含任务清单）已确认
   tech-design: false  # tech-design.md 已确认
   code: false         # 开发已完成
-  testcode: false     # 单测覆盖率达标（可选环节；跳过时置 testcode_skipped: true）
-  testcode_skipped: false  # 用户明确跳过单测阶段
+  # —— 以下为按需命令的完成事实记录（非必经环节：用户主动触发并完成后置 true；不触发无需任何标记，不阻塞 commit/push/merge/close）——
+  testcode: false     # 单测审查与覆盖率达标（testcode 完成）
+  test: false         # 系统测试方案（test.md）已确认（test 完成）
+  run: false          # run 脚本已执行（run 完成）
   review: false       # 代码审查已通过
   merged: false       # 已合并
 
@@ -92,6 +96,25 @@ branch_op: null
 #       pushed: false
 #   force_lease_authorized: false   # rebase：用户当次明确授权后置 true（脚本仍需环境变量双验证）
 #   cleaned: false                  # close cleanup 完成后置 true
+
+# 缺陷溯源信息（仅 bugfix 工作流使用；diagnosing 环节经 git-bug-trace.sh 溯源后写入）
+# 帮助理解缺陷何时、由哪个需求、经哪个 commit/MR 引入，便于评估影响范围与防回归
+bug_origin: null
+# 结构：
+# bug_origin:
+#   repo: ""                    # 缺陷所在仓库名
+#   file: ""                    # 缺陷所在文件（相对仓库路径）
+#   line: ""                    # 缺陷行号或范围（如 42 或 42-45）
+#   introduced_commit: ""       # 引入缺陷的 commit hash
+#   introduced_commit_url: ""   # commit 链接（由 remote 推导）
+#   introduced_at: ""           # 引入时间（ISO 8601）
+#   introduced_by: ""           # 引入者
+#   requirement: ""             # 对应需求/工单 ID（如 #123 MEEGO-456，从 commit message 提取）
+#   merge_commit: ""            # 把该 commit 带入主干的合并提交 hash
+#   merge_subject: ""           # 合并提交标题（通常含 MR/PR 编号）
+#   merge_url: ""               # 合并到主干的 MR/PR 链接
+#   target_branch: ""           # 溯源时目标主干分支（master/main）
+#   note: ""                    # 溯源说明（如未找到合并提交的原因）
 
 # 用户引导记录（harness 自进化的原始素材，AGENTS.md 核心约束第 11 条）
 # 采集时机：每个任务/环节结束时，凡用户对 AI 的做法有过引导、纠偏、补充约定，自动追加一条（无需用户要求）

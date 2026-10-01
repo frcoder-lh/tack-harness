@@ -1,6 +1,6 @@
 # PRD 模板
 
-> 产品需求文档参考结构。原始需求粘贴在 `space/<branch>/input.md`，`spec` 命令参考本模板梳理需求规划。
+> 产品需求文档参考结构。原始需求粘贴在 `space/<workspace>/input.md`，`spec` 命令参考本模板梳理需求规划。
 
 ## 1. 概述
 

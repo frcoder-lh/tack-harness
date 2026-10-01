@@ -2,17 +2,23 @@
 # skill-update.sh — 把本机已安装的 tack skill 更新到指定版本
 #
 # update 命令的固定流程脚本：定位本机 skill 安装目录 → 下载指定版本源码 →
-# 覆盖分发文件（SKILL.md / README.md / install.sh / tack/）→ 校验版本号。
+# 整体覆盖本机 skill 目录（先完整备份旧目录，再清空后复制
+# SKILL.md / README.md / install.sh / tack/，旧版残留文件一并清除）→ 校验版本号。
 # 只有覆盖动作，不做版本对比（对比由 update 命令负责）。
 #
 # Usage:
 #   sh skill-update.sh <update-url> <tag>                       # 自动探测本机 skill 目录
 #   sh skill-update.sh <update-url> <tag> --skill-root <path>   # 指定 skill 安装目录
+#   sh skill-update.sh <update-url> <tag> --tack-root <path>    # 临时/备份目录落入 tack 空间
 #
 # 参数:
 #   update-url   仓库地址（取自 AGENTS.md 项目信息区块 skill_update_url，
 #                如 https://github.com/frcoder-lh/tack-harness）
 #   tag          目标版本 tag（Vx.y.z）
+#   --tack-root <path>  可选；tack 空间的 .tack 运行时目录。传入后下载解压的临时
+#                目录放 <path>/tmp/ 下（脚本结束自动清理），旧版完整备份放
+#                <path>/backup/skill-<时间戳>/（保留供回滚，不自动删除）；
+#                不传时二者均使用系统临时目录（脱离空间手动执行的回退模式）
 #
 # 退出码: 0 成功；非 0 失败（本机 skill 未被改动，可安全重试）
 #
@@ -24,9 +30,10 @@ set -eu
 UPDATE_URL=""
 TAG=""
 SKILL_ROOT_ARG=""
+TACK_ROOT_ARG=""
 
 usage() {
-    sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 while [ $# -gt 0 ]; do
@@ -34,6 +41,9 @@ while [ $# -gt 0 ]; do
         --skill-root)
             [ $# -ge 2 ] || { echo "错误：--skill-root 需要参数" >&2; exit 1; }
             SKILL_ROOT_ARG="$2"; shift 2 ;;
+        --tack-root)
+            [ $# -ge 2 ] || { echo "错误：--tack-root 需要参数" >&2; exit 1; }
+            TACK_ROOT_ARG="$2"; shift 2 ;;
         -h|--help)
             usage; exit 0 ;;
         --)
@@ -96,7 +106,15 @@ echo ">> 本机 skill: $SKILL_ROOT（当前 ${OLD_VER:-未知版本}）"
 
 # —— 2. 下载指定版本源码 ——
 ARCHIVE_URL="${UPDATE_URL}/archive/refs/tags/${TAG}.tar.gz"
-TMP_SRC="$(mktemp -d)"
+# 临时下载/解压目录：传入 --tack-root 时落 <tack-root>/tmp/（结束自动清理）；
+# 不传则回退系统临时目录（脱离 tack 空间手动执行）
+if [ -n "$TACK_ROOT_ARG" ]; then
+    TMP_PARENT="$TACK_ROOT_ARG/tmp"
+    mkdir -p "$TMP_PARENT"
+    TMP_SRC="$(mktemp -d "$TMP_PARENT/skill-update.$$.XXXXXX")"
+else
+    TMP_SRC="$(mktemp -d)"
+fi
 cleanup_src() { rm -rf "$TMP_SRC"; }
 trap cleanup_src EXIT
 trap 'exit 130' INT
@@ -134,17 +152,35 @@ if [ "$SRC_VER" != "$TAG" ]; then
     exit 1
 fi
 
-# —— 3. 备份本机旧版本（不自动清理，路径打印给用户） ——
-BACKUP_DIR="$(mktemp -d)/tack-backup-$(date +%Y%m%d%H%M%S)"
+# —— 3. 备份本机旧版本（回滚用，保留不自动清理；路径打印给用户） ——
+# 传入 --tack-root 时备份到 tack 空间 .tack/backup/skill-<时间戳>/（与 update/study 的
+# harness-<ts>、study-<ts> 备份同级）；不传时回退系统临时目录
+STAMP="$(date +%Y%m%d%H%M%S)"
+if [ -n "$TACK_ROOT_ARG" ]; then
+    mkdir -p "$TACK_ROOT_ARG/backup"
+    BACKUP_DIR="$TACK_ROOT_ARG/backup/skill-$STAMP"
+else
+    BACKUP_DIR="${TMPDIR:-/tmp}/tack-backup-$STAMP-$$"
+fi
+# 同一秒连跑防撞名
+[ -e "$BACKUP_DIR" ] && BACKUP_DIR="${BACKUP_DIR}-$$"
 mkdir -p "$BACKUP_DIR"
 cp -R "$SKILL_ROOT/." "$BACKUP_DIR/"
-echo ">> 旧版本已备份: $BACKUP_DIR（确认无误后可手动删除）"
+echo ">> 旧版本已备份: $BACKUP_DIR（回滚用，确认无误后可手动删除）"
 
-# —— 4. 覆盖分发文件（对齐 install.sh 的 SKILL_FILES） ——
-rm -rf "$SKILL_ROOT/tack"
-cp -R "$SRC_ROOT/tack" "$SKILL_ROOT/tack"
-for f in SKILL.md README.md install.sh; do
-    [ -f "$SRC_ROOT/$f" ] && cp "$SRC_ROOT/$f" "$SKILL_ROOT/$f"
+# —— 4. 整体覆盖本机 skill 目录（旧版本已在第 3 步完整备份） ——
+# 清空整个目录后复制全部分发文件，旧版中新版已删除的残留文件/目录也一并清除
+case "$SKILL_ROOT" in
+    ""|/|"$HOME")
+        echo "错误：skill 目录路径异常，拒绝清空: '$SKILL_ROOT'" >&2
+        exit 1 ;;
+esac
+rm -rf "$SKILL_ROOT"
+mkdir -p "$SKILL_ROOT"
+for item in SKILL.md README.md install.sh tack; do
+    if [ -e "$SRC_ROOT/$item" ]; then
+        cp -R "$SRC_ROOT/$item" "$SKILL_ROOT/$item"
+    fi
 done
 
 # —— 5. 校验 ——

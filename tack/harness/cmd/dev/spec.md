@@ -13,7 +13,7 @@ summary: 读 input.md、wiki（root/work）与代码事实，按 harness/templat
 
 ## 前置准入条件
 
-- 已确定当前工作区 `$work`（`$root/space/<branch>/`），且 `$work/status.yaml` 存在
+- 已确定当前工作区 `$work`（`$root/space/<workspace>/`），且 `$work/status.yaml` 存在
 - `$work/input.md` 中已有真实的原始需求；为空时先引导用户补充，不凭空编造需求
 - 执行前重新读取 `$work/status.yaml`，尊重本地最新状态
 

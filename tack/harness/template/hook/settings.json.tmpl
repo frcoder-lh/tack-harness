@@ -1,0 +1,38 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "@@CMD_SESSION@@",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "@@CMD_PROMPT@@",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|RunCommand",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "@@CMD_PRETOOL@@",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

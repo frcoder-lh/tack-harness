@@ -14,8 +14,8 @@
 # 退出码: 0 成功；1 文件不存在或写入失败；2 用法错误；3 未知 key
 #
 # 最小用例:
-#   sh work-status.sh space/feat-x/status.yaml set status planning stage spec next "生成并确认 spec.md"
-#   sh work-status.sh space/feat-x/status.yaml set progress.spec true
+#   sh work-status.sh space/20261001-feat-x/status.yaml set status planning stage spec next "生成并确认 spec.md"
+#   sh work-status.sh space/20261001-feat-x/status.yaml set progress.spec true
 
 set -e
 
@@ -38,9 +38,22 @@ if [ $(( $# % 2 )) -ne 0 ]; then
   exit 2
 fi
 
-PAIRS="$(mktemp)"
-TMP="$(mktemp)"
-trap 'rm -f "$PAIRS" "$TMP"' EXIT HUP INT TERM
+# 临时文件优先放 tack 空间 .tack/tmp/（不写系统 temp，退出即清）；
+# 仅当 FILE 不在规范空间布局内（<root>/space/<workspace>/status.yaml）时回退系统临时目录
+SPACE_ROOT="$(cd "$(dirname "$FILE")/../.." 2>/dev/null && pwd)" || SPACE_ROOT=""
+TMP_DIR=""
+if [ -n "$SPACE_ROOT" ] && [ -d "$SPACE_ROOT/harness" ]; then
+    TMP_DIR="$SPACE_ROOT/.tack/tmp"
+    mkdir -p "$TMP_DIR" 2>/dev/null || TMP_DIR=""
+fi
+if [ -n "$TMP_DIR" ]; then
+    PAIRS="$TMP_DIR/work-status.$$.pairs"
+    TMP="$TMP_DIR/work-status.$$.out"
+else
+    PAIRS="$(mktemp)"
+    TMP="$(mktemp)"
+fi
+trap 'rm -f "$PAIRS" "$TMP"; rmdir "$TMP_DIR" 2>/dev/null || true' EXIT HUP INT TERM
 
 HAS_UPDATED_AT=0
 while [ $# -gt 0 ]; do

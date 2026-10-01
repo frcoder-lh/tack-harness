@@ -13,27 +13,28 @@
 #   - distilled 但找不到任何落点路径 → WARN（可能漏填，请人工核对）
 #
 # Usage:
-#   sh check-guidance.sh <root> [work_id]
-#     不传 work_id：扫描 $root/space/*/status.yaml（evolution 全局审查用）
-#     传 work_id  ：只扫 $root/space/<work_id>/status.yaml（close 单工作区用）
-# Windows: powershell -ExecutionPolicy Bypass -File run.ps1 check-guidance <root> [work_id]
+#   sh check-guidance.sh <root> [workspace]
+#     不传 workspace：扫描 $root/space/*/status.yaml（evolution 全局审查用）
+#     传 workspace  ：只扫 $root/space/<workspace>/status.yaml（close 单工作区用；
+#                     workspace 为工作区目录名 <YYYYMMDD>-<branch>，即 basename "$work"）
+# Windows: powershell -ExecutionPolicy Bypass -File run.ps1 check-guidance <root> [workspace]
 # 退出码: 0 无失效落点（WARN 不改变退出码）/ 1 存在规范失效落点 / 2 用法错误
 
 ROOT="$1"
-WORK_ID="$2"
+WORKSPACE="$2"
 
 if [ -z "$ROOT" ] || [ ! -d "$ROOT" ]; then
     echo "Error: tack space root not found: $ROOT" >&2
-    echo "Usage: sh check-guidance.sh <root> [work_id]" >&2
+    echo "Usage: sh check-guidance.sh <root> [workspace]" >&2
     exit 2
 fi
 
-if [ -n "$WORK_ID" ]; then
-    if [ ! -f "$ROOT/space/$WORK_ID/status.yaml" ]; then
-        echo "Error: status.yaml not found: $ROOT/space/$WORK_ID/status.yaml" >&2
+if [ -n "$WORKSPACE" ]; then
+    if [ ! -f "$ROOT/space/$WORKSPACE/status.yaml" ]; then
+        echo "Error: status.yaml not found: $ROOT/space/$WORKSPACE/status.yaml" >&2
         exit 2
     fi
-    FILES="$ROOT/space/$WORK_ID/status.yaml"
+    FILES="$ROOT/space/$WORKSPACE/status.yaml"
 else
     FILES=$(find "$ROOT/space" -maxdepth 2 -name status.yaml -type f 2>/dev/null)
 fi
@@ -43,8 +44,11 @@ if [ -z "$FILES" ]; then
     exit 0
 fi
 
-TMP_OUT="${TMPDIR:-/tmp}/check-guidance.$$.txt"
-trap 'rm -f "$TMP_OUT"' EXIT INT TERM
+# 临时文件统一放空间 .tack/tmp/（不写系统 temp），退出即清；目录空时顺手移除
+TMP_DIR="$ROOT/.tack/tmp"
+mkdir -p "$TMP_DIR"
+TMP_OUT="$TMP_DIR/check-guidance.$$.txt"
+trap 'rm -f "$TMP_OUT"; rmdir "$TMP_DIR" 2>/dev/null || true' EXIT INT TERM
 : > "$TMP_OUT"
 
 for f in $FILES; do

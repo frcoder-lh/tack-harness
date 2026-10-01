@@ -2,11 +2,11 @@
 repo/
 space/*/repo/
 
-# Local backups (created by `update`)
-.backup/
+# 敏感数据目录：用户密钥/token/账号等，AI 生成的敏感数据同样落此；全局忽略
+local/
 
-# Local update-check state (created by check-update.sh)
-.update-state
+# Tack 本地运行时数据：log/backup/tmp/state（框架产生，不入库、可随时清理）
+.tack/
 
 # OS files
 .DS_Store

@@ -3,12 +3,12 @@ command: work
 short: w
 triggers: 工作区, 新建工作区, 切换工作区, 分支合并, 分支变基, 合并分支, 变基分支, work
 params: [目的或分支名]
-summary: 工作区管理——新建、重命名、切换、列出工作区（space/<branch>/）；意图分流支持 branch-op 分支级 merge/rebase，自动推断服务并登记到 AGENTS.md
+summary: 工作区管理——新建、重命名、切换、列出工作区（space/<YYYYMMDD>-<branch>/）；意图分流支持 branch-op 分支级 merge/rebase，自动推断服务并登记到 AGENTS.md
 ---
 
 # work 工作区管理
 
-> 工作区位于 `$root/space/<branch>/`；项目信息（含 work 列表）维护在 AGENTS.md 项目信息区块。
+> 工作区位于 `$root/space/<workspace>/`；**目录命名约定：`<workspace>` = `<YYYYMMDD>-<branch>`**（如 `20261001-user-login`），日期前缀使 `space/` 下按目录名排序即按创建时间排序；worktree 检出的 git 分支名仍为 `<branch>`（不含日期），`work_id` 默认与分支同名。项目信息（含 work 列表）维护在 AGENTS.md 项目信息区块。
 
 ## 前置准入条件
 
@@ -46,12 +46,13 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 5. **创建工作区**
    - 动作: 执行
      `sh $root/harness/script/work.sh $root <branch> <已选仓库名...>`
-     自动创建 `space/<branch>/` 扁平骨架（status.yaml、input.md、repo/），并为每个仓库创建 git worktree 到 `space/<branch>/repo/<repo-name>`
+     脚本自动取当天日期生成工作区目录 `space/<YYYYMMDD>-<branch>/` 扁平骨架（status.yaml、input.md、repo/），并为每个仓库创建 git worktree 到 `space/<YYYYMMDD>-<branch>/repo/<repo-name>`（worktree 检出分支仍为 `<branch>`）
+   - 解析输出: 脚本末尾输出结果行 `WORKSPACE=<工作区目录名>` 与 `BRANCH=<安全化分支名>`（工作区已存在时同样输出），第 6 步一律使用 `WORKSPACE` 值拼路径，不得自行按分支名猜目录
 
 6. **登记并切换上下文**
-   - 动作: 执行
-     `sh $root/harness/script/project.sh work-add $root <branch> "<目的描述>" "$root/space/<branch>" <branch> "<服务1,服务2>"`
-     在 AGENTS.md 项目信息区块追加 work 条目；为上下文赋值 `$work=$root/space/<branch>`
+   - 动作: 用上一步的 `WORKSPACE` 值执行
+     `sh $root/harness/script/project.sh work-add $root <branch> "<目的描述>" "$root/space/<WORKSPACE>" <branch> "<服务1,服务2>"`
+     在 AGENTS.md 项目信息区块追加 work 条目（work_id/branch 为分支名，work_path 为带日期前缀的实际目录）；为上下文赋值 `$work=$root/space/<WORKSPACE>`
 
 7. **输出开场知识清单（roster，只列不读）**
    - 动作: 上下文就绪后，给用户一份「一行一项」的知识清单，**不贴正文**，需要时再按路径读取：
@@ -81,19 +82,20 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 4. **创建工作区骨架（不建默认 worktree）**
    - 动作: 执行
      `sh $root/harness/script/work.sh --no-worktree $root <branch>`
-     只生成 status.yaml、input.md、wiki/ 与空 repo/ 占位
+     只生成 `space/<YYYYMMDD>-<branch>/` 下的 status.yaml、input.md、wiki/ 与空 repo/ 占位
+   - 解析输出: 取结果行 `WORKSPACE=<工作区目录名>`，后续步骤以该值为准
 
 5. **prepare：临时分支与工作 worktree**
    - 动作: 逐仓库执行
-     `sh $root/harness/script/branch-op.sh prepare $root space/<branch> <repo> <op> <A> <B>`
-     fetch 后创建 `A-<时间戳>`、`B-<时间戳>` 临时分支，并为工作分支（merge 取 B-ts，rebase 取 A-ts）创建 worktree 到 `space/<branch>/repo/<repo>`
+     `sh $root/harness/script/branch-op.sh prepare $root space/<WORKSPACE> <repo> <op> <A> <B>`
+     fetch 后创建 `A-<时间戳>`、`B-<时间戳>` 临时分支，并为工作分支（merge 取 B-ts，rebase 取 A-ts）创建 worktree 到 `space/<WORKSPACE>/repo/<repo>`
    - 解析输出: `BRANCH_OP_TS`、`BRANCH_OP_SOURCE_TMP`、`BRANCH_OP_TARGET_TMP`、`BRANCH_OP_WORKING`
 
 6. **登记并切换上下文**
    - 动作: 执行
-     `sh $root/harness/script/project.sh work-add $root <branch> "branch-op: <op> <A> → <B>" "$root/space/<branch>" <branch> "<repo1,repo2>"`
+     `sh $root/harness/script/project.sh work-add $root <branch> "branch-op: <op> <A> → <B>" "$root/space/<WORKSPACE>" <branch> "<repo1,repo2>"`
      并直接编辑 `$work/status.yaml`：`workflow` 改为 `branch-op`、`status` 置 `preparing`、`services` 写入选定仓库，且按 `harness/template/work-status.yaml` 的结构写入 `branch_op` 区块（每仓库的临时分支名与 pushed: false）
-   - 为上下文赋值 `$work=$root/space/<branch>`
+   - 为上下文赋值 `$work=$root/space/<WORKSPACE>`
 
 7. **跳过常规开场动作**
    - 边界: 不输出 roster、不引导 input.md/spec；登记完成即按 branch-op 工作流进入 integrate 环节
@@ -101,20 +103,20 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 ### 重命名工作区
 
 1. 输入新的目的描述；描述宽泛时按「新建工作区」第 2 步先澄清意图，再生成并确认新分支名
-2. 重命名 `space/<old>/` 为 `space/<new>/`
+2. 重命名工作区目录：`space/<原日期>-<old>/` 改为 `space/<原日期>-<new>/`——**保留原创建日期前缀**（排序位置与创建事实不变），只替换分支名部分
 3. 遍历该工作区每个仓库，在 worktree 内执行 `git branch -m <old> <new>`
-4. 直接编辑 AGENTS.md 项目信息区块中该条目（work_id / work_path / branch）与 `$work/status.yaml`（work_id / branch）；若重命名的是当前工作区，更新 `$work`
+4. 直接编辑 AGENTS.md 项目信息区块中该条目（work_id / work_path / branch）与 `$work/status.yaml`（work_id / work_dir / branch）；若重命名的是当前工作区，更新 `$work`
 
 ### 切换工作区
 
 1. 读取 AGENTS.md 项目信息区块的 work 列表（或扫描 `space/` 目录），高亮当前工作区
 2. 输入目标工作区；目标不存在时询问是否新建
-3. 为上下文赋值 `$work=$root/space/<target>/`，重新读取该工作区 status.yaml（不相信上下文里的旧内容）
+3. 以目标 work 条目的 `work_path`（即 `$root/space/<YYYYMMDD>-<branch>`）为上下文赋值 `$work`，重新读取该工作区 status.yaml（不相信上下文里的旧内容）；不要凭分支名自行拼目录
 4. 按「新建工作区」第 7 步输出该工作区的开场知识清单（wiki 页面 + 相关分析文档新鲜度 + 冷仓库建议），只列不读
 
 ### 列出工作区
 
-1. 以表格展示全部工作区：work_id / 描述 / 状态 / 分支，当前工作区标记「（当前）」
+1. 以表格展示全部工作区：work_id / 描述 / 状态 / 分支（可附工作区目录名），当前工作区标记「（当前）」；按工作区目录名排序即按创建时间排序
 2. 可接受用户序号或分支名输入，直接进入切换
 
 ## 框架自动提交（无需用户操作）
@@ -124,8 +126,8 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 
 ## 后置完成检验
 
-- [ ] `space/<branch>/status.yaml`、`input.md` 已生成
-- [ ] 已选仓库在 `space/<branch>/repo/` 下有可用 worktree
+- [ ] `space/<YYYYMMDD>-<branch>/status.yaml`（含正确的 work_dir、branch）、`input.md` 已生成
+- [ ] 已选仓库在 `space/<YYYYMMDD>-<branch>/repo/` 下有可用 worktree（检出分支为 `<branch>`）
 - [ ] AGENTS.md 项目信息区块的 work 列表与磁盘一致
 - [ ] 常规建区：已输出开场知识清单（roster）——wiki 页面与相关分析文档（含新鲜度），冷仓库已建议 ask；未向上下文塞入 wiki 全文
 - [ ] branch-op：op/A/B 已解析且仓库经用户确认；prepare 成功，status.yaml 已置 `workflow: branch-op`、`status: preparing` 并写入 `branch_op` 区块（临时分支名齐全）

@@ -98,6 +98,12 @@ cp -rn "$TACK_DIR/." "$ROOT/"
 # （Git 不跟踪空目录；wiki 文件由 init 命令按需物化），显式创建
 mkdir -p "$ROOT/space" "$ROOT/repo" "$ROOT/wiki"
 
+# .tack/ 是框架本地运行时数据根（log 日志 / backup 回滚备份 / state 本机状态 /
+# tmp 临时文件），整体被 .gitignore 排除、可随时删除。log/backup/state 为常驻
+# 目录，预建让布局显式化；tmp/ 不预建——各脚本按需 mkdir -p、退出时空目录顺手
+# 移除（重复执行安全）
+mkdir -p "$ROOT/.tack/log" "$ROOT/.tack/backup" "$ROOT/.tack/state"
+
 # README.md 是 skill 安装目录根的使用说明，物化到 harness/ 目录（已存在则跳过）；
 # 不放空间根——根目录 README.md 位置留给用户项目自身
 SKILL_ROOT="$(cd "$TACK_DIR/.." && pwd)"
@@ -114,6 +120,10 @@ else
     git -C "$ROOT" init >/dev/null
     echo "Git repository initialized: $ABS_ROOT"
 fi
+
+# 物化 agent hook 声明（.trae/hooks.json、.claude/settings.json，可选加速层）：
+# 已存在不覆盖；失败不阻断初始化（hook 纯为加速，缺失时自动降级为 AGENTS.md 路由）
+sh "$ABS_ROOT/harness/script/hook/install-hooks.sh" "$ABS_ROOT" || true
 
 # 回填 skill_version：版本号以本机 skill 的 SKILL.md front matter 为唯一事实源，
 # 物化后写入 AGENTS.md 项目信息区块（skill_update_url 已在出厂模板中固定）。

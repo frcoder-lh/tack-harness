@@ -22,7 +22,7 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
    - 已是 completed 但 worktree 仍存在（上次收尾中断）：直接续跑剩余收尾步骤
 
 2. **交付检查**
-   - 动作: 逐仓库检查：无未提交改动（或用户确认保留）、本地提交均已推送、MR 已合并或用户确认跳过；检查 `$work/status.yaml` 的 mr_url、tech_doc_url 是否需要补全；未推送提交需逐一告知用户并确认处理方式；检查 `deploy` 区块——存在 `deploying/deployed` 状态的泳道时提醒用户到部署平台回收（回收后置 `recycled`），未回收不阻塞关闭但处理方式须经用户确认
+   - 动作: 逐仓库检查：无未提交改动（或用户确认保留）、本地提交均已推送、MR 已合并或用户确认跳过；检查 `$work/status.yaml` 的 mr_url、tech_doc_url 是否需要补全；未推送提交需逐一告知用户并确认处理方式；检查 `deploy` 区块——存在 `deploying/deployed` 状态的泳道时提醒用户到部署平台回收（回收后置 `recycled`），未回收不阻塞关闭但处理方式须经用户确认；检查 `$work/run/local/`——若存在含密钥/账号的敏感文件，提醒用户该目录已被 .gitignore 忽略不会入库，确认是否需要本地清理（不阻塞关闭）
 
 3. **输出交付摘要**
    - 时机: worktree 移除前（仍可取到提交与文件清单），wiki 提炼前
@@ -49,7 +49,7 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
      - **技术决策与工程约定**（plan.md「决策记录」中的选型取舍、代码外的项目规则如重试/舍入/默认值约定）→ `$root/wiki/decisions.md`
    - 边界: 易变的代码实现、调用链、模块内部行为**不进 wiki**（以代码为唯一真源）；通用编码规范不进 decisions（走第 5 步 rule）；来源不明、无法从工作区产物证实的内容不提炼
    - 询问: 以候选条目清单（含建议落点与**来源标注**）询问用户**是否记入 wiki**；用户可全部采纳、挑选部分或放弃
-   - 落盘: 被采纳条目按 `harness/rule/record-wiki.md` 写入 `$root/wiki/` 对应文件——文件已存在则融合去重（不重复追加），不存在时按 `harness/template/wiki-*.md` 模板创建（decisions.md 首条采纳时才创建）；每条带来源（`space/<branch>/<文件>`），与旧条目矛盾时按「矛盾与演变」规则保留轨迹；**必须经人工审阅确认后才生效**；用户放弃则跳过
+   - 落盘: 被采纳条目按 `harness/rule/record-wiki.md` 写入 `$root/wiki/` 对应文件——文件已存在则融合去重（不重复追加），不存在时按 `harness/template/wiki-*.md` 模板创建（decisions.md 首条采纳时才创建）；每条带来源（`space/<workspace>/<文件>`，`<workspace>` 即当前工作区目录名），与旧条目矛盾时按「矛盾与演变」规则保留轨迹；**必须经人工审阅确认后才生效**；用户放弃则跳过
 
 5. **自进化：消费 guidance，固化操作习惯到 harness**
    - 输入: 读取 `$work/status.yaml` 的 `guidance` 列表中所有 `status: raw` 条目（无 raw 条目则向用户一句话说明并跳过本步）
@@ -57,14 +57,14 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
    - 询问: 向用户展示候选清单，可全部采纳、挑选部分或放弃（**落盘必须经用户确认**，本步不擅自改 harness）
    - 落盘: 采纳项走 `record` 流程——先扫描对应 workflow/cmd/rule，**能融合则融合**，确无合适条目才新建；同时遵守核心约束第 10 条，发现确定性固定步骤一并提议固化为 script
    - 回写: 落盘完成的条目的 `status` 置 `distilled`，并在条目内另起一行按固定格式注明落点：`落点: <相对 $root 的路径>`（如 `落点: harness/cmd/dev/code.md`，多落点空格分隔；格式见 `harness/template/work-status.yaml`）；放弃或评估为不固化的置 `dismissed`；用户暂缓决断的保留 `raw`（不阻塞关闭，可日后手动 `evolution`/`record` 处理）
-   - 校验: 回写后执行 `sh $root/harness/script/check-guidance.sh $root <work_id>`，确认本工作区 distilled 条目引用的落点文件均存在；报失效时先修复（补回文件或更正落点路径）再继续，不删除来源条目
+   - 校验: 回写后执行 `sh $root/harness/script/check-guidance.sh $root <workspace>`（`<workspace>` 为工作区目录名，取 `basename "$work"` 或 status.yaml 的 `work_dir`），确认本工作区 distilled 条目引用的落点文件均存在；报失效时先修复（补回文件或更正落点路径）再继续，不删除来源条目
    - 边界: guidance 只作为候选素材，事实存疑、无法从工作区过程证实的不固化；wiki 类知识已在第 4 步处理，本步只面向 workflow/cmd/rule
 
 6. **移除 worktree**
    - **branch-op 工作流**：从 status.yaml 的 `branch_op.repos` 逐仓库读取临时分支名，执行
-     `sh $root/harness/script/branch-op.sh cleanup $root space/<branch> <repo> <source_tmp> <target_tmp>`
+     `sh $root/harness/script/branch-op.sh cleanup $root space/<workspace> <repo> <source_tmp> <target_tmp>`（`<workspace>` 取 `basename "$work"`）
      一次性移除工作 worktree 并删除 `A-ts`、`B-ts` 两个临时分支；worktree 存在未提交改动时脚本停止，报告事实并经用户确认后追加 `force` 参数；成功后在 `branch_op` 区块置 `cleaned: true`
-   - **其他工作流**：执行 `sh $root/harness/script/git-worktree-helper.sh remove $root <branch>`，移除各仓库在 `$work/repo/` 下的 worktree
+   - **其他工作流**：执行 `sh $root/harness/script/git-worktree-helper.sh remove $root <workspace>`（`<workspace>` 取 `basename "$work"`），移除各仓库在 `$work/repo/` 下的 worktree
 
 7. **归档工作区**
    - 动作: 执行
@@ -95,6 +95,7 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
 - [ ] guidance 的 raw 条目已逐条处理：固化项经用户确认落盘并置 distilled（按 `落点: <相对 $root 路径>` 注明），不固化项置 dismissed；未确认落盘的条目保留 raw 且不阻塞关闭
 - [ ] `check-guidance.sh` 校验通过：本工作区 distilled 条目无失效落点
 - [ ] `deploy` 区块无未回收泳道（deploying/deployed），或用户已确认处理方式
+- [ ] `run/local/` 敏感数据已提醒用户（已被 .gitignore 忽略，不会入库；用户确认是否本地清理）
 - [ ] 文档保留/清理符合用户选择
 - [ ] 版本检查已执行；有新版本时已原样转述提醒与更新内容，并建议执行 `update`
 

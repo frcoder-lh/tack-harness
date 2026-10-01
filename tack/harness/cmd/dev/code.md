@@ -76,7 +76,7 @@ summary: 编码前先判定涉及仓库并确保就绪（主仓库缺失转 crea
 
 6. **批次收尾与回写**
    - 动作: 本批任务全部完成后：
-     - 更新 status.yaml：tasks 中汇总 done 任务（任务级状态直接编辑 YAML）；执行 `sh $root/harness/script/work-status.sh $work/status.yaml set next "<仓库模式：下一模块 / testcode / commit；片段模式：落库后再走 testcode / commit>"`；全部任务 done 时加 `progress.code true`
+     - 更新 status.yaml：tasks 中汇总 done 任务（任务级状态直接编辑 YAML）；执行 `sh $root/harness/script/work-status.sh $work/status.yaml set next "<仓库模式：下一模块 / commit；片段模式：落库后 commit。需要单测/系统测试/执行脚本时由用户随时触发 testcode/test/run，非必经环节>"`；全部任务 done 时加 `progress.code true`
      - 输出交付摘要：按模块列出任务、改动文件或交付片段（含所属仓库与建议落点）、关键设计选择（含自动决策记录）
 
 ## 框架自动提交（无需用户操作）
@@ -94,6 +94,6 @@ summary: 编码前先判定涉及仓库并确保就绪（主仓库缺失转 crea
 
 ## 下一步建议
 
-- 继续执行 `code` 推进剩余任务；仓库模式可执行 `testcode`（可选）补充单测
-- 片段模式交付的片段落库后，再执行 `testcode`（可选）与 `commit`；需求/实现需要修正时执行 `fix`
-- 仓库模式全部完成后执行 `commit`
+- 继续执行 `code` 推进剩余任务；全部任务完成后直接执行 `commit`——**无需经过任何测试环节**
+- `testcode` / `test` / `run` 是按需命令，仅在用户主动要求时触发（如"补单测/做系统测试/跑脚本"），AI 不主动询问或引导；需求/实现需要修正时执行 `fix`
+- 片段模式交付的片段由用户落库后，再执行 `commit`

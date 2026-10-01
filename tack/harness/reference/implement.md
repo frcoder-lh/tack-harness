@@ -4,17 +4,17 @@
 
 ## 前置条件
 
-- 已执行完 plan，`space/<branch>/status.yaml` 的 `tasks` 列表非空且本批任务依赖已就绪
+- 已执行完 plan，`space/<workspace>/status.yaml` 的 `tasks` 列表非空且本批任务依赖已就绪
 - 涉及仓库已接入、worktree 已就绪——由 code 命令的仓库准入判定负责；缺失时转 `create-repo` / `worktree`，不在本方法论内处理
 
 ## 边界
 
-- 所有代码修改只能在 `space/<branch>/repo/<repo-name>/`（git worktree）内进行，禁止直接修改 `repo/` 主仓库（只读基准）；Git 操作边界统一遵守 `harness/rule/git-boundary.md`
+- 所有代码修改只能在 `space/<workspace>/repo/<repo-name>/`（git worktree）内进行，禁止直接修改 `repo/` 主仓库（只读基准）；Git 操作边界统一遵守 `harness/rule/git-boundary.md`
 - 编码过程不代为提交：代码提交由 `commit` 命令经用户确认后执行
 
 ## 过程
 
-1. 读取当前的开发计划（`space/<branch>/plan.md`）、技术评审文档（`space/<branch>/tech-design.md`，如有）和任务清单（`space/<branch>/status.yaml` 的 `tasks` 列表）
+1. 读取当前的开发计划（`space/<workspace>/plan.md`）、技术评审文档（`space/<workspace>/tech-design.md`，如有）和任务清单（`space/<workspace>/status.yaml` 的 `tasks` 列表）
 2. 按 deps 拓扑顺序实现任务：无依赖的任务可并行，有依赖的严格串行
 3. 在预约定的接缝处使用 TDD 方法（参考 `reference/tdd.md`）
 4. 定期进行类型检查和测试；仓库模式下任务 done 以本地构建/相关测试通过为准

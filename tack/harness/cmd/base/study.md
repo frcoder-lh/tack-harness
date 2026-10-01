@@ -28,7 +28,7 @@ summary: 学习外部 skill 或仓库的设计，提炼可借鉴点并直接优�
 
 1. **定位并获取学习素材**
    - 输入: 用户参数，按以下顺序判定类型：
-     - **Git 链接**（以 `http://`、`https://`、`git@`、`ssh://` 开头，或以 `.git` 结尾）: 浅克隆到临时目录——`git clone --depth 1 <链接> <临时目录>`；临时目录用 `mktemp -d` 创建（命名含 `tack-study`），仅用于本次分析
+     - **Git 链接**（以 `http://`、`https://`、`git@`、`ssh://` 开头，或以 `.git` 结尾）: 浅克隆到**空间内临时目录**——先 `mkdir -p $root/.tack/tmp`，再执行 `git clone --depth 1 <链接> $root/.tack/tmp/study-clone-<时间戳>`；该目录仅用于本次分析，在第 7 步收尾删除，不使用系统临时目录
      - **本地目录路径**（路径存在且为目录）: 直接以该目录为素材目录，不复制、不改动
      - **skill 短名称**（其余情况）: 在本机已安装 skill 目录查找 `<名称>/`：
        - Windows: `%USERPROFILE%\.trae-cn\skills\`、`%USERPROFILE%\.trae\skills\`
@@ -63,7 +63,7 @@ summary: 学习外部 skill 或仓库的设计，提炼可借鉴点并直接优�
    - 新增命令/工作流先做重名检查：候选名过 `scan-routes resolve` 不得命中现有命令，命名不带前导连字符、意图明确（禁止模糊命名）
 
 4. **备份并直接落盘（中途不找用户确认）**
-   - 备份: 落盘前将 `$root/harness` 复制到 `$root/.backup/study-<timestamp>/`（`.backup/` 已被 gitignore 忽略）；如改动涉及 AGENTS.md/SKILL.md 一并复制原件进备份目录
+   - 备份: 落盘前将 `$root/harness` 复制到 `$root/.tack/backup/study-<timestamp>/`（`.tack/` 已被 gitignore 忽略）；如改动涉及 AGENTS.md/SKILL.md 一并复制原件进备份目录
    - 落盘原则:
      - **以新增、融合、优化为主，不删除既有内容**：不删除、不弱化任何现有命令、规则、脚本、模板与约定
      - 最小化修改：只动与借鉴点相关的段落，不重写无关内容；融合时保留原文有效表述
@@ -93,8 +93,8 @@ summary: 学习外部 skill 或仓库的设计，提炼可借鉴点并直接优�
 
 7. **确认后提交（无需用户操作 git）**
    - 动作: 用户确认全部变更后，执行 `sh $root/harness/script/space.sh commit $root "chore(tack): study from <来源标识>"` 自动提交到 tack 空间根仓库；无变更自动跳过
-   - 用户整体否决: 从 `.backup/study-<timestamp>/` 恢复全部文件，不提交，并保留分析结论供用户参考
-   - 收尾: 删除本次临时克隆目录（本地素材目录不删不动）
+   - 用户整体否决: 从 `.tack/backup/study-<timestamp>/` 恢复全部文件，不提交，并保留分析结论供用户参考
+   - 收尾: 删除本次临时克隆目录（`$root/.tack/tmp/study-clone-<时间戳>`，仅删本次创建的目录）；`.tack/backup/study-<timestamp>/` 是回滚备份、保留不删；本地素材目录不删不动
    - 边界: 遵守 `harness/rule/git-boundary.md`
 
 8. **自动执行一次 evolution**
@@ -114,7 +114,7 @@ summary: 学习外部 skill 或仓库的设计，提炼可借鉴点并直接优�
 - [ ] 每个落盘变更都能对应到具体借鉴点；落点经过与现有文件的融合检查，无重复造文件
 - [ ] 既有命令、规则、脚本、模板与约定无一被删除；替换性内容仅作为「待裁决建议」列出并经用户选择
 - [ ] scan-routes 路由表完整、无重名；新增触发词唯一命中；脚本通过 `sh -n` 与最小用例；引用路径全部存在
-- [ ] 变更仅在统一预览并经用户确认后提交；提交信息含来源标识；临时克隆目录已清理
+- [ ] 变更仅在统一预览并经用户确认后提交；提交信息含来源标识；`.tack/tmp/` 下本次临时克隆目录已清理（回滚备份 `backup/study-<timestamp>/` 保留）
 - [ ] 提交后已自动执行一次 evolution，其候选已经用户确认或按 evolution 规则保留 raw
 
 ## 下一步建议
