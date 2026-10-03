@@ -21,14 +21,19 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 PAYLOAD="$(mktemp 2>/dev/null)" || exit 0
 ERRF="$(mktemp 2>/dev/null)" || { rm -f "$PAYLOAD"; exit 0; }
-trap 'rm -f "$PAYLOAD" "$ERRF"' EXIT HUP INT TERM
 cat > "$PAYLOAD" 2>/dev/null || true
 
 CWD="$(hook_json_get cwd "$PAYLOAD")"
 [ -n "$CWD" ] || CWD="${TRAE_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}"
 
-ROOT="$(hook_detect_root "$CWD" 2>/dev/null)" || exit 0
+# 统一 hook 日志（TACK_HOOK_LOG=1 时记录本次调用的输入/输出到 .tack/log/hook.log）；
+# 开关关闭时仅接管临时文件清理，stdout 行为与原先完全一致
+hook_log_setup "UserPromptSubmit" "$PAYLOAD" "$ERRF"
+
+# ROOT 优先复用 SessionStart 导出的 TACK_ROOT（内部校验有效性，失效自动回退探测）
+ROOT="$(hook_resolve_root "$CWD" 2>/dev/null)" || true
 [ -n "$ROOT" ] || exit 0
+hook_log_ctx "$ROOT"
 HARNESS="$ROOT/harness"
 [ -f "$HARNESS/script/scan-routes.sh" ] || exit 0
 
@@ -45,7 +50,9 @@ KW=$(printf '%s' "$RAW_PROMPT" | awk '
     }')
 
 # 工作区状态快照文本（所有分支共用；无活跃工作区时给出明确提示）
-WORK="$(hook_active_work "$ROOT" 2>/dev/null)" || true
+# WORK 优先复用 TACK_WORK（校验 status.yaml/非 completed），失效回退全量扫描
+WORK="$(hook_resolve_work "$ROOT" 2>/dev/null)" || true
+hook_log_ctx "$ROOT" "$WORK"
 STATE_BLOCK=""
 if [ -n "$WORK" ]; then
     STATE_BLOCK="当前活跃工作区：$(basename "$WORK")（$WORK）

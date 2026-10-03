@@ -6,6 +6,7 @@
 
 - `$root` = tack 空间的根目录（本文件所在目录）
 - `$work` = 当前正在进行的工作目录（`$root/space/<workspace>/`；工作区目录名 `<workspace>` = `<YYYYMMDD>-<branch>`，如 `20261001-user-login`——日期前缀使目录按名排序即按创建时间排序；目录内 worktree 检出的 git 分支名仍为 `<branch>`，不含日期前缀）
+- 会话执行环境（Hook 进程与 RunCommand 工具）中另有由 SessionStart 自动导出的环境变量：`TACK_ROOT` = `$root`、`TACK_WORK` = `$work`（无活跃工作区时为空）。执行命令时可直接引用（PowerShell 用 `$env:TACK_ROOT`，sh 用 `$TACK_ROOT`），无需拼写绝对路径；脚本侧只把它们当缓存、消费前校验有效性，空间迁移或工作区关闭后自动回退实时探测，不影响正确性
 
 ## 加载 tack harness
 
@@ -32,8 +33,10 @@
 | 事件 | 加速内容 | 对会话的影响 |
 |------|----------|--------------|
 | SessionStart | 注入命令/工作流路由全表、`$root`/`$work` 路径、当前工作区快照；向环境写入 `TACK_ROOT`/`TACK_WORK` | 省去首轮 `scan-routes list` 往返 |
-| UserPromptSubmit | 对用户输入做 `scan-routes resolve`，唯一命中时直接注入对应 cmd/workflow 正文与状态快照，多命中列候选，无命中给全表 | 省去路由解析往返 |
-| PreToolUse | 观察模式：仅在 `TACK_HOOK_LOG=1` 时把命令调用与边界规则命中写入 `$root/.tack/log/hook-observe.log`（探针校准真实 payload）；`TACK_HOOK_ENFORCE=1` 才输出 deny（**当前预留，默认不拦截**） | 默认零输出、零拦截 |
+| UserPromptSubmit | 复用 `TACK_ROOT`/`TACK_WORK` 缓存路径（失效自动回退探测）；对用户输入做 `scan-routes resolve`，唯一命中时直接注入对应 cmd/workflow 正文与状态快照，多命中列候选，无命中给全表 | 省去路由解析往返与重复的空间/工作区扫描 |
+| PreToolUse | 观察模式：命令执行类工具（RunCommand/Bash）调用与 Git 双层边界、`--force`/`--no-verify` 等规则命中情况经统一日志记录；`TACK_HOOK_ENFORCE=1` 才输出 deny（**当前预留，默认不拦截**） | 默认零输出、零拦截 |
+
+统一日志：设置环境变量 `TACK_HOOK_LOG=1` 后，三个 Hook **每次被调用**都把一条完整记录追加到 `$root/.tack/log/hook.log`——时间、事件名、pid、`$root`/`$work`、cwd、环境变量、输入 payload 全文、注入/拦截输出全文、退出码与耗时（并发调用按整块串行写入、互不交错）；非 tack 空间回退系统临时目录。默认关闭，关闭时 Hook 的 stdout 与不启用日志时逐字节一致；`.tack/` 不入库、日志可随时清理。
 
 降级：删除 `$root/.trae/hooks.json` 与 `$root/.claude/settings.json` 即完全回退到「AI 主动调用 `scan-routes.sh`」的原有路径。
 
@@ -87,7 +90,7 @@
 | `harness/cmd/` | 命令入口（base/dev/git 分组），定义准入准出 |
 | `harness/agents/` | 可委派角色（code-explorer / code-architect / code-reviewer）：被 cmd 引用后经 Task 子代理在独立上下文执行，可多实例并行；只供发现与委派，不参与命令路由 |
 | `harness/workflow/` | 工作流状态机（development/testing/bugfix/merge-conflict/branch-op） |
-| `harness/script/` | 固定流程脚本（init-tack、space、scan-routes、lint-harness、scan-secrets、check-guidance、work-status、project、repo、work、git-worktree-helper、git-bug-trace、branch-op、skill-update、check-update；Windows 统一经 `run.ps1` 启动器调用） |
+| `harness/script/` | 固定流程脚本（init-tack、space、scan-routes、lint-harness、scan-secrets、check-guidance、work-status、project、repo、work、git-worktree-helper、git-bug-trace、git-diff-context、branch-op、skill-update、check-update；Windows 统一经 `run.ps1` 启动器调用） |
 | `harness/script/hook/` | TRAE/Claude Code Hooks 可选加速层（SessionStart 预载路由、UserPromptSubmit 零往返路由、PreToolUse 观察层；默认不启用、不拦截，删掉整个目录框架仍完整可用） |
 | `harness/rule/` | 业务、代码与安全规则（coding-standards、security、git-boundary、context-loading、windows-env、record-* 等；不参与路由，按需加载） |
 | `harness/template/` | 命令/工作流/文档/工作区模板 |

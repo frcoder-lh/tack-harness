@@ -18,14 +18,18 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/hook-common.sh"
 
 PAYLOAD="$(mktemp 2>/dev/null)" || exit 0
-trap 'rm -f "$PAYLOAD"' EXIT HUP INT TERM
 cat > "$PAYLOAD" 2>/dev/null || true
 
 CWD="$(hook_json_get cwd "$PAYLOAD")"
 [ -n "$CWD" ] || CWD="${TRAE_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}"
 
-ROOT="$(hook_detect_root "$CWD" 2>/dev/null)" || exit 0
+# 统一 hook 日志（TACK_HOOK_LOG=1 时记录本次调用的输入/输出到 .tack/log/hook.log）；
+# 开关关闭时仅接管临时文件清理，stdout 行为与原先完全一致
+hook_log_setup "SessionStart" "$PAYLOAD"
+
+ROOT="$(hook_detect_root "$CWD" 2>/dev/null)" || true
 [ -n "$ROOT" ] || exit 0
+hook_log_ctx "$ROOT"
 HARNESS="$ROOT/harness"
 [ -d "$HARNESS/cmd" ] || exit 0
 
@@ -37,6 +41,7 @@ if [ -n "$WORK" ]; then
     WORK_NAME="$(basename "$WORK")"
     SNAPSHOT="$(hook_work_snapshot "$WORK" 2>/dev/null)" || SNAPSHOT=""
 fi
+hook_log_ctx "$ROOT" "$WORK"
 
 # 环境变量导出（后续 hook 与 RunCommand 可见；文件不存在/未注入则跳过）
 ENVF="${TRAE_ENV_FILE:-${CLAUDE_ENV_FILE:-}}"

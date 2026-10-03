@@ -29,7 +29,7 @@ tools: Read, Grep, Glob, LS, Bash
 - 通过 Task 子代理工具委派；多视角在同一批调用中并行发起
 - 委派 query 中必须写清：
   1. 目标仓库绝对路径、固定点（commit SHA/分支名/tag，如 `main`），审查范围为 `git diff <固定点>...HEAD`
-  2. 规范来源路径（spec.md / plan.md / tech-design.md）与标准来源（`harness/rule/coding-standards.md`、`harness/rule/security.md`）
+  2. 规范来源路径（spec.md / plan.md / tech-design.md）与标准来源（`harness/rule/coding-standards.md`、任务涉及语言对应的 `coding-standards-<语言>.md`、`harness/rule/security.md`）
   3. 本实例的视角；声明只审查、不改代码
 
 ## 工具边界（指令性）

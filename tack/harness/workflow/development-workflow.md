@@ -2,7 +2,7 @@
 workflow: development
 short: dev
 triggers: 开发工作流, 需求开发, 功能开发, development
-summary: 从需求到合并交付的完整开发状态机——spec → plan → tech-design → code → commit → push → merge → close；testcode/test/run 为按需命令（用户需要时触发，非必经环节、不占状态、不阻塞流转）；任何环节可用 fix 修正需求或实现
+summary: 从需求到合并交付的完整开发状态机——spec → plan → tech-design → code → commit → push → merge → close；testcode/test/run/code-review/release-check 为按需命令（用户需要时触发，非必经环节、不占状态、不阻塞流转）；任何环节可用 fix 修正需求或实现
 ---
 
 # development 开发工作流
@@ -61,6 +61,8 @@ initialized → planning → developing → reviewing → merged → completed
 | `testcode` | 以单测为手段的需求-代码一致性审查与缺陷发现（覆盖率 90% 是准出指标之一而非唯一目的） | 测试代码、审查发现与缺陷修复、覆盖率结果 | progress.testcode |
 | `test` | 系统测试：面向完整系统功能的端到端验证方案 | `$work/test.md`（可落地可执行）；需脚本时落到 `run/` | progress.test |
 | `run` | 执行测试/数据脚本：无 `run/` 时初始化，有 run.md 时按清单执行；敏感数据落 `run/local/`（gitignored） | `run/run.md`、执行结果 | progress.run |
+| `code-review` | 合并前独立深度审查：以 plan/tech-design 为规范、目标分支三点 diff 为事实，逐函数分析改动、正确性与危害，评估影响接口与场景 | `$work/code-review.md` | progress.review |
+| `release-check` | 上线前检查清单：数据库变更（含变更语句）、配置变更（含模板）、新增接口调用（权限申请）、新增中间件（申请配置） | `$work/release-check.md` | progress.release_check |
 
 ## 各环节说明
 

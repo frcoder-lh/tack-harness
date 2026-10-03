@@ -6,6 +6,14 @@
 - `release.sh` 发版时校验目标 tag 在本文件中有对应段落，缺失即中止
 - CI 创建 GitHub Release 时抽取对应段落作为 Release body；`check-update.sh` 检查提醒与 `update` 命令展示「本次更新内容」均以本文件为来源
 
+## V0.0.13 (2026-10-03)
+
+- 新增: `code-review` 代码审查命令（简写 `rv`，触发词「代码审查/审查报告」）——以 `plan.md`/`tech-design.md` 为规范、与目标分支的三点 diff 为事实，按「仓库→文件→函数」逐函数分析改动内容（附代码锚点）、逻辑正确性、明显 bug 与代码层面危害（安全/性能/兼容性），并评估受影响接口与涉及业务场景，产出独立报告 `$work/code-review.md`；跨模块大改动可委派 code-reviewer 三视角并行，审查基准一致时 `merge` 门禁可复用报告结论
+- 新增: `release-check` 上线检查命令（简写 `rc`，触发词「上线检查/发布检查」）——逐项识别数据库变更（给出可执行变更与回滚语句、执行环境与时机）、配置变更（给出键/值示例/生效环境模板）、新增接口调用（需申请的权限与白名单）、新增中间件（需提前申请配置的资源），另覆盖定时任务、凭据、灰度与回滚预案等兜底项，产出 `$work/release-check.md` 逐项打勾清单与上线顺序建议
+- 新增: 共享脚本 `git-diff-context.sh`——解析目标分支（本地优先、回退 origin/、自动探测 master/main）、计算 merge-base 并导出三点 diff 与统计，为审查类命令提供确定性事实；E2E 覆盖本地/仅远端/无差异/错误路径
+- 新增: Hook 统一日志——设置 `TACK_HOOK_LOG=1` 后三个 Hook 每次调用完整记录时间、事件、pid、cwd、环境变量、输入 payload 全文、注入/拦截输出全文、退出码与耗时到 `.tack/log/hook.log`（互斥锁整块串行追加、并发不交错）；关闭时 Hook 输出逐字节不变
+- 优化: `TACK_ROOT`/`TACK_WORK` 接入实际消费——环境变量仅作 SessionStart 缓存，消费前校验空间标记、路径归属、工作区状态（非 completed），失效自动回退实时探测；UserPromptSubmit/PreToolUse 省去重复的向上探测与 space 全量扫描
+
 ## V0.0.12 (2026-10-01)
 
 - 优化: `commit` 命令取消二次确认——用户发起命令即确认提交意图，提交信息自动生成（用户参数优先，否则结合实际 diff 与 `current.task`，Conventional Commits 风格）后直接提交，完成后如实汇报 commit hash、提交信息与改动文件清单；`push` 等影响远端的操作仍需用户明确指令

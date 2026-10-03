@@ -155,6 +155,53 @@ hook_active_work() {
     printf '%s' "$_found" | sort -r | head -n 1 | sed 's/^[^|]*|//'
 }
 
+# ── TACK_ROOT / TACK_WORK 缓存消费（SessionStart 经 ENV_FILE 导出）──────────────
+#
+# 设计原则：这两个环境变量只是 SessionStart 时刻落的「确定性事实缓存」，磁盘
+# 始终是唯一事实源——空间可能被迁移、工作区可能已在会话中被 close。因此使用
+# 前必须先校验，校验失败一律回退实时探测，绝不信任过期值。
+
+# hook_valid_root <dir> — 是否为 tack 空间根（AGENTS.md 存在且含空间标记）
+hook_valid_root() {
+    [ -n "${1:-}" ] || return 1
+    [ -f "$1/AGENTS.md" ] && hook_grep_mark "$1/AGENTS.md"
+}
+
+# hook_valid_work <root> <dir> — 是否为 <root> 下的活跃工作区：
+# 路径位于 <root>/space/ 内、status.yaml 存在且状态非 completed
+hook_valid_work() {
+    _vw_root="$(printf '%s' "${1:-}" | tr '\\' '/')"
+    _vw_dir="$(printf '%s' "${2:-}" | tr '\\' '/')"
+    [ -n "$_vw_root" ] && [ -n "$_vw_dir" ] || return 1
+    case "$_vw_dir" in
+        "$_vw_root"/space/*) ;;
+        *) return 1 ;;
+    esac
+    [ -f "$_vw_dir/status.yaml" ] || return 1
+    [ "$(hook_yaml_top "$_vw_dir/status.yaml" status)" = "completed" ] && return 1
+    return 0
+}
+
+# hook_resolve_root <start-dir>
+# TACK_ROOT 缓存有效则直接复用，否则从起始目录向上实时探测
+hook_resolve_root() {
+    if hook_valid_root "${TACK_ROOT:-}"; then
+        printf '%s' "$TACK_ROOT"
+        return 0
+    fi
+    hook_detect_root "$1"
+}
+
+# hook_resolve_work <root>
+# TACK_WORK 缓存有效则直接复用，否则全量扫描活跃工作区
+hook_resolve_work() {
+    if hook_valid_work "$1" "${TACK_WORK:-}"; then
+        printf '%s' "$TACK_WORK"
+        return 0
+    fi
+    hook_active_work "$1"
+}
+
 # hook_work_snapshot <work-dir>
 # 输出工作区状态快照（供注入模型）：status/workflow + current 三件套
 hook_work_snapshot() {
@@ -198,4 +245,182 @@ hook_strip_frontmatter() {
 # hook_shq <string> — POSIX shell 单引号安全包裹
 hook_shq() {
     printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
+}
+
+# ── 统一 Hook 日志（环境变量 TACK_HOOK_LOG=1 开启；默认关闭，零开销、零行为变化）────
+#
+# 三个事件脚本在解析完 CWD 后统一调用 hook_log_setup 接入，一次调用记录：
+#   时间 / 事件名 / pid / cwd / 环境（TACK_ROOT、TACK_WORK、TACK_HOOK_ENFORCE）/
+#   输入 payload 全文 / $root、$work / 过程备注（如 PreToolUse 规则命中）/
+#   输出全文 / rc / 输出字节数 / 耗时（秒）
+#
+# 落点：$root/.tack/log/hook.log（.tack/ 不入库、可随时清理）；探测不到 tack
+#   空间时回退 ${TMPDIR:-/tmp}/tack-hook.log，供排查「空间外为何不生效」。
+#
+# 两条铁律：
+#   1. 日志只写文件、任何异常静默吞掉，绝不写 stdout/stderr——hook 注入文本与
+#      deny JSON 必须与不开日志时逐字节一致（stdout 先落临时缓冲，退出 trap 中
+#      恢复原 stdout 后原样回放）
+#   2. 一次调用的记录先写本次专属缓冲，收尾时单次 append——多个 hook 进程并发时
+#      日志块不相互穿插
+
+_HL_EVENT=""
+_HL_PAYLOAD=""
+_HL_EXTRA=""
+_HL_ROOT=""
+_HL_WORK=""
+_HL_CTX=0
+_HL_ROOT_DONE=""
+_HL_WORK_DONE=""
+_HOOKLOG=""
+_HL_OUT=""
+_HL_T0=""
+
+# hook_log_enabled — 仅 TACK_HOOK_LOG=1 开启（未设置/其他值均关闭）
+hook_log_enabled() {
+    [ "${TACK_HOOK_LOG:-}" = "1" ]
+}
+
+# hook_log_ts — 本地时间戳（与 .tack/log 其他日志同格式）
+hook_log_ts() {
+    date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || printf -- '-'
+}
+
+# hook_log_block <file> — 给文件每一行加 "  | " 前缀，作为日志多行块输出
+hook_log_block() {
+    [ -f "$1" ] || return 0
+    awk '{ print "  | " $0 }' "$1" 2>/dev/null
+}
+
+# hook_log_setup <event> <payload-file> [extra-tmp-file]
+# 注册退出清理 trap（开关关闭也注册，接管事件脚本的临时文件清理）；开关开启时
+# 额外创建日志缓冲与 stdout 缓冲、重定向 stdout、写入 begin 块。
+# 必须在 CWD 解析之后、任何 stdout 产出之前调用。
+hook_log_setup() {
+    _HL_EVENT="$1"
+    _HL_PAYLOAD="$2"
+    _HL_EXTRA="${3:-}"
+    if hook_log_enabled; then
+        _HOOKLOG="$(mktemp 2>/dev/null)" || _HOOKLOG=""
+        _HL_OUT="$(mktemp 2>/dev/null)" || _HL_OUT=""
+        _HL_T0="$(date '+%s' 2>/dev/null)" || _HL_T0=""
+        if [ -n "$_HOOKLOG" ]; then
+            {
+                printf '===== %s event=%s pid=%s phase=begin =====\n' \
+                    "$(hook_log_ts)" "$_HL_EVENT" "$$"
+                printf 'cwd: %s\n' "${CWD:-}"
+                printf 'env: TACK_ROOT=%s TACK_WORK=%s TACK_HOOK_ENFORCE=%s\n' \
+                    "${TACK_ROOT:-}" "${TACK_WORK:-}" "${TACK_HOOK_ENFORCE:-}"
+                printf 'input.payload:\n'
+                hook_log_block "$_HL_PAYLOAD"
+            } >> "$_HOOKLOG" 2>/dev/null || true
+        fi
+        if [ -n "$_HL_OUT" ]; then
+            # 保存宿主 stdout 到 fd3，后续 stdout 全部进缓冲，cleanup 中回放
+            exec 3>&1
+            exec >"$_HL_OUT"
+        fi
+    fi
+    trap _hook_log_cleanup EXIT HUP INT TERM
+}
+
+# hook_log_ctx <root> [work] — 空间探测后补记 $root/$work；可重复调用：
+# ROOT 刚探到时先调一次，WORK 探到后再调一次。仅落盘新拿到的非空字段，
+# 空串视为「尚不知道」，不覆盖、不落盘；始终缺省的字段由 finish 补 <none>。
+hook_log_ctx() {
+    [ -n "${1:-}" ] && _HL_ROOT="$1"
+    [ -n "${2:-}" ] && _HL_WORK="$2"
+    if [ -n "$_HL_ROOT" ] || [ -n "$_HL_WORK" ]; then
+        _HL_CTX=1
+    fi
+    [ -n "$_HOOKLOG" ] || return 0
+    if [ -n "$_HL_ROOT" ] && [ -z "$_HL_ROOT_DONE" ]; then
+        _HL_ROOT_DONE=1
+        printf 'root: %s\n' "$_HL_ROOT" >> "$_HOOKLOG" 2>/dev/null || true
+    fi
+    if [ -n "$_HL_WORK" ] && [ -z "$_HL_WORK_DONE" ]; then
+        _HL_WORK_DONE=1
+        printf 'work: %s\n' "$_HL_WORK" >> "$_HOOKLOG" 2>/dev/null || true
+    fi
+}
+
+# hook_log_note <text> — 追加过程备注（如 PreToolUse 规则命中原因）
+hook_log_note() {
+    [ -n "$_HOOKLOG" ] || return 0
+    printf '%s\n' "$*" >> "$_HOOKLOG" 2>/dev/null || true
+}
+
+# hook_log_finish <rc> — 追加输出块并把本次缓冲一次性落盘（须在 stdout 恢复后调用）
+hook_log_finish() {
+    [ -n "$_HOOKLOG" ] || return 0
+    _rc="${1:-0}"
+    # 上下文缺省字段补 <none>：ctx 从未生效（ROOT 探测前早退）两行都补；
+    # 已在 tack 空间但无活跃工作区则只补 work
+    if [ "$_HL_CTX" -eq 0 ]; then
+        {
+            printf 'root: <none>\n'
+            printf 'work: <none>\n'
+        } >> "$_HOOKLOG" 2>/dev/null || true
+    else
+        [ -n "$_HL_WORK_DONE" ] || printf 'work: <none>\n' >> "$_HOOKLOG" 2>/dev/null || true
+    fi
+    _t1="$(date '+%s' 2>/dev/null)" || _t1=""
+    if [ -n "$_HL_T0" ] && [ -n "$_t1" ]; then
+        _dur="$((_t1 - _HL_T0))s"
+    else
+        _dur="?"
+    fi
+    _bytes=0
+    if [ -f "$_HL_OUT" ]; then
+        _bytes=$(wc -c < "$_HL_OUT" 2>/dev/null | tr -d '[:space:]')
+    fi
+    {
+        printf 'output: rc=%s bytes=%s duration=%s\n' "$_rc" "${_bytes:-0}" "$_dur"
+        hook_log_block "$_HL_OUT"
+        printf '===== %s event=%s pid=%s phase=end =====\n\n' \
+            "$(hook_log_ts)" "$_HL_EVENT" "$$"
+    } >> "$_HOOKLOG" 2>/dev/null || true
+    if [ -n "$_HL_ROOT" ] && mkdir -p "$_HL_ROOT/.tack/log" 2>/dev/null; then
+        _logf="$_HL_ROOT/.tack/log/hook.log"
+    else
+        # 无 root 或日志目录创建失败（权限等）：回退系统临时目录，绝不因日志报错
+        _logf="${TMPDIR:-/tmp}/tack-hook.log"
+    fi
+    hook_log_append "$_HOOKLOG" "$_logf"
+}
+
+# hook_log_append <src> <dst> — 互斥串行化追加：多个 hook 进程并发退出时
+# （如同一轮并行工具调用触发多个 PreToolUse），保证整块日志不交错。
+# mkdir 在 POSIX 下原子创建，充当自旋锁；约 1s 拿不到锁则兜底直写（宁交错不丢日志）。
+# 进程被强杀可能残留 .lock 目录，只影响后来者的等待时间，不阻断写入。
+hook_log_append() {
+    _la_src="$1"
+    _la_dst="$2"
+    _la_lock="$_la_dst.lock"
+    _la_i=0
+    while ! mkdir "$_la_lock" 2>/dev/null; do
+        _la_i=$((_la_i + 1))
+        if [ "$_la_i" -ge 50 ]; then
+            _la_i=-1
+            break
+        fi
+        sleep 0.02 2>/dev/null || { _la_i=-1; break; }
+    done
+    cat "$_la_src" >> "$_la_dst" 2>/dev/null || true
+    [ "$_la_i" -ge 0 ] && rmdir "$_la_lock" 2>/dev/null || true
+}
+
+# _hook_log_cleanup — EXIT/信号统一清理：先恢复 stdout 并原样回放，再落盘日志
+_hook_log_cleanup() {
+    _HL_RC=$?
+    trap - EXIT HUP INT TERM
+    if [ -n "$_HL_OUT" ]; then
+        exec 1>&3 3>&- 2>/dev/null || true
+        cat "$_HL_OUT" 2>/dev/null || true
+    fi
+    [ -n "$_HOOKLOG" ] && hook_log_finish "$_HL_RC"
+    rm -f "$_HL_PAYLOAD" 2>/dev/null || true
+    [ -n "$_HL_EXTRA" ] && rm -f "$_HL_EXTRA" 2>/dev/null
+    rm -f "$_HOOKLOG" "$_HL_OUT" 2>/dev/null || true
+    exit "$_HL_RC"
 }

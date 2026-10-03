@@ -49,6 +49,7 @@ progress:
   testcode: false     # 单测审查与覆盖率达标（testcode 完成）
   test: false         # 系统测试方案（test.md）已确认（test 完成）
   run: false          # run 脚本已执行（run 完成）
+  release_check: false # 上线检查清单（release-check.md）已生成（release-check 完成）
   review: false       # 代码审查已通过
   merged: false       # 已合并
 

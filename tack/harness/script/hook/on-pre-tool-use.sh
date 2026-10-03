@@ -5,9 +5,10 @@
 # 没有任何影响，只用于在未来启用强制前，以真实 payload 校准工具名与命令形态。
 #
 # 模式开关（环境变量，在 hooks.json 的 command 或会话环境中设置）：
-#   TACK_HOOK_LOG=1      观察日志：命令类工具调用与命中的边界规则追加到
-#                        $root/.tack/log/hook-observe.log（探针用途，确认 RunCommand/Bash
-#                        等真实工具名与 tool_input 形态）
+#   TACK_HOOK_LOG=1      统一 hook 日志（三个事件共用 $root/.tack/log/hook.log）：
+#                        本脚本只记录命令执行类工具调用，含时间/pid/$root/$work、
+#                        输入 payload、规则命中原因与 deny 输出；其余高频工具
+#                        （Read/Grep 等）不接日志，零开销秒退
 #   TACK_HOOK_ENFORCE=1  【预留，暂不要启用】对命中规则的调用输出 deny JSON 阻断；
 #                        未设置时即使命中规则也只记录、不拦截
 #
@@ -25,22 +26,35 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/hook-common.sh"
 
 PAYLOAD="$(mktemp 2>/dev/null)" || exit 0
-trap 'rm -f "$PAYLOAD"' EXIT HUP INT TERM
+# 先注册基础清理：非命令类工具在 hook_log_setup 之前就会早退，不能依赖增强 trap
+trap 'rm -f "$PAYLOAD" 2>/dev/null' EXIT HUP INT TERM
 cat > "$PAYLOAD" 2>/dev/null || true
 
 TOOL_NAME="$(hook_json_get tool_name "$PAYLOAD")"
 CWD="$(hook_json_get cwd "$PAYLOAD")"
 [ -n "$CWD" ] || CWD="${TRAE_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}"
 
-ROOT="$(hook_detect_root "$CWD" 2>/dev/null)" || exit 0
-[ -n "$ROOT" ] || exit 0
-
 # 只观察命令执行类工具（TRAE 实测工具名为 RunCommand，Claude Code 为 Bash；
-# 真实形态以 TACK_HOOK_LOG 探针记录为准）；其余工具一律放行
+# 真实形态以 TACK_HOOK_LOG 日志记录为准）；其余工具一律放行且不接日志——
+# PreToolUse 每次工具调用都触发，避开 Read/Grep 等高频调用，防止日志爆炸
 case "$TOOL_NAME" in
     RunCommand|Bash) ;;
     *) exit 0 ;;
 esac
+
+# 统一 hook 日志（开关关闭时仅接管临时文件清理，stdout 行为与原先完全一致）
+hook_log_setup "PreToolUse" "$PAYLOAD"
+
+# ROOT 优先复用 SessionStart 导出的 TACK_ROOT（失效自动回退向上探测）
+ROOT="$(hook_resolve_root "$CWD" 2>/dev/null)" || true
+[ -n "$ROOT" ] || exit 0
+# PreToolUse 为高频路径不主动扫描工作区，只复用 TACK_WORK 缓存（校验失败则留空，
+# 不回退全量扫描——当前 WORK 仅用于日志，规则判定只依赖 ROOT）
+PTU_WORK=""
+if hook_valid_work "$ROOT" "${TACK_WORK:-}"; then
+    PTU_WORK="$TACK_WORK"
+fi
+hook_log_ctx "$ROOT" "$PTU_WORK"
 
 CMD="$(hook_json_get command "$PAYLOAD")"
 # tool_input.cwd 与顶层 cwd 同名（顶层在前），取第 2 个；缺失时回退顶层 cwd
@@ -96,8 +110,6 @@ fi
 # ── 输出策略 ─────────────────────────────────────────────────────────────────
 ENFORCE=0
 [ "${TACK_HOOK_ENFORCE:-}" = "1" ] && ENFORCE=1
-LOG=0
-[ "${TACK_HOOK_LOG:-}" = "1" ] && LOG=1
 
 # JSON 字符串转义（仅 ENFORCE 路径使用）
 json_esc() {
@@ -107,24 +119,18 @@ json_esc() {
 # 去掉前导空行
 HITS="$(printf '%s' "$HITS" | sed '/^[[:space:]]*$/d')"
 
-if [ "$LOG" -eq 1 ]; then
-    LOGF="$ROOT/.tack/log/hook-observe.log"
-    mkdir -p "$ROOT/.tack/log" 2>/dev/null || true
-    TS="$(date '+%Y-%m-%d %H:%M:%S')"
-    ONELINE="$(printf '%s' "$CMD" | tr '\n\r\t' '   ' | sed 's/  */ /g' | cut -c1-200)"
-    {
-        if [ -n "$HITS" ]; then
-            printf '%s\t%s\t%s\t%s\n' "$TS" "$TOOL_NAME" "$CMD_CWD" "$ONELINE" >> "$LOGF"
-            printf '%s\n' "$HITS" | while IFS='	' read -r rid reason; do
-                [ -n "$rid" ] && printf '%s\t  HIT %s\t%s\n' "$TS" "$rid" "$reason" >> "$LOGF"
-            done
-        else
-            printf '%s\tprobe\t%s\t%s\t%s\n' "$TS" "$TOOL_NAME" "$CMD_CWD" "$ONELINE" >> "$LOGF"
-        fi
-    } 2>/dev/null || true
+# 规则命中详情记入统一 hook 日志（TACK_HOOK_LOG 关闭时 note 为空操作）；
+# 命令全文已在 input.payload 中，这里只补判定结论
+if [ -n "$HITS" ]; then
+    printf '%s\n' "$HITS" | while IFS='	' read -r rid reason; do
+        [ -n "$rid" ] && hook_log_note "rule-hit: $rid $reason"
+    done
+else
+    hook_log_note "rule-hit: none"
 fi
 
-# 预留：强制拦截（当前默认不可达；启用前必须先用 LOG 探针校准误判）
+# 预留：强制拦截（当前默认不可达；启用前必须先用统一日志校准误判）。
+# deny JSON 走 stdout 缓冲，会被 hook.log 的 output 块原样记录
 if [ "$ENFORCE" -eq 1 ] && [ -n "$HITS" ]; then
     REASON="$(printf '%s\n' "$HITS" | sed 's/^R[0-9L]*[[:space:]]*//' | sed '/^[[:space:]]*$/d' \
         | awk 'NR>1 { printf "；" } { printf "%s", $0 } END { if (NR > 0) printf "\n" }')"

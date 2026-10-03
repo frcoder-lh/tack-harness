@@ -34,6 +34,7 @@ Tack Harness 是一套专为软件研发打造的编程工作流框架：
 | **依赖注入** | skill 为容器、能力为注入物：skill 本体极简，不含任何命令实现；命令、工作流、可委派角色均为项目内的 Markdown 文件，文件头（command/short/triggers/summary）即注入声明，`scan-routes` 运行时动态扫描并装配为路由表。新增一个文件即注入一条新能力，skill 零改动、升级不覆盖 |
 | **工作流状态机** | 开发、测试、缺陷修复、冲突合并、分支操作各有独立工作流，定义状态流转并编排命令。工作区 `status.yaml` 的状态由工作流定义，AI 始终明确当前阶段与下一步 |
 | **缺陷溯源** | bugfix 工作流内置 `git-bug-trace`：定位缺陷代码行后一键追溯引入 commit、时间、作者、对应需求/工单 ID 与合并到主干的 MR 链接（GitHub/GitLab/Bitbucket），结果落 `status.yaml` 的 `bug_origin`；区分需求引入与历史遗留，回溯 MR 审查结论与关联改动 |
+| **审查与上线门禁** | `code-review` 以 plan/技术方案为规范、目标分支三点 diff 为事实逐函数审查改动正确性与危害、评估影响接口与场景，产出独立审查报告；`release-check` 产出上线检查清单——数据库变更语句、配置变更模板、接口权限申请、中间件资源申请，逐项打勾后发布 |
 | **命令自创造** | `record` 为 "生成指令的指令"。首先扫描已有命令尝试融合修正；若无合适命令，仅需提供 `command`，其余内容自动生成 |
 | **自进化** | guidance 闭环：任务各环节自动把用户的引导、纠偏、补充约定以原始事实追加到 `status.yaml` 的 `guidance` 列表（raw）；`close` 收尾时自动审查并固化到 workflow/cmd/rule（distilled），落点经 `check-guidance` 校验，形成「采集 → 固化 → 校验」的自进化回路 |
 | **自动更新检查** | `close`/`evolution`/`record`/`help` 命令收尾时静默检查新版本（7 天 + 同版本双节流，不在会话开始时抢占任务）；发现新版本时展示本机版本到最新版本之间的全部更新内容，用户确认后说「更新」即可升级 |
@@ -151,7 +152,7 @@ my-project/
 │   ├── cmd/             #   命令：发现、路由、准入准出
 │   ├── agents/          #   可委派角色：独立上下文并行执行（explorer/architect/reviewer）
 │   ├── workflow/        #   工作流：状态机与命令编排
-│   ├── script/          #   固定流程脚本（init-tack 初始化 / scan-routes 路由扫描 / lint-harness 结构自检 / scan-secrets 凭据扫描 / check-guidance 落点校验 / work-status 状态回写 / space 空间自动提交 / project 项目信息 / repo 仓库 / work 工作区 / git-worktree-helper / git-bug-trace 缺陷溯源 / branch-op 分支操作 / check-update 更新检查；Windows 统一经 run.ps1 启动器调用）
+│   ├── script/          #   固定流程脚本（init-tack 初始化 / scan-routes 路由扫描 / lint-harness 结构自检 / scan-secrets 凭据扫描 / check-guidance 落点校验 / work-status 状态回写 / space 空间自动提交 / project 项目信息 / repo 仓库 / work 工作区 / git-worktree-helper / git-bug-trace 缺陷溯源 / git-diff-context 三点 diff 导出 / branch-op 分支操作 / check-update 更新检查；Windows 统一经 run.ps1 启动器调用）
 │   │   └── hook/        #   IDE Hook 可选加速层（SessionStart/UserPromptSubmit/PreToolUse，默认不启用、不拦截）
 │   ├── rule/            #   业务、代码与安全规则（coding-standards、security、git-boundary 双层边界、context-loading 上下文加载、windows-env、record-* 沉淀规则；不参与路由，按需加载）
 │   ├── template/        #   命令、工作流、文档、工作区模板
@@ -306,6 +307,8 @@ flowchart LR
 | `testcode` | tc | 单测 / 单元测试 /testcode | 按需触发，非必经：以单测为手段做需求-代码一致性审查与缺陷发现，对照 spec/plan 验收标准核对代码、识别边界遗漏，用例暴露问题后修代码而非改测试；覆盖率 90% 是准出指标之一 |
 | `test` | t | 测试 / 系统测试 / 集成测试 /test | 按需触发，非必经：把测试描述转化为 `$work/test.md` 可落地方案；需脚本时落到 `run/` |
 | `run` | rn | 运行 / 执行 / 跑脚本 /run | 按需触发，非必经：无 `run/` 时初始化（`run.md` + `local/`），有 `run.md` 时按清单执行；敏感数据落 `run/local/`（gitignored） |
+| `code-review` | rv | 代码审查 / 审查报告 /code-review | 按需触发：以 plan/tech-design 为规范、目标分支三点 diff 为事实，逐函数分析改动、正确性与危害，评估影响接口与场景，产出 `$work/code-review.md` |
+| `release-check` | rc | 上线检查 / 发布检查 /release-check | 按需触发：识别数据库变更（含变更语句）、配置变更（含模板）、新增接口调用（权限申请）、新增中间件（申请配置），产出 `$work/release-check.md` |
 | `close` | cl | 关闭工作区 /close | 交付检查与摘要、提炼 wiki（含技术决策）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、状态收尾 |
 
 ### 7.3 Git 命令（cmd/git/）
@@ -356,9 +359,11 @@ sh harness/script/lint-harness.sh          harness   # 结构自检：frontmatte
 
 | 事件 | 作用 | 对会话影响 |
 | --- | --- | --- |
-| SessionStart | 预注入路由全表、`$root`/`$work` 路径与工作区快照，并导出 `TACK_ROOT`/`TACK_WORK` 环境变量 | 省去首轮 `scan-routes list` 往返 |
-| UserPromptSubmit | 对用户输入执行 `scan-routes resolve`：唯一命中直接注入 cmd/workflow 正文与状态快照，多命中列候选，无命中给全表 | 省去路由解析往返 |
-| PreToolUse | 观察模式（默认）：`TACK_HOOK_LOG=1` 时把命令调用与边界规则命中写入 `$root/.tack/log/hook-observe.log` 用于探针校准；`TACK_HOOK_ENFORCE=1` 才输出 deny（**当前预留，默认不拦截**） | 默认零输出、零拦截 |
+| SessionStart | 预注入路由全表、`$root`/`$work` 路径与工作区快照，并导出 `TACK_ROOT`/`TACK_WORK` 环境变量供后续 Hook 与 RunCommand 直接复用 | 省去首轮 `scan-routes list` 往返 |
+| UserPromptSubmit | 复用 `TACK_ROOT`/`TACK_WORK` 缓存路径（失效自动回退探测）；对用户输入执行 `scan-routes resolve`：唯一命中直接注入 cmd/workflow 正文与状态快照，多命中列候选，无命中给全表 | 省去路由解析往返与重复的空间/工作区扫描 |
+| PreToolUse | 观察模式（默认）：命令执行类工具（RunCommand/Bash）的调用与 Git 双层边界、`--force`/`--no-verify` 等规则命中经统一日志记录；`TACK_HOOK_ENFORCE=1` 才输出 deny（**当前预留，默认不拦截**） | 默认零输出、零拦截 |
+
+统一日志：设置环境变量 `TACK_HOOK_LOG=1` 后，三个 Hook 每次被调用都会把完整记录（时间、事件、pid、`$root`/`$work`、输入 payload、注入/拦截输出、退出码与耗时）追加到 `$root/.tack/log/hook.log`，并发调用按整块串行写入、互不交错；默认关闭，关闭时 Hook 输出逐字节不变。
 
 降级：删除空间根下的 `.trae/` 与 `.claude/` 目录即完全回退到「AI 主动调用 `scan-routes.sh`」的原有路径，框架能力不受影响。
 
@@ -373,7 +378,7 @@ sh harness/script/lint-harness.sh          harness   # 结构自检：frontmatte
 | **人工审阅关口** | 分析结论、合并均需人工确认后方可生效；提交由用户主动发起 commit 命令触发（发起即确认意图，信息自动生成后直接提交） |
 | **凭据明文拦截** | `scan-secrets.sh` 在空间文档（wiki/、space/）提交前做高置信凭据扫描，命中即阻断自动提交；支持 `tack:allow-secret` 豁免标记与占位值过滤 |
 | **落点证据链校验** | `check-guidance.sh` 校验 guidance distilled 条目的落点文件仍然存在，失效即阻断 close，防止固化证据链悬空 |
-| **Hook 边界观察层** | `PreToolUse` Hook 观察 Git 双层边界、`--force`/`--no-verify` 等破坏性操作；默认仅探针记录（`$root/.tack/log/hook-observe.log`），不拦截；`TACK_HOOK_ENFORCE=1` 预留 deny 路径，启用前须先用日志校准误判 |
+| **Hook 边界观察层** | `PreToolUse` Hook 观察 Git 双层边界、`--force`/`--no-verify` 等破坏性操作；默认仅记录不拦截，调用与命中详情随 `TACK_HOOK_LOG=1` 统一写入 `$root/.tack/log/hook.log`（三个 Hook 事件共用）；`TACK_HOOK_ENFORCE=1` 预留 deny 路径，启用前须先用日志校准误判 |
 
 
 ## 10. 常见问题
