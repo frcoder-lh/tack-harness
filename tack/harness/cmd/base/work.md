@@ -1,7 +1,7 @@
 ---
 command: work
 short: w
-triggers: 工作区, 新建工作区, 切换工作区, 分支合并, 分支变基, 合并分支, 变基分支, work
+triggers: 工作区, 新建工作区, 切换工作区, 分支合并, 分支变基, 合并分支, 变基分支, work, workspace, new workspace, switch workspace, merge branches, rebase branches
 params: [目的或分支名]
 summary: 工作区管理——新建、重命名、切换、列出工作区（space/<YYYYMMDD>-<branch>/）；意图分流支持 branch-op 分支级 merge/rebase，自动推断服务并登记到 AGENTS.md
 ---

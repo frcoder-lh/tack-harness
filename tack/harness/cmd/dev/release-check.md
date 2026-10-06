@@ -1,7 +1,7 @@
 ---
 command: release-check
 short: rc
-triggers: 上线检查, 发布检查, release-check, releasecheck
+triggers: 上线检查, 发布检查, release-check, releasecheck, release check, go-live check
 params: [目标分支（默认主干）]
 summary: 上线前检查清单——以 plan.md/tech-design.md 与目标分支三点 diff 为输入，逐项识别数据库变更（给出变更语句）、配置变更（给出变更模板）、新增接口调用（需申请权限）、新增中间件（需提前申请配置）等上线检查项，产出 $work/release-check.md
 ---

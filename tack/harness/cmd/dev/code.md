@@ -1,7 +1,7 @@
 ---
 command: code
 short: c
-triggers: 编码, 开发, 写代码, code
+triggers: 编码, 开发, 写代码, code, coding, develop, write code
 params: [任务ID（可选，默认按依赖关系连续推进全部就绪任务）]
 summary: 编码前先判定涉及仓库并确保就绪（主仓库缺失转 create-repo、worktree 缺失转 worktree），用户明确要求时仅交付代码片段、不编译运行；按 tasks 依赖连续/并行开发，复用已有逻辑、自动按最优解，尽量不打扰用户
 ---

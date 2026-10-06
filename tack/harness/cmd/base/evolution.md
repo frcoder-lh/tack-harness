@@ -1,7 +1,7 @@
 ---
 command: evolution
 short: evo
-triggers: 进化, 进化harness, harness进化, evolution
+triggers: 进化, 进化harness, harness进化, evolution, evolve, evolve harness
 params: 无
 summary: 进化 harness——审查 cmd 下每个指令与 AGENTS.md，识别可沉淀为 rule/reference 的内容、可固化为 script 的流程、文档结构优化与 sh 脚本跨平台兼容性，人工确认后执行
 ---

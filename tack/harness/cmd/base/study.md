@@ -1,7 +1,7 @@
 ---
 command: study
 short: st
-triggers: 学习, 研习, 借鉴, study
+triggers: 学习, 研习, 借鉴, study, learn, learn from
 params: [skill 名称/本地目录路径或 Git 仓库链接]
 summary: 学习外部 skill 或仓库的设计，提炼可借鉴点并直接优化 harness 各环节，统一预览确认后提交，随后自动执行一次 evolution
 ---

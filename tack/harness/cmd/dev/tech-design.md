@@ -1,7 +1,7 @@
 ---
 command: tech-design
 short: td
-triggers: 技术方案, 技术文档, 技术评审, tech-design
+triggers: 技术方案, 技术文档, 技术评审, tech-design, technical design, tech doc, tech review
 params: 无
 summary: 结合技术模板与 spec/plan 产出技术评审文档 tech-design.md（扁平存放于工作区根）
 ---

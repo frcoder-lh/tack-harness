@@ -1,7 +1,7 @@
 ---
 command: close
 short: cl
-triggers: 关闭工作区, 结束, close
+triggers: 关闭工作区, 结束, close, close workspace, finish
 params: 无
 summary: 工作区收尾——状态判定与关闭确认、交付检查、输出交付摘要、提炼内容入 wiki（含技术决策）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、更新状态
 ---

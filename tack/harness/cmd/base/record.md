@@ -1,7 +1,7 @@
 ---
 command: record
 short: r
-triggers: 记录, 记忆, 沉淀, record
+triggers: 记录, 记忆, 沉淀, record, remember, distill
 params: [记录内容]
 summary: 沉淀知识或扩展能力——优先融合已有条目；可落命令/工作流/规则/wiki/AGENTS.md 常驻约定，否则交互式新建（用户只需提供 command）
 ---

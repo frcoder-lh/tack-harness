@@ -1,7 +1,7 @@
 ---
 command: code-review
 short: rv
-triggers: 代码审查, 审查报告, code-review, codereview, review
+triggers: 代码审查, 审查报告, code-review, codereview, review, code review, review report
 params: [目标分支（默认主干）]
 summary: 合并前独立深度审查——以 plan.md/tech-design.md 为规范、与目标分支的三点 diff 为事实，逐函数分析改动内容、逻辑正确性与代码危害，评估影响的接口与业务场景，产出 $work/code-review.md 审查报告
 ---

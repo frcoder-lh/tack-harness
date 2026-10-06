@@ -1,7 +1,7 @@
 ---
 command: update
 short: u
-triggers: 更新, 更新skill, update
+triggers: 更新, 更新skill, update, update skill
 params: 无
 summary: 对比版本并更新 harness（script/template/reference/workflow），检测本地改动并提炼功能点，经用户确认后融合
 ---

@@ -1,7 +1,7 @@
 ---
 command: testcode
 short: tc
-triggers: 单测, 生成单测, 单元测试, testcode
+triggers: 单测, 生成单测, 单元测试, testcode, unit test, unit testing
 params: [任务ID（可选）]
 summary: 按需命令（非开发必经环节，用户需要时触发）——以单测为手段做需求-代码一致性审查与缺陷发现：对照 spec/plan 验收标准核对代码实现、识别潜在缺陷与边界遗漏，用测试暴露问题后修代码而非改测试；覆盖率 90% 是准出指标之一而非唯一目的
 ---

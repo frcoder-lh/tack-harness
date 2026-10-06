@@ -231,11 +231,11 @@ my-project/
 
 | 工作流 | 触发词 | 状态流转 |
 | --- | --- | --- |
-| development | 开发工作流 / 需求开发 / 功能开发 /dev | `initialized → planning → developing → reviewing → merged → completed` |
-| testing | 测试工作流 / 补测试 / 测试任务 /tst | `initialized → test-planning → testing → verifying → completed` |
-| bugfix | 修bug / 修缺陷 / 排障 /bug | `initialized → reproducing → diagnosing → fixing → verifying → completed` |
-| merge-conflict | 合并冲突 / 冲突工作流 /mc | `initialized → fetching → merging → resolving → verifying → pushing → completed` |
-| branch-op | 分支操作 /bop | `initialized → preparing → integrating（冲突时 resolving）→ pushing → completed`，临时分支与 worktree 在 close 时清理 |
+| development | 开发工作流 / 需求开发 / 功能开发 / development workflow / requirement development / feature development /dev | `initialized → planning → developing → reviewing → merged → completed` |
+| testing | 测试工作流 / 补测试 / 测试任务 / testing workflow / add tests / testing task /tst | `initialized → test-planning → testing → verifying → completed` |
+| bugfix | 修bug / 修缺陷 / 排障 / fix bug / fix defect / troubleshoot /bug | `initialized → reproducing → diagnosing → fixing → verifying → completed` |
+| merge-conflict | 合并冲突 / 冲突工作流 / merge conflict / conflict workflow /mc | `initialized → fetching → merging → resolving → verifying → pushing → completed` |
+| branch-op | 分支操作 / branch operation /bop | `initialized → preparing → integrating（冲突时 resolving）→ pushing → completed`，临时分支与 worktree 在 close 时清理 |
 
 任意环节受阻可进入 `blocked` 状态（在 `status.yaml` 中记录阻塞原因），解除后回到原状态。开发主链路如下：
 
@@ -288,42 +288,42 @@ flowchart LR
 
 | 命令 | 简写 | 触发词 | 作用 |
 | --- | --- | --- | --- |
-| `init` | i | 初始化 / 接入仓库 / 整理文档 /init | 提炼项目信息写入 AGENTS.md，扫描软链或克隆仓库（自然语言「接入仓库」「整理文档」同样路由至此） |
-| `work` | w | 工作区 / 新建工作区 / 切换工作区 / 分支合并 / 分支变基 /work | 新建 / 重命名 / 切换 / 列出工作区，自动推断服务、创建 worktree；亦承接分支合并/变基意图，分流至 branch-op 工作流 |
-| `help` | h | 帮助 / 命令 /help | 扫描 harness，输出工作流与全部命令 |
-| `update` | u | 更新 / 更新skill /update | 更新 harness 与空间根 .gitignore（.tack/ 强制兜底），保留自定义 cmd/rule 与 AGENTS.md |
-| `create-repo` | cr | 新建仓库 / 建仓 /createrepo /create-repo | 新建并初始化本地代码仓库，纳入项目空间管理 |
-| `record` | r | 记录 / 记忆 / 沉淀 /record | 优先融合已有条目；可落命令 / 工作流 / 规则 / wiki / AGENTS.md 常驻约定，新建时仅需提供 command |
-| `evolution` | evo | 进化 / 进化harness /evolution | 结构自检（lint-harness）并审查指令，提炼 rule/reference/script 候选，人工确认后落盘 |
-| `study` | st | 学习 / 研习 / 借鉴 /study | 向外学习外部 skill 或仓库的设计，提炼可借鉴点并落盘到 harness 对应位置，统一预览确认后提交，随后自动执行一次 evolution |
+| `init` | i | 初始化 / 接入仓库 / 整理文档 / initialize / connect repo / organize docs /init | 提炼项目信息写入 AGENTS.md，扫描软链或克隆仓库（自然语言「接入仓库」「整理文档」同样路由至此） |
+| `work` | w | 工作区 / 新建工作区 / 切换工作区 / 分支合并 / 分支变基 / workspace / new workspace / switch workspace / merge branches / rebase branches /work | 新建 / 重命名 / 切换 / 列出工作区，自动推断服务、创建 worktree；亦承接分支合并/变基意图，分流至 branch-op 工作流 |
+| `help` | h | 帮助 / 命令 / help / commands /help | 扫描 harness，输出工作流与全部命令 |
+| `update` | u | 更新 / 更新skill / update / update skill /update | 更新 harness 与空间根 .gitignore（.tack/ 强制兜底），保留自定义 cmd/rule 与 AGENTS.md |
+| `create-repo` | cr | 新建仓库 / 建仓 / create repo / new repository /createrepo /create-repo | 新建并初始化本地代码仓库，纳入项目空间管理 |
+| `record` | r | 记录 / 记忆 / 沉淀 / record / remember / distill /record | 优先融合已有条目；可落命令 / 工作流 / 规则 / wiki / AGENTS.md 常驻约定，新建时仅需提供 command |
+| `evolution` | evo | 进化 / 进化harness / evolve / evolve harness /evolution | 结构自检（lint-harness）并审查指令，提炼 rule/reference/script 候选，人工确认后落盘 |
+| `study` | st | 学习 / 研习 / 借鉴 / study / learn / learn from /study | 向外学习外部 skill 或仓库的设计，提炼可借鉴点并落盘到 harness 对应位置，统一预览确认后提交，随后自动执行一次 evolution |
 
 ### 7.2 需求开发命令（cmd/dev/）
 
 | 命令 | 简写 | 触发词 | 作用 |
 | --- | --- | --- | --- |
-| `ask` | a | 问 / 提问 / 代码问答 / 分析代码 / 代码分析 /ask | 可选：分析 worktree 代码（可委派 explorer 并行勘探），在 `$work/wiki/` 产出分析文档或沉淀问答 |
-| `spec` | sp | 需求规划 / 整体设计 /spec | 读 input.md + wiki（root/work）+ 代码事实，grep 定位后产出 spec.md |
-| `plan` | p | 详细设计 / 开发计划 / 任务拆解 /plan | 复杂任务先多方案对比与选定，再拆低耦合模块与任务（写入 plan.md + status.yaml tasks），决策点前置关闭 |
-| `tech-design` | td | 技术方案 / 技术评审 /tech-design | 产出技术评审文档 |
-| `code` | c | 编码 /code | 编码前判定仓库就绪（缺仓库转 create-repo、缺 worktree 转 worktree）；按 tasks 依赖连续/并行开发；用户明确要求时支持仅交付代码片段 |
-| `fix` | fx | 修正 / 需求修正 / 修正代码 /fix | 需求修正（spec→plan→代码）或代码修正（代码→同步文档），保持文档与代码一致 |
-| `testcode` | tc | 单测 / 单元测试 /testcode | 按需触发，非必经：以单测为手段做需求-代码一致性审查与缺陷发现，对照 spec/plan 验收标准核对代码、识别边界遗漏，用例暴露问题后修代码而非改测试；覆盖率 90% 是准出指标之一 |
-| `test` | t | 测试 / 系统测试 / 集成测试 /test | 按需触发，非必经：把测试描述转化为 `$work/test.md` 可落地方案；需脚本时落到 `run/` |
-| `run` | rn | 运行 / 执行 / 跑脚本 /run | 按需触发，非必经：无 `run/` 时初始化（`run.md` + `local/`），有 `run.md` 时按清单执行；敏感数据落 `run/local/`（gitignored） |
-| `code-review` | rv | 代码审查 / 审查报告 /code-review | 按需触发：以 plan/tech-design 为规范、目标分支三点 diff 为事实，逐函数分析改动、正确性与危害，评估影响接口与场景，产出 `$work/code-review.md` |
-| `release-check` | rc | 上线检查 / 发布检查 /release-check | 按需触发：识别数据库变更（含变更语句）、配置变更（含模板）、新增接口调用（权限申请）、新增中间件（申请配置），产出 `$work/release-check.md` |
-| `close` | cl | 关闭工作区 /close | 交付检查与摘要、提炼 wiki（含技术决策）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、状态收尾 |
+| `ask` | a | 问 / 提问 / 代码问答 / 分析代码 / 代码分析 / question / code qa / analyze code / code analysis /ask | 可选：分析 worktree 代码（可委派 explorer 并行勘探），在 `$work/wiki/` 产出分析文档或沉淀问答 |
+| `spec` | sp | 需求规划 / 整体设计 / requirement planning / overall design /spec | 读 input.md + wiki（root/work）+ 代码事实，grep 定位后产出 spec.md |
+| `plan` | p | 详细设计 / 开发计划 / 任务拆解 / detailed design / development plan / task breakdown /plan | 复杂任务先多方案对比与选定，再拆低耦合模块与任务（写入 plan.md + status.yaml tasks），决策点前置关闭 |
+| `tech-design` | td | 技术方案 / 技术评审 / technical design / tech doc / tech review /tech-design | 产出技术评审文档 |
+| `code` | c | 编码 / coding / develop / write code /code | 编码前判定仓库就绪（缺仓库转 create-repo、缺 worktree 转 worktree）；按 tasks 依赖连续/并行开发；用户明确要求时支持仅交付代码片段 |
+| `fix` | fx | 修正 / 需求修正 / 修正代码 / requirement fix / fix requirement / code fix /fix | 需求修正（spec→plan→代码）或代码修正（代码→同步文档），保持文档与代码一致 |
+| `testcode` | tc | 单测 / 单元测试 / unit test / unit testing /testcode | 按需触发，非必经：以单测为手段做需求-代码一致性审查与缺陷发现，对照 spec/plan 验收标准核对代码、识别边界遗漏，用例暴露问题后修代码而非改测试；覆盖率 90% 是准出指标之一 |
+| `test` | t | 测试 / 系统测试 / 集成测试 / system test / integration test / end-to-end test /test | 按需触发，非必经：把测试描述转化为 `$work/test.md` 可落地方案；需脚本时落到 `run/` |
+| `run` | rn | 运行 / 执行 / 跑脚本 / execute / run script /run | 按需触发，非必经：无 `run/` 时初始化（`run.md` + `local/`），有 `run.md` 时按清单执行；敏感数据落 `run/local/`（gitignored） |
+| `code-review` | rv | 代码审查 / 审查报告 / code review / review report /code-review | 按需触发：以 plan/tech-design 为规范、目标分支三点 diff 为事实，逐函数分析改动、正确性与危害，评估影响接口与场景，产出 `$work/code-review.md` |
+| `release-check` | rc | 上线检查 / 发布检查 / release check / go-live check /release-check | 按需触发：识别数据库变更（含变更语句）、配置变更（含模板）、新增接口调用（权限申请）、新增中间件（申请配置），产出 `$work/release-check.md` |
+| `close` | cl | 关闭工作区 / close workspace / finish /close | 交付检查与摘要、提炼 wiki（含技术决策）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、状态收尾 |
 
 ### 7.3 Git 命令（cmd/git/）
 
 | 命令 | 简写 | 触发词 | 作用 |
 | --- | --- | --- | --- |
-| `fetch` | f | 拉取 /fetch | 拉取各仓库最新代码（仅 fetch，不 merge） |
+| `fetch` | f | 拉取 / pull / pull code /fetch | 拉取各仓库最新代码（仅 fetch，不 merge） |
 | `worktree` | wt | 工作树 /worktree | 为指定仓库补建 worktree |
-| `commit` | ci | 提交 /commit | 本地提交，非 git 目录先 init；提交信息自动生成后直接提交，无需二次确认 |
-| `push` | ps | 推送 /push | 推送远端，未关联时引导关联 |
+| `commit` | ci | 提交 / local commit /commit | 本地提交，非 git 目录先 init；提交信息自动生成后直接提交，无需二次确认 |
+| `push` | ps | 推送 / push remote /push | 推送远端，未关联时引导关联 |
 | `merge` | m | 合并 /merge | 委派 reviewer 审查并三选一分流，平台 MR/PR 或本地合并，冲突转 solve |
-| `solve` | s | 冲突 / 解决冲突 /solve | 引导式逐文件解决冲突 |
+| `solve` | s | 冲突 / 解决冲突 / conflict / resolve conflict /solve | 引导式逐文件解决冲突 |
 
 
 ## 8. 扩展机制

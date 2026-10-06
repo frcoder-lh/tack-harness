@@ -1,7 +1,7 @@
 ---
 command: run
 short: rn
-triggers: 运行, 执行, 跑脚本, 执行脚本, run
+triggers: 运行, 执行, 跑脚本, 执行脚本, run, execute, run script
 params: [模式（可选：init 显式初始化；默认自动判断）]
 summary: 按需命令（非开发必经环节，用户需要时触发）——脚本执行管理：当前工作区无 run/ 时初始化（run.md + local/），有 run.md 时加载并按其中清单执行脚本；敏感数据一律落 run/local/
 ---

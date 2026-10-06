@@ -1,7 +1,7 @@
 ---
 command: test
 short: t
-triggers: 测试, 系统测试, 集成测试, 端到端测试, e2e, test
+triggers: 测试, 系统测试, 集成测试, 端到端测试, e2e, test, system test, integration test, end-to-end test
 params: [测试描述]
 summary: 按需命令（非开发必经环节，用户需要时触发）——系统测试，把用户对测试的描述转化为可落地可执行的 test.md 方案；需要脚本时落到 run/ 目录（按需初始化 run）
 ---

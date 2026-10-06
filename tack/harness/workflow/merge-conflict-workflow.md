@@ -1,7 +1,7 @@
 ---
 workflow: merge-conflict
 short: mc
-triggers: 冲突工作流, 合并冲突, merge-conflict
+triggers: 冲突工作流, 合并冲突, merge-conflict, merge conflict, conflict workflow
 summary: fetch → merge → solve → 验证 → push 的分支合并与冲突解决状态机（「解决冲突」直接走 solve 命令）
 ---
 

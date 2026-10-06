@@ -1,7 +1,7 @@
 ---
 command: init
 short: i
-triggers: 初始化, 初始化项目, init, 接入仓库, 整理文档, 项目信息, 登记服务, 接入代码, 添加仓库
+triggers: 初始化, 初始化项目, init, 接入仓库, 整理文档, 项目信息, 登记服务, 接入代码, 添加仓库, initialize, init project, connect repo, organize docs, project info, register service, add repository
 params: [内容（可选：项目描述 / git地址 / 本地路径 / 业务文档 / 服务映射）]
 summary: 初始化全局上下文——自动识别输入内容类型（项目信息/业务文档/git仓库/服务映射）并分类处理，AI 仅整理格式不篡改内容，物化到 wiki/ 并写入 AGENTS.md 项目信息区块
 ---

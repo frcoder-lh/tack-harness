@@ -1,7 +1,7 @@
 ---
 command: spec
 short: sp
-triggers: 需求规划, 整体设计, spec
+triggers: 需求规划, 整体设计, spec, requirement planning, overall design
 params: 无
 summary: 读 input.md、wiki（root/work）与代码事实，按 harness/template/spec.md 产出需求规划文档 spec.md（story 拆分、模块边界、验收标准）
 ---

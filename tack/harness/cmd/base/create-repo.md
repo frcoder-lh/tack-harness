@@ -1,7 +1,7 @@
 ---
 command: create-repo
 short: cr
-triggers: 新建仓库, 建仓, 新建代码仓库, create-repo, createrepo
+triggers: 新建仓库, 建仓, 新建代码仓库, create-repo, createrepo, create repo, new repository
 params: [建仓目的]
 summary: 在本地创建新的代码仓库并纳入项目空间管理
 ---

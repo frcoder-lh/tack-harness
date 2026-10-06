@@ -1,7 +1,7 @@
 ---
 command: plan
 short: p
-triggers: 详细设计, 开发计划, 任务拆解, plan
+triggers: 详细设计, 开发计划, 任务拆解, plan, detailed design, development plan, task breakdown
 params: 无
 summary: 读 spec、input、wiki（root/work）与代码事实，产出 plan.md——复杂任务先做多方案对比与用户选定，再做低耦合模块划分、依赖关系与任务清单，任务同步写入 status.yaml 的 tasks
 ---

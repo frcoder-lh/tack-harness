@@ -1,7 +1,7 @@
 ---
 command: solve
 short: s
-triggers: 冲突, 解决冲突, solve
+triggers: 冲突, 解决冲突, solve, conflict, resolve conflict
 params: 无
 summary: 引导式解决工作区内各仓库的合并/变基冲突
 ---

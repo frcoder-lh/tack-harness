@@ -1,7 +1,7 @@
 ---
 command: push
 short: ps
-triggers: 推送, 远程推送, push
+triggers: 推送, 远程推送, push, push remote
 params: 无
 summary: 推送工作区提交到远端；未关联远端时先引导关联
 ---

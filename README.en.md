@@ -44,7 +44,7 @@ Core features:
 | **Hook acceleration layer** | `harness/script/hook/` provides optional IDE Hooks acceleration (SessionStart preloads routes, UserPromptSubmit zero-roundtrip route resolution, PreToolUse boundary observation); it only moves deterministic facts—AGENTS.md + `scan-routes.sh` remain the single source of truth; disabled by default, it never intercepts |
 | **Learning from outside** | `study` treats external skills or repositories as teaching material: it reads through the structure, distills borrowable ideas, and lands them at the corresponding harness locations by adding, merging, or optimizing; the sole confirmation point in the whole process is a unified preview—after confirmation it auto-commits and triggers one `evolution` for inward self-review |
 | **Minimal & restrained** | Keeps the smallest viable directory structure, basic commands, and necessary state transitions; anything scriptable never relies on the LLM |
-| **Simple & easy to use** | All commands support Chinese and English triggers plus short forms (e.g. `需求规划`/`spec`/`sp`) |
+| **Simple & easy to use** | All commands support Chinese and English triggers plus short forms (e.g. "requirement planning"/`spec`/`sp`) |
 | **Open configuration** | All commands, workflows, and rules live under the project's `harness/` directory—freely add or modify them, and upgrades never overwrite |
 | **Safe & controllable** | Worktree-isolated changes, command entry/exit gates, human review checkpoints, and destructive Git operations are forbidden |
 
@@ -231,11 +231,11 @@ A workflow consists of a "state machine + command orchestration". After receivin
 
 | Workflow | Triggers | State transitions |
 | --- | --- | --- |
-| development | 开发工作流 / 需求开发 / 功能开发 /dev | `initialized → planning → developing → reviewing → merged → completed` |
-| testing | 测试工作流 / 补测试 / 测试任务 /tst | `initialized → test-planning → testing → verifying → completed` |
-| bugfix | 修bug / 修缺陷 / 排障 /bug | `initialized → reproducing → diagnosing → fixing → verifying → completed` |
-| merge-conflict | 合并冲突 / 冲突工作流 /mc | `initialized → fetching → merging → resolving → verifying → pushing → completed` |
-| branch-op | 分支操作 /bop | `initialized → preparing → integrating（resolving on conflict）→ pushing → completed`; temporary branches and worktrees are cleaned up at close |
+| development | development workflow / requirement development / feature development /dev | `initialized → planning → developing → reviewing → merged → completed` |
+| testing | testing workflow / add tests / testing task /tst | `initialized → test-planning → testing → verifying → completed` |
+| bugfix | fix bug / fix defect / troubleshoot /bug | `initialized → reproducing → diagnosing → fixing → verifying → completed` |
+| merge-conflict | merge conflict / conflict workflow /mc | `initialized → fetching → merging → resolving → verifying → pushing → completed` |
+| branch-op | branch operation /bop | `initialized → preparing → integrating (resolving on conflict) → pushing → completed`; temporary branches and worktrees are cleaned up at close |
 
 Any blocked stage may enter the `blocked` state (the blocking reason is recorded in `status.yaml`) and return to the original state once unblocked. The main development chain:
 
@@ -288,42 +288,42 @@ All commands support Chinese and English triggers plus short forms, in the forma
 
 | Command | Short | Triggers | Purpose |
 | --- | --- | --- | --- |
-| `init` | i | 初始化 / 接入仓库 / 整理文档 /init | Extracts project info into AGENTS.md, scans and symlinks or clones repositories (natural language like 「接入仓库」 and 「整理文档」 routes here as well) |
-| `work` | w | 工作区 / 新建工作区 / 切换工作区 / 分支合并 / 分支变基 /work | Creates / renames / switches / lists workspaces, auto-infers services, and creates worktrees; also takes branch merge/rebase intents and routes them to the branch-op workflow |
-| `help` | h | 帮助 / 命令 /help | Scans the harness and prints workflows and all commands |
-| `update` | u | 更新 / 更新skill /update | Updates the harness and the space-root .gitignore (`.tack/` enforced as a fallback), preserving custom cmd/rule and AGENTS.md |
-| `create-repo` | cr | 新建仓库 / 建仓 /createrepo /create-repo | Creates and initializes a local code repository and brings it under project-space management |
-| `record` | r | 记录 / 记忆 / 沉淀 /record | Prefers merging into existing entries; can land commands / workflows / rules / wiki / AGENTS.md resident agreements; for new entries you only need to supply command |
-| `evolution` | evo | 进化 / 进化harness /evolution | Runs the structure self-check (lint-harness), reviews instructions, distills rule/reference/script candidates, and lands them after human confirmation |
-| `study` | st | 学习 / 研习 / 借鉴 /study | Learns from the design of external skills or repositories, distills borrowable ideas into the corresponding harness locations, commits after a unified preview confirmation, then automatically runs one evolution |
+| `init` | i | initialize / connect repo / organize docs /init | Extracts project info into AGENTS.md, scans and symlinks or clones repositories (natural language like "connect a repository" and "organize documents" also routes here) |
+| `work` | w | workspace / new workspace / switch workspace / merge branches / rebase branches /work | Creates / renames / switches / lists workspaces, auto-infers services, and creates worktrees; also takes branch merge/rebase intents and routes them to the branch-op workflow |
+| `help` | h | help / commands /help | Scans the harness and prints workflows and all commands |
+| `update` | u | update / update skill /update | Updates the harness and the space-root .gitignore (`.tack/` enforced as a fallback), preserving custom cmd/rule and AGENTS.md |
+| `create-repo` | cr | create repo / new repository /createrepo /create-repo | Creates and initializes a local code repository and brings it under project-space management |
+| `record` | r | record / remember / distill /record | Prefers merging into existing entries; can land commands / workflows / rules / wiki / AGENTS.md resident agreements; for new entries you only need to supply command |
+| `evolution` | evo | evolve / evolve harness /evolution | Runs the structure self-check (lint-harness), reviews instructions, distills rule/reference/script candidates, and lands them after human confirmation |
+| `study` | st | study / learn / learn from /study | Learns from the design of external skills or repositories, distills borrowable ideas into the corresponding harness locations, commits after a unified preview confirmation, then automatically runs one evolution |
 
 ### 7.2 Requirement development commands (cmd/dev/)
 
 | Command | Short | Triggers | Purpose |
 | --- | --- | --- | --- |
-| `ask` | a | 问 / 提问 / 代码问答 / 分析代码 / 代码分析 /ask | Optional: analyzes worktree code (can delegate the explorer for parallel reconnaissance), producing analysis documents in `$work/wiki/` or distilling Q&A |
-| `spec` | sp | 需求规划 / 整体设计 /spec | Reads input.md + wiki (root/work) + code facts; produces spec.md after grep-based location |
-| `plan` | p | 详细设计 / 开发计划 / 任务拆解 /plan | For complex tasks, compares and selects among options first, then breaks down low-coupling modules and tasks (written into plan.md + status.yaml tasks), closing decision points up front |
-| `tech-design` | td | 技术方案 / 技术评审 /tech-design | Produces the technical review document |
-| `code` | c | 编码 /code | Before coding, verifies repository readiness (missing repo → create-repo, missing worktree → worktree); develops continuously/in parallel per task dependencies; snippet-only delivery supported when you explicitly request it |
-| `fix` | fx | 修正 / 需求修正 / 修正代码 /fix | Requirement fixes (spec→plan→code) or code fixes (code→doc sync), keeping docs and code consistent |
-| `testcode` | tc | 单测 / 单元测试 /testcode | On demand, not mandatory: uses unit tests as a means for requirement-code consistency review and defect detection, checking the code against spec/plan acceptance criteria and identifying missing boundaries; when cases expose problems, fix the code—not the tests; 90% coverage is one of the exit criteria |
-| `test` | t | 测试 / 系统测试 / 集成测试 /test | On demand, not mandatory: turns test descriptions into an actionable plan in `$work/test.md`; scripts go to `run/` when needed |
-| `run` | rn | 运行 / 执行 / 跑脚本 /run | On demand, not mandatory: initializes when `run/` is absent (`run.md` + `local/`), executes per checklist when `run.md` exists; sensitive data lands in `run/local/` (gitignored) |
-| `code-review` | rv | 代码审查 / 审查报告 /code-review | On demand: using plan/tech-design as the spec and the target-branch three-dot diff as facts, analyzes changes function by function for correctness and hazards, assesses affected interfaces and scenarios, and produces `$work/code-review.md` |
-| `release-check` | rc | 上线检查 / 发布检查 /release-check | On demand: identifies database changes (with migration statements), config changes (with templates), new API calls (permission requests), and new middleware (resource requests), producing `$work/release-check.md` |
-| `close` | cl | 关闭工作区 /close | Delivery check and summary, distills wiki (incl. technical decisions), consumes guidance to crystallize the harness and verifies landing points, removes worktrees, and finalizes status |
+| `ask` | a | question / code qa / analyze code / code analysis /ask | Optional: analyzes worktree code (can delegate the explorer for parallel reconnaissance), producing analysis documents in `$work/wiki/` or distilling Q&A |
+| `spec` | sp | requirement planning / overall design /spec | Reads input.md + wiki (root/work) + code facts; produces spec.md after grep-based location |
+| `plan` | p | detailed design / development plan / task breakdown /plan | For complex tasks, compares and selects among options first, then breaks down low-coupling modules and tasks (written into plan.md + status.yaml tasks), closing decision points up front |
+| `tech-design` | td | technical design / tech doc / tech review /tech-design | Produces the technical review document |
+| `code` | c | coding / develop / write code /code | Before coding, verifies repository readiness (missing repo → create-repo, missing worktree → worktree); develops continuously/in parallel per task dependencies; snippet-only delivery supported when you explicitly request it |
+| `fix` | fx | requirement fix / fix requirement / code fix /fix | Requirement fixes (spec→plan→code) or code fixes (code→doc sync), keeping docs and code consistent |
+| `testcode` | tc | unit test / unit testing /testcode | On demand, not mandatory: uses unit tests as a means for requirement-code consistency review and defect detection, checking the code against spec/plan acceptance criteria and identifying missing boundaries; when cases expose problems, fix the code—not the tests; 90% coverage is one of the exit criteria |
+| `test` | t | system test / integration test / end-to-end test /test | On demand, not mandatory: turns test descriptions into an actionable plan in `$work/test.md`; scripts go to `run/` when needed |
+| `run` | rn | execute / run script /run | On demand, not mandatory: initializes when `run/` is absent (`run.md` + `local/`), executes per checklist when `run.md` exists; sensitive data lands in `run/local/` (gitignored) |
+| `code-review` | rv | code review / review report /code-review | On demand: using plan/tech-design as the spec and the target-branch three-dot diff as facts, analyzes changes function by function for correctness and hazards, assesses affected interfaces and scenarios, and produces `$work/code-review.md` |
+| `release-check` | rc | release check / go-live check /release-check | On demand: identifies database changes (with migration statements), config changes (with templates), new API calls (permission requests), and new middleware (resource requests), producing `$work/release-check.md` |
+| `close` | cl | close workspace / finish /close | Delivery check and summary, distills wiki (incl. technical decisions), consumes guidance to crystallize the harness and verifies landing points, removes worktrees, and finalizes status |
 
 ### 7.3 Git commands (cmd/git/)
 
 | Command | Short | Triggers | Purpose |
 | --- | --- | --- | --- |
-| `fetch` | f | 拉取 /fetch | Pulls the latest code for each repository (fetch only, no merge) |
-| `worktree` | wt | 工作树 /worktree | Creates the missing worktree for a specified repository |
-| `commit` | ci | 提交 /commit | Local commit; runs init first in a non-git directory; the message is auto-generated and committed directly—no second confirmation |
-| `push` | ps | 推送 /push | Pushes to the remote; if none is associated, guides you to associate one |
-| `merge` | m | 合并 /merge | Delegates to a reviewer and routes to one of three outcomes; platform MR/PR or local merge; conflicts route to solve |
-| `solve` | s | 冲突 / 解决冲突 /solve | Guided, file-by-file conflict resolution |
+| `fetch` | f | pull / pull code /fetch | Pulls the latest code for each repository (fetch only, no merge) |
+| `worktree` | wt | worktree /wt | Creates the missing worktree for a specified repository |
+| `commit` | ci | commit / local commit /commit | Local commit; runs init first in a non-git directory; the message is auto-generated and committed directly—no second confirmation |
+| `push` | ps | push / push remote /push | Pushes to the remote; if none is associated, guides you to associate one |
+| `merge` | m | merge /m | Delegates to a reviewer and routes to one of three outcomes; platform MR/PR or local merge; conflicts route to solve |
+| `solve` | s | conflict / resolve conflict /solve | Guided, file-by-file conflict resolution |
 
 
 ## 8. Extension Mechanism
@@ -334,8 +334,8 @@ Both workflows and commands are Markdown files whose front matter declares the r
 ---
 command: spec          # use `workflow: development` in a workflow file
 short: sp
-triggers: 需求规划, 整体设计, spec
-summary: 产出需求规划文档
+triggers: requirement planning, overall design, spec
+summary: Produce the requirement planning document
 ---
 ```
 
@@ -346,7 +346,7 @@ sh harness/script/scan-routes.sh list      harness   # Workflow table + command 
 sh harness/script/scan-routes.sh workflows harness   # Workflows only (intent recognition)
 sh harness/script/scan-routes.sh commands  harness   # Commands only
 sh harness/script/scan-routes.sh agents    harness   # Delegatable roles only (agents/ never participates in resolve)
-sh harness/script/scan-routes.sh resolve   harness 需求规划
+sh harness/script/scan-routes.sh resolve   harness "requirement planning"
 sh harness/script/lint-harness.sh          harness   # Structure self-check: frontmatter/four sections/route conflicts/reference orphans
 ```
 

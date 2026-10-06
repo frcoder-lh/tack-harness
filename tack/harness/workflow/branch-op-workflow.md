@@ -1,7 +1,7 @@
 ---
 workflow: branch-op
 short: bop
-triggers: 分支操作, branch-op
+triggers: 分支操作, branch-op, branch operation, branch ops
 summary: 无需求/无分析/无测试的分支级 merge、rebase 状态机——临时分支加时间戳隔离操作后推回原分支，临时资源在 close 时清理
 ---
 

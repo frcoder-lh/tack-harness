@@ -1,7 +1,7 @@
 ---
 command: fix
 short: fx
-triggers: 修正, 需求修正, 修改需求, 修正代码, fix
+triggers: 修正, 需求修正, 修改需求, 修正代码, fix, requirement fix, fix requirement, code fix
 params: [修正内容（自然语言描述）]
 summary: 后续环节发现需求不明确或实现不正确时进行修正——需求修正走 spec→plan→代码，代码修正走代码→同步文档，任务状态同步回 status.yaml
 ---

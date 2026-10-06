@@ -1,7 +1,7 @@
 ---
 workflow: bugfix
 short: bug
-triggers: 改bug工作流, 修bug, 修缺陷, 排障, bugfix
+triggers: 改bug工作流, 修bug, 修缺陷, 排障, bugfix, fix bug, fix defect, troubleshoot, bugfix workflow
 summary: 复现 → 诊断定位 → 修复 → 验证 → 提交的缺陷修复状态机
 ---
 

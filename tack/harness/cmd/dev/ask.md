@@ -1,7 +1,7 @@
 ---
 command: ask
 short: a
-triggers: 问, 提问, 代码问答, 分析代码, 代码分析, ask
+triggers: 问, 提问, 代码问答, 分析代码, 代码分析, ask, question, code qa, analyze code, code analysis
 params: [问题，或仓库名（整体分析时可选）]
 summary: 代码理解——整体分析仓库结构生成分析文档；或针对用户提出的代码逻辑问题梳理代码，问答记录沉淀到 $work/wiki/，同主题连续问答追加融合
 ---

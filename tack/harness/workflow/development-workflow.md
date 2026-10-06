@@ -1,7 +1,7 @@
 ---
 workflow: development
 short: dev
-triggers: 开发工作流, 需求开发, 功能开发, development
+triggers: 开发工作流, 需求开发, 功能开发, development, development workflow, requirement development, feature development
 summary: 从需求到合并交付的完整开发状态机——spec → plan → tech-design → code → commit → push → merge → close；testcode/test/run/code-review/release-check 为按需命令（用户需要时触发，非必经环节、不占状态、不阻塞流转）；任何环节可用 fix 修正需求或实现
 ---
 

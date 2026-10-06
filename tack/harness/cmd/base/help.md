@@ -1,7 +1,7 @@
 ---
 command: help
 short: h
-triggers: 帮助, 命令, help
+triggers: 帮助, 命令, help, commands
 params: [工作流或命令名（可选）]
 summary: 扫描 harness，输出全部工作流与命令的触发词、参数与作用
 ---

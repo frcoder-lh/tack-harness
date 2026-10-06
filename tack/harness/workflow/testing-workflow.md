@@ -1,7 +1,7 @@
 ---
 workflow: testing
 short: tst
-triggers: 测试工作流, 补测试, 测试任务, testing
+triggers: 测试工作流, 补测试, 测试任务, testing, testing workflow, add tests, testing task
 summary: 测试计划 → 单测驱动的需求-代码一致性审查与缺陷发现（testcode）→ 系统测试（test，端到端功能验证）→ 回归验证的测试状态机
 ---
 
