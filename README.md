@@ -38,7 +38,7 @@ Tack Harness 是一套专为软件研发打造的编程工作流框架：
 | **命令自创造** | `record` 为 "生成指令的指令"。首先扫描已有命令尝试融合修正；若无合适命令，仅需提供 `command`，其余内容自动生成 |
 | **自进化** | guidance 闭环：任务各环节自动把用户的引导、纠偏、补充约定以原始事实追加到 `status.yaml` 的 `guidance` 列表（raw）；`close` 收尾时自动审查并固化到 workflow/cmd/rule（distilled），落点经 `check-guidance` 校验，形成「采集 → 固化 → 校验」的自进化回路 |
 | **自动更新检查** | `close`/`evolution`/`record`/`help` 命令收尾时静默检查新版本（7 天 + 同版本双节流，不在会话开始时抢占任务）；发现新版本时展示本机版本到最新版本之间的全部更新内容，用户确认后说「更新」即可升级 |
-| **角色委派** | `harness/agents/` 内置可委派角色（code-explorer / code-architect / code-reviewer），被 `ask`/`plan`/`merge` 等命令引用后经 Task 子代理在独立上下文并行执行；只供发现与委派，不参与命令路由 |
+| **角色委派** | `harness/agents/` 内置可委派角色（code-explorer / code-architect / code-reviewer），被 `ask`/`plan`/`tech-design`/`code-review`/`merge` 等命令引用后经 Task 子代理在独立上下文并行执行；只供发现与委派，不参与命令路由 |
 | **Hook 加速层** | `harness/script/hook/` 提供 IDE Hooks 可选加速（SessionStart 预载路由、UserPromptSubmit 零往返路由解析、PreToolUse 边界观察）；仅搬运确定性事实，AGENTS.md + `scan-routes.sh` 仍是唯一事实源，默认不启用、不拦截 |
 | **向外学习** | `study` 把外部 skill 或仓库当作教材：通读结构、提炼可借鉴点、以新增/融合/优化方式落盘到 harness 对应位置，全程唯一确认点是统一预览，确认后自动提交并触发一次 `evolution` 向内自审 |
 | **精简克制** | 保持最小目录结构、基础命令与必要状态流转；凡可脚本化的操作不依赖大模型 |
@@ -60,8 +60,9 @@ Tack Harness 是一套专为软件研发打造的编程工作流框架：
 - [9. 安全模型](#9-安全模型)
 - [10. 常见问题](#10-常见问题)
 - [11. 贡献](#11-贡献)
-- [12. 致谢](#12-致谢)
-- [13. License](#13-license)
+- [12. 联系方式](#12-联系方式)
+- [13. 致谢](#13-致谢)
+- [14. License](#14-license)
 
 
 ## 2. 快速开始
@@ -152,7 +153,7 @@ my-project/
 │   ├── cmd/             #   命令：发现、路由、准入准出
 │   ├── agents/          #   可委派角色：独立上下文并行执行（explorer/architect/reviewer）
 │   ├── workflow/        #   工作流：状态机与命令编排
-│   ├── script/          #   固定流程脚本（init-tack 初始化 / scan-routes 路由扫描 / lint-harness 结构自检 / scan-secrets 凭据扫描 / check-guidance 落点校验 / work-status 状态回写 / space 空间自动提交 / project 项目信息 / repo 仓库 / work 工作区 / git-worktree-helper / git-bug-trace 缺陷溯源 / git-diff-context 三点 diff 导出 / branch-op 分支操作 / check-update 更新检查；Windows 统一经 run.ps1 启动器调用）
+│   ├── script/          #   固定流程脚本（init-tack 初始化 / scan-routes 路由扫描 / lint-harness 结构自检 / scan-secrets 凭据扫描 / check-guidance 落点校验 / work-status 状态回写 / space 空间自动提交 / project 项目信息 / repo 仓库 / work 工作区 / git-worktree-helper / git-fetch-helper 远端同步与上游修复 / git-bug-trace 缺陷溯源 / git-diff-context 三点 diff 导出 / branch-op 分支操作 / check-update 更新检查 / skill-update 本机 skill 升级；Windows 统一经 run.ps1 启动器调用）
 │   │   └── hook/        #   IDE Hook 可选加速层（SessionStart/UserPromptSubmit/PreToolUse，默认不启用、不拦截）
 │   ├── rule/            #   业务、代码与安全规则（coding-standards、security、git-boundary 双层边界、context-loading 上下文加载、windows-env、record-* 沉淀规则；不参与路由，按需加载）
 │   ├── template/        #   命令、工作流、文档、工作区模板
@@ -228,10 +229,10 @@ my-project/
 
 | 工作流 | 触发词 | 状态流转 |
 | --- | --- | --- |
-| development | 开发工作流 /dev | `initialized → planning → developing → reviewing → merged → completed` |
-| testing | 测试工作流 /tst | `initialized → test-planning → testing → verifying → completed` |
-| bugfix | 改 bug /bugfix | `initialized → reproducing → diagnosing → fixing → verifying → completed` |
-| merge-conflict | 合并冲突 /mc | `initialized → fetching → merging → resolving → verifying → pushing → completed` |
+| development | 开发工作流 / 需求开发 / 功能开发 /dev | `initialized → planning → developing → reviewing → merged → completed` |
+| testing | 测试工作流 / 补测试 / 测试任务 /tst | `initialized → test-planning → testing → verifying → completed` |
+| bugfix | 修bug / 修缺陷 / 排障 /bug | `initialized → reproducing → diagnosing → fixing → verifying → completed` |
+| merge-conflict | 合并冲突 / 冲突工作流 /mc | `initialized → fetching → merging → resolving → verifying → pushing → completed` |
 | branch-op | 分支操作 /bop | `initialized → preparing → integrating（冲突时 resolving）→ pushing → completed`，临时分支与 worktree 在 close 时清理 |
 
 任意环节受阻可进入 `blocked` 状态（在 `status.yaml` 中记录阻塞原因），解除后回到原状态。开发主链路如下：
@@ -285,12 +286,12 @@ flowchart LR
 
 | 命令 | 简写 | 触发词 | 作用 |
 | --- | --- | --- | --- |
-| `init` | i | 初始化 /init | 提炼项目信息写入 AGENTS.md，扫描软链或克隆仓库 |
-| `work` | w | 工作区 /work | 新建 / 重命名 / 切换 / 列出工作区，自动推断服务、创建 worktree |
-| `help` | h | 帮助 /help | 扫描 harness，输出工作流与全部命令 |
-| `update` | u | 更新 /update | 更新 harness 与空间根 .gitignore（.tack/ 强制兜底），保留自定义 cmd/rule 与 AGENTS.md |
-| `create-repo` | cr | 新建仓库 /createrepo /create-repo | 新建并初始化本地代码仓库，纳入项目空间管理 |
-| `record` | r | 记录 /record | 优先融合已有条目；可落命令 / 工作流 / 规则 / wiki / AGENTS.md 常驻约定，新建时仅需提供 command |
+| `init` | i | 初始化 / 接入仓库 / 整理文档 /init | 提炼项目信息写入 AGENTS.md，扫描软链或克隆仓库（自然语言「接入仓库」「整理文档」同样路由至此） |
+| `work` | w | 工作区 / 新建工作区 / 切换工作区 / 分支合并 / 分支变基 /work | 新建 / 重命名 / 切换 / 列出工作区，自动推断服务、创建 worktree；亦承接分支合并/变基意图，分流至 branch-op 工作流 |
+| `help` | h | 帮助 / 命令 /help | 扫描 harness，输出工作流与全部命令 |
+| `update` | u | 更新 / 更新skill /update | 更新 harness 与空间根 .gitignore（.tack/ 强制兜底），保留自定义 cmd/rule 与 AGENTS.md |
+| `create-repo` | cr | 新建仓库 / 建仓 /createrepo /create-repo | 新建并初始化本地代码仓库，纳入项目空间管理 |
+| `record` | r | 记录 / 记忆 / 沉淀 /record | 优先融合已有条目；可落命令 / 工作流 / 规则 / wiki / AGENTS.md 常驻约定，新建时仅需提供 command |
 | `evolution` | evo | 进化 / 进化harness /evolution | 结构自检（lint-harness）并审查指令，提炼 rule/reference/script 候选，人工确认后落盘 |
 | `study` | st | 学习 / 研习 / 借鉴 /study | 向外学习外部 skill 或仓库的设计，提炼可借鉴点并落盘到 harness 对应位置，统一预览确认后提交，随后自动执行一次 evolution |
 
@@ -420,7 +421,18 @@ sh harness/script/lint-harness.sh          harness   # 结构自检：frontmatte
 - 参考现有命令模板：`harness/template/cmd.md`、`workflow.md`
 
 
-## 12. 致谢
+## 12. 联系方式
+
+欢迎加入 TackHarness QQ 交流群（群号 **1128954501**）交流使用问题、实践经验与改进想法：
+
+<p align="center">
+  <img src="contact.png" alt="TackHarness QQ 交流群二维码，群号 1128954501" width="280">
+</p>
+
+问题反馈与功能建议也可以直接提 [GitHub Issues](https://github.com/frcoder-lh/tack-harness/issues)。
+
+
+## 13. 致谢
 
 部分研发方法论（harness/reference/）参考 [Matt Pocock 的 skills 仓库](https://github.com/mattpocock/skills) 翻译变体而来。
 
@@ -429,6 +441,6 @@ sh harness/script/lint-harness.sh          harness   # 结构自检：frontmatte
 记忆系统借鉴了 [hindsight](https://github.com/vectorize-io/hindsight)。
 
 
-## 13. License
+## 14. License
 
 [MIT License](LICENSE) © frcoder-lh
