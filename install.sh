@@ -25,7 +25,7 @@
 set -e
 
 SKILL_NAME="tack"
-SKILL_FILES="SKILL.md README.md README.en.md contact.png install.sh tack"
+SKILL_FILES="SKILL.md README.md README.en.md CHANGELOG.md CHANGELOG.en.md contact.png install.sh tack"
 
 # 管道安装（curl | sh）时下载源码压缩包的地址
 REPO_ARCHIVE_URL="https://github.com/frcoder-lh/tack-harness/archive/refs/heads/master.tar.gz"

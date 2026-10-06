@@ -17,11 +17,11 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
 
 1. **检测版本**
    - 动作: 读取 AGENTS.md 项目信息区块的 `skill_version`（为空时取本机已安装 skill 的 SKILL.md front matter 版本号）；通过 `skill_update_url` 指向仓库的最新 release tag（`Vx.y.z`）获取最新版本进行对比；无网络时以本机版本为准并提示
-   - 动作: 远端有新版本时，先展示「本次更新内容」让用户了解变更再继续：拉取 `skill_update_url` 仓库的 `raw/master/CHANGELOG.md`，抽取「本机版本（不含）→ 最新版本」区间的全部版本段落向用户展示（多版本升级展示区间所有段落）；拉取失败或段落缺失时提示变更说明不可得并继续，不阻塞
+   - 动作: 远端有新版本时，先展示「本次更新内容」让用户了解变更再继续：同时拉取 `skill_update_url` 仓库的 `raw/master/CHANGELOG.md` 与 `CHANGELOG.en.md`，分别抽取「本机版本（不含）→ 最新版本」区间的全部版本段落，中英双语分段向用户展示（多版本升级展示区间所有段落；按用户语言可只转述对应语言段）；任一语言拉取失败或段落缺失时该语言提示变更说明不可得，不阻塞另一种语言与更新流程
    - 动作: 若版本一致且无本地差异（见第 3 步），提示"已是最新"并结束
 
 2. **更新本机 skill**（远端有新版本时执行）
-   - 动作: 执行固定流程脚本把本机已安装 skill 更新到最新版本（定位本机 skill 安装目录 → 下载该版本 release 源码 → 完整备份旧目录后整体清空覆盖（SKILL.md/README.md/README.en.md/contact.png/install.sh/tack/，旧版残留文件一并清除）→ 校验版本号）：
+   - 动作: 执行固定流程脚本把本机已安装 skill 更新到最新版本（定位本机 skill 安装目录 → 下载该版本 release 源码 → 完整备份旧目录后整体清空覆盖（SKILL.md/README.md/README.en.md/CHANGELOG.md/CHANGELOG.en.md/contact.png/install.sh/tack/，旧版残留文件一并清除）→ 校验版本号）：
      `sh $root/harness/script/skill-update.sh <skill_update_url> <最新tag> --tack-root $root/.tack`（Windows 经 run.ps1 启动）
    - 临时产物边界：下载解压目录落 `$root/.tack/tmp/` 下、脚本结束自动清理；旧版 skill 完整备份落 `$root/.tack/backup/skill-<时间戳>/`（回滚用，保留不自动删除，与第 6 步的 `harness-<时间戳>/` 备份同级）
    - `--skill-root <path>` 可省略：脚本按 install.sh 的 agent 预设路径自动探测；探测到多个或零个时脚本报错，向用户询问本机 tack skill 安装目录后以 `--skill-root` 重试

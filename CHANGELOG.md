@@ -1,14 +1,17 @@
 # Changelog
 
-本文件是 tack harness 变更说明的单一事实源：
+本文件（中文）与 `CHANGELOG.en.md`（English）是 tack harness 变更说明的双语单一事实源：
 
 - 每个发布版本一节，标题格式 `## Vx.y.z (YYYY-MM-DD)`，条目为面向用户的功能点（按 新增/优化/修复 标注），不堆 commit
-- `release.sh` 发版时校验目标 tag 在本文件中有对应段落，缺失即中止
-- CI 创建 GitHub Release 时抽取对应段落作为 Release body；`check-update.sh` 检查提醒与 `update` 命令展示「本次更新内容」均以本文件为来源
+- 中英两份文件同版本条目一一对应、同步维护；`release.sh` 发版时校验目标 tag 在两份文件中均有对应段落，任一缺失即中止
+- CI 创建 GitHub Release 时分别抽取两份文件的对应段落拼接为双语 Release body；`check-update.sh` 检查提醒与 `update` 命令展示「本次更新内容」均同时以两份文件为来源
 
 ## V0.0.14 (未发布)
 
 - 优化: Hook 空间/工作区解析改为无状态的当次 cwd 实时判定，移除 SessionStart 经 ENV_FILE 写入的 `TACK_ROOT`/`TACK_WORK` 路径环境变量——会话级缓存在多项目窗口、同一空间多工作区并行时无法表达「当次调用归属哪个空间/工作区」，且缓存校验只验自身有效、不查与 cwd 的从属关系，错配时不会触发回退；现三个 Hook 一律从 payload cwd 向上探测空间根，工作区先按 cwd 是否位于 `space/<name>/` 内精确命中（多工作区并行互不串扰），cwd 在工作区外时 SessionStart/UserPromptSubmit 回退最近活跃并提示确认、PreToolUse 留空且不扫描；拼命令改用注入文本中的绝对路径，`TACK_HOOK_LOG`/`TACK_HOOK_ENFORCE` 两个模式开关不变
+- 新增: 英文版 README `README.en.md`——中文 README 的完整英文对照，两版顶部互链；安装（install.sh）、本机升级（skill-update.sh）、空间初始化（init-tack.sh）链路同步分发与物化中英双版 README
+- 新增: 路由英文触发词——26 个命令与 5 个工作流的 front matter triggers 在保留中文的同时增补对应英文触发词，英文输入可直接路由（如 `requirement planning` → `spec`、`fix bug` → bugfix 工作流），中英 README 同步列出双语触发词
+- 新增: CHANGELOG 双语与发版链路双语支持——新增 `CHANGELOG.en.md` 与中文条目一一对应；`release.sh` 发版前同时校验中英两份 CHANGELOG 段落齐备；CI Release body 中英双语拼接；`check-update.sh` 与 `update` 命令同时拉取并展示中英「本次更新内容」；`install.sh`/`skill-update.sh` 分发清单纳入中英 CHANGELOG
 
 ## V0.0.13 (2026-10-03)
 

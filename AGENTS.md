@@ -7,7 +7,7 @@
 
 - 本仓库是 tack skill 的源仓库：[SKILL.md](SKILL.md)（AI 消费的 skill 入口，含版本号）、`tack/harness/`（物化到用户空间的骨架）、`install.sh` / `release.sh`（安装与发布脚本）
 - 发布由 CI 完成：推送匹配 `V*.*.*` 的 tag 触发 [.github/workflows/release.yml](.github/workflows/release.yml)，自动打包并创建 GitHub Release，**不手工制作发布包**
-- README.md 面向人类读者，SKILL.md 面向运行时AI，AGENTS.md 面向开发时AI，三处内容不重复
+- README.md（中文）/ README.en.md（English）面向人类读者，SKILL.md 面向运行时AI，AGENTS.md 面向开发时AI，三处内容不重复
 
 ## 发布与版本号（release.sh）
 
@@ -24,6 +24,7 @@
    - `tack/harness/workflow/*.md` → README「工作流模型」表
    - `CHANGELOG.md` 本版本段落 → 够格的新能力补入「核心特性」表
    - 原则：只融入已落地的新增/变更能力，不重写既有条目、不动章节结构
+6. **面向人类读者的文档中英双语同步**：`README.md`↔`README.en.md`、`CHANGELOG.md`↔`CHANGELOG.en.md` 同版本条目一一对应、同一提交内同步落库，禁止只改一种语言；发版前 `release.sh` 校验两份 CHANGELOG 均含目标 tag 段落（任一缺失即中止），CI 抽取双份段落拼接双语 Release body，`check-update.sh`/`update` 双语展示更新内容；新增/变更命令与工作流的英文触发词须同步写入两份 README 的命令/工作流表；安装（install.sh）、升级（skill-update.sh）分发清单必须同时包含两份 README 与两份 CHANGELOG
 
 ## POSIX sh 脚本规范
 

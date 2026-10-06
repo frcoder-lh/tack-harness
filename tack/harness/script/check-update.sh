@@ -22,8 +22,9 @@
 # 版本事实源（依次回退）: AGENTS.md 项目信息区块 skill_version（project.sh 维护）->
 #   本机已安装 skill 的 SKILL.md front matter version（探测逻辑与 skill-update.sh 一致）。
 # 检查目标: <update-url>/releases/latest 的 302 重定向地址尾段（单次 HEAD 请求，
-#   不走 GitHub API、无响应体）。变更说明取 <update-url>/raw/master/CHANGELOG.md
-#   中「本机版本(不含)→最新版本」区间的全部版本段落。update-url 默认取出厂仓库地址，
+#   不走 GitHub API、无响应体）。变更说明同时取 <update-url>/raw/master/CHANGELOG.md
+#   与 CHANGELOG.en.md 中「本机版本(不含)→最新版本」区间的全部版本段落，中英双语分别展示
+#   （任一语言拉取失败只缺失该语言段落，不阻塞提醒）。update-url 默认取出厂仓库地址，
 #   环境变量 TACK_UPDATE_URL 可覆盖（隔离测试用）。
 # 状态文件: <root>/.tack/state/update-state（本机运行时状态，.gitignore 已排除），行格式:
 #   last_check=<epoch 秒>   上次发起真实检查的时间（含失败尝试）
@@ -149,6 +150,25 @@ latest_tag() {
     esac
 }
 
+# fetch_url <url> <outfile> — 三下载器回退：curl → curl --ssl-no-revoke（Git Bash
+# schannel 受限网络）→ wget；全部失败返回非零
+fetch_url() {
+    curl -fsSL "$1" -o "$2" 2>/dev/null \
+        || curl -fsSL --ssl-no-revoke "$1" -o "$2" 2>/dev/null \
+        || wget -q -O "$2" "$1" 2>/dev/null
+}
+
+# cl_section <file> <new-tag> <old-tag> — 抽取「## <new-tag>」至「## <old-tag>」（不含）
+# 之间的全部版本段落（保留各版本标题行，去空行，限 20 行）。标题边界精确匹配整行或
+# 后跟空格（日期后缀），避免 V0.0.1 误配 V0.0.10；本机版本段落缺失时打印到文件尾
+cl_section() {
+    awk -v new="$2" -v old="$3" '
+        index($0, "## " new) == 1 && (length($0) == length(new) + 3 || substr($0, length(new) + 4, 1) == " ") { f = 1 }
+        f && index($0, "## " old) == 1 && (length($0) == length(old) + 3 || substr($0, length(old) + 4, 1) == " ") { exit }
+        f && $0 !~ /^[[:space:]]*$/ { print }
+    ' "$1" | head -n 20
+}
+
 # —— 1. 时间节流：距上次真实检查不足间隔，静默退出（零网络、零输出） ——
 _last="$(read_state last_check)"
 case "$_last" in
@@ -190,28 +210,32 @@ fi
 
 write_state notified "$_tag"
 
-# —— 6. 拉取变更说明（CHANGELOG 区间段落：本机版本(不含)→最新版本；失败降级为仅一行提醒，不阻塞） ——
-_changes=""
-_tmp_cl="$TMP_DIR/changelog"
-_changelog_url="${UPDATE_URL%/}/raw/master/CHANGELOG.md"
-if curl -fsSL "$_changelog_url" -o "$_tmp_cl" 2>/dev/null \
-    || curl -fsSL --ssl-no-revoke "$_changelog_url" -o "$_tmp_cl" 2>/dev/null \
-    || wget -q -O "$_tmp_cl" "$_changelog_url" 2>/dev/null; then
-    # 抽取「## <最新tag>」至「## <本机版本>」（不含）之间的全部版本段落（保留各版本标题行，
-    # 去空行，限 20 行）。标题边界精确匹配整行或后跟空格（日期后缀），避免 V0.0.1 误配 V0.0.10；
-    # 本机版本段落在 CHANGELOG 中缺失时打印到文件尾（由 head 限行兜底）
-    _old="$_ver"
-    case "$_old" in V*|v*) ;; *) _old="V$_old" ;; esac
-    _changes="$(awk -v new="$_tag" -v old="$_old" '
-        index($0, "## " new) == 1 && (length($0) == length(new) + 3 || substr($0, length(new) + 4, 1) == " ") { f = 1 }
-        f && index($0, "## " old) == 1 && (length($0) == length(old) + 3 || substr($0, length(old) + 4, 1) == " ") { exit }
-        f && $0 !~ /^[[:space:]]*$/ { print }
-    ' "$_tmp_cl" | head -n 20)"
+# —— 6. 拉取双语变更说明（中英 CHANGELOG 区间段落：本机版本(不含)→最新版本；
+#      任一语言拉取/抽取失败只缺失该语言段落，降级为仅提醒行，不阻塞） ——
+_old="$_ver"
+case "$_old" in V*|v*) ;; *) _old="V$_old" ;; esac
+
+_changes_zh=""
+_tmp_zh="$TMP_DIR/changelog.zh"
+if fetch_url "${UPDATE_URL%/}/raw/master/CHANGELOG.md" "$_tmp_zh"; then
+    _changes_zh="$(cl_section "$_tmp_zh" "$_tag" "$_old")"
 fi
-rm -f "$_tmp_cl"
+rm -f "$_tmp_zh"
+
+_changes_en=""
+_tmp_en="$TMP_DIR/changelog.en"
+if fetch_url "${UPDATE_URL%/}/raw/master/CHANGELOG.en.md" "$_tmp_en"; then
+    _changes_en="$(cl_section "$_tmp_en" "$_tag" "$_old")"
+fi
+rm -f "$_tmp_en"
 
 echo "tack harness 有新版本 ${_tag}（当前 ${_ver}），说「更新」即可升级"
-if [ -n "$_changes" ]; then
+echo "tack harness has a new version ${_tag} (current ${_ver}); say \"update\" to upgrade"
+if [ -n "$_changes_zh" ]; then
     echo "本次更新内容："
-    printf '%s\n' "$_changes"
+    printf '%s\n' "$_changes_zh"
+fi
+if [ -n "$_changes_en" ]; then
+    echo "What's new:"
+    printf '%s\n' "$_changes_en"
 fi

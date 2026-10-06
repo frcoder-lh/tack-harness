@@ -30,10 +30,29 @@ jobs:
             -x '.gitignore'
 
       - name: Extract changelog section
+        shell: bash
         run: |
-          [ -f CHANGELOG.md ] || touch CHANGELOG.md
+          # 双语 Release body：中英两份 CHANGELOG 同版本段落均须存在（release.sh 已在发版前校验），
+          # 分别抽取后拼接，任一为空即中止，避免发布只有单语的 Release 说明
+          [ -f CHANGELOG.md ] || { echo "CHANGELOG.md missing" >&2; exit 1; }
+          [ -f CHANGELOG.en.md ] || { echo "CHANGELOG.en.md missing" >&2; exit 1; }
           TAG="${GITHUB_REF_NAME}"
-          awk -v tag="$TAG" '(index($0, "## " tag " ") == 1 || $0 == "## " tag) {f=1; next} f && /^## / {exit} f {print}' CHANGELOG.md > release-notes.md
+          extract() {
+            awk -v tag="$TAG" '(index($0, "## " tag " ") == 1 || $0 == "## " tag) {f=1; next} f && /^## / {exit} f {print}' "$1"
+          }
+          zh="$(extract CHANGELOG.md)"
+          en="$(extract CHANGELOG.en.md)"
+          [ -n "$zh" ] || { echo "Chinese changelog section for $TAG is empty" >&2; exit 1; }
+          [ -n "$en" ] || { echo "English changelog section for $TAG is empty" >&2; exit 1; }
+          {
+            echo "## 中文"
+            echo
+            echo "$zh"
+            echo
+            echo "## English"
+            echo
+            echo "$en"
+          } > release-notes.md
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
