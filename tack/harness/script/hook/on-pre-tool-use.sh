@@ -45,23 +45,23 @@ esac
 # 统一 hook 日志（开关关闭时仅接管临时文件清理，stdout 行为与原先完全一致）
 hook_log_setup "PreToolUse" "$PAYLOAD"
 
-# ROOT 优先复用 SessionStart 导出的 TACK_ROOT（失效自动回退向上探测）
-ROOT="$(hook_resolve_root "$CWD" 2>/dev/null)" || true
+# ROOT 从当次 cwd 向上实时探测（无环境变量缓存，多项目窗口互不串扰）
+ROOT="$(hook_detect_root "$CWD" 2>/dev/null)" || true
 [ -n "$ROOT" ] || exit 0
-# PreToolUse 为高频路径不主动扫描工作区，只复用 TACK_WORK 缓存（校验失败则留空，
-# 不回退全量扫描——当前 WORK 仅用于日志，规则判定只依赖 ROOT）
-PTU_WORK=""
-if hook_valid_work "$ROOT" "${TACK_WORK:-}"; then
-    PTU_WORK="$TACK_WORK"
-fi
-hook_log_ctx "$ROOT" "$PTU_WORK"
+ROOT_N="$(printf '%s' "$ROOT" | tr '\\' '/')"
 
 CMD="$(hook_json_get command "$PAYLOAD")"
 # tool_input.cwd 与顶层 cwd 同名（顶层在前），取第 2 个；缺失时回退顶层 cwd
 CMD_CWD="$(hook_json_get cwd "$PAYLOAD" 2 2>/dev/null || true)"
 [ -n "$CMD_CWD" ] || CMD_CWD="$CWD"
+
+# PreToolUse 为高频路径，WORK 仅用于日志且只做路径归属精确判定——命令在哪个
+# 工作区的 worktree 内执行就归属哪个（多工作区并行安全）；在空间根等工作区外
+# 执行则留空，不回退全量扫描，避免日志误挂到无关工作区
+PTU_WORK="$(hook_work_from_cwd "$ROOT" "$CMD_CWD" 2>/dev/null)" || true
+hook_log_ctx "$ROOT" "$PTU_WORK"
+
 CMD_CWD="$(printf '%s' "$CMD_CWD" | tr '\\' '/')"
-ROOT_N="$(printf '%s' "$ROOT" | tr '\\' '/')"
 
 # ── 规则判定（命中即向 stdout 追加一行 RULE<TAB>原因；纯函数式收集） ──────────
 HITS=""

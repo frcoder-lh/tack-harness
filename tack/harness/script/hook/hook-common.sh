@@ -155,51 +155,45 @@ hook_active_work() {
     printf '%s' "$_found" | sort -r | head -n 1 | sed 's/^[^|]*|//'
 }
 
-# ── TACK_ROOT / TACK_WORK 缓存消费（SessionStart 经 ENV_FILE 导出）──────────────
+# ── 工作区解析（无状态：一律以当次 payload 的 cwd 为事实起点）──────────────────
 #
-# 设计原则：这两个环境变量只是 SessionStart 时刻落的「确定性事实缓存」，磁盘
-# 始终是唯一事实源——空间可能被迁移、工作区可能已在会话中被 close。因此使用
-# 前必须先校验，校验失败一律回退实时探测，绝不信任过期值。
+# 不向环境变量缓存任何路径：多项目窗口、同空间多工作区并行时，会话级缓存
+# 无法表达「当前这次调用属于哪个空间/工作区」；而缓存校验只能验证其自身仍
+# 有效（目录还在、状态非 completed），无法验证与当次 cwd 的从属关系——只要
+# 缓存指向的空间/工作区本身没消失，错配就不会触发回退。每次 hook 调用的
+# payload 都带真实 cwd，root 向上探测、work 按路径归属精确判定，开销仅几次
+# stat/grep（毫秒级），空间迁移、工作区关闭、多窗口并发下天然正确，无需
+# 任何失效回退逻辑。
 
-# hook_valid_root <dir> — 是否为 tack 空间根（AGENTS.md 存在且含空间标记）
-hook_valid_root() {
-    [ -n "${1:-}" ] || return 1
-    [ -f "$1/AGENTS.md" ] && hook_grep_mark "$1/AGENTS.md"
-}
-
-# hook_valid_work <root> <dir> — 是否为 <root> 下的活跃工作区：
-# 路径位于 <root>/space/ 内、status.yaml 存在且状态非 completed
-hook_valid_work() {
-    _vw_root="$(printf '%s' "${1:-}" | tr '\\' '/')"
-    _vw_dir="$(printf '%s' "${2:-}" | tr '\\' '/')"
-    [ -n "$_vw_root" ] && [ -n "$_vw_dir" ] || return 1
-    case "$_vw_dir" in
-        "$_vw_root"/space/*) ;;
-        *) return 1 ;;
+# hook_work_from_cwd <root> <start-dir>
+# 纯路径归属精确判定：start-dir 位于 <root>/space/<name>/ 内（含恰为该目录），
+# 且 status.yaml 存在、状态非 completed，stdout 输出该工作区绝对路径；
+# 不归属任何活跃工作区时无输出、返回 1（不做任何扫描，高频路径适用）。
+hook_work_from_cwd() {
+    _wc_root="$(printf '%s' "${1:-}" | tr '\\' '/')"
+    _wc_dir="$(printf '%s' "${2:-}" | tr '\\' '/')"
+    [ -n "$_wc_root" ] && [ -n "$_wc_dir" ] || return 1
+    case "$_wc_dir" in
+        "$_wc_root"/space/*)
+            _wc_rest="${_wc_dir#"$_wc_root"/space/}"
+            _wc_name="${_wc_rest%%/*}"
+            _wc_cand="$_wc_root/space/$_wc_name"
+            if [ -n "$_wc_name" ] && [ -f "$_wc_cand/status.yaml" ] \
+                && [ "$(hook_yaml_top "$_wc_cand/status.yaml" status)" != "completed" ]; then
+                printf '%s' "$_wc_cand"
+                return 0
+            fi
+            ;;
     esac
-    [ -f "$_vw_dir/status.yaml" ] || return 1
-    [ "$(hook_yaml_top "$_vw_dir/status.yaml" status)" = "completed" ] && return 1
-    return 0
+    return 1
 }
 
-# hook_resolve_root <start-dir>
-# TACK_ROOT 缓存有效则直接复用，否则从起始目录向上实时探测
-hook_resolve_root() {
-    if hook_valid_root "${TACK_ROOT:-}"; then
-        printf '%s' "$TACK_ROOT"
-        return 0
-    fi
-    hook_detect_root "$1"
-}
-
-# hook_resolve_work <root>
-# TACK_WORK 缓存有效则直接复用，否则全量扫描活跃工作区
-hook_resolve_work() {
-    if hook_valid_work "$1" "${TACK_WORK:-}"; then
-        printf '%s' "$TACK_WORK"
-        return 0
-    fi
-    hook_active_work "$1"
+# hook_detect_work <root> <start-dir>
+# 先按 cwd 精确命中工作区；cwd 不在任何活跃工作区内（如空间根、worktree 外）
+# 时回退 hook_active_work（最近活跃，仅供会话启动/提示场景，调用方仍须向用户
+# 确认当前工作）。
+hook_detect_work() {
+    hook_work_from_cwd "$1" "$2" || hook_active_work "$1"
 }
 
 # hook_work_snapshot <work-dir>
@@ -242,15 +236,10 @@ hook_strip_frontmatter() {
     ' "$1"
 }
 
-# hook_shq <string> — POSIX shell 单引号安全包裹
-hook_shq() {
-    printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
-}
-
 # ── 统一 Hook 日志（环境变量 TACK_HOOK_LOG=1 开启；默认关闭，零开销、零行为变化）────
 #
 # 三个事件脚本在解析完 CWD 后统一调用 hook_log_setup 接入，一次调用记录：
-#   时间 / 事件名 / pid / cwd / 环境（TACK_ROOT、TACK_WORK、TACK_HOOK_ENFORCE）/
+#   时间 / 事件名 / pid / cwd / 环境（TACK_HOOK_LOG、TACK_HOOK_ENFORCE 开关）/
 #   输入 payload 全文 / $root、$work / 过程备注（如 PreToolUse 规则命中）/
 #   输出全文 / rc / 输出字节数 / 耗时（秒）
 #
@@ -309,8 +298,8 @@ hook_log_setup() {
                 printf '===== %s event=%s pid=%s phase=begin =====\n' \
                     "$(hook_log_ts)" "$_HL_EVENT" "$$"
                 printf 'cwd: %s\n' "${CWD:-}"
-                printf 'env: TACK_ROOT=%s TACK_WORK=%s TACK_HOOK_ENFORCE=%s\n' \
-                    "${TACK_ROOT:-}" "${TACK_WORK:-}" "${TACK_HOOK_ENFORCE:-}"
+                printf 'env: TACK_HOOK_LOG=%s TACK_HOOK_ENFORCE=%s\n' \
+                    "${TACK_HOOK_LOG:-}" "${TACK_HOOK_ENFORCE:-}"
                 printf 'input.payload:\n'
                 hook_log_block "$_HL_PAYLOAD"
             } >> "$_HOOKLOG" 2>/dev/null || true

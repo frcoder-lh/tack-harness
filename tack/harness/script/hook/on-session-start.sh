@@ -1,11 +1,13 @@
 #!/bin/sh
 # on-session-start.sh — TRAE/Claude Code SessionStart hook（tack 可选加速层）
 #
-# 会话创建后、首轮对话前触发，做两件确定性事实注入（纯本地、零网络、毫秒级）：
-#   1. stdout 纯文本注入：tack 空间路径 + 活跃工作区状态快照 + scan-routes 全表，
-#      使模型首轮即持有路由表，无需再执行 `scan-routes list`
-#   2. 向 TRAE_ENV_FILE / CLAUDE_ENV_FILE 追加导出 TACK_ROOT / TACK_WORK，
-#      供后续 hook 与命令执行工具使用
+# 会话创建后、首轮对话前触发，做确定性事实注入（纯本地、零网络、毫秒级）：
+# stdout 纯文本注入 tack 空间路径 + 工作区状态快照 + scan-routes 全表，
+# 使模型首轮即持有路由表，无需再执行 `scan-routes list`。
+#
+# 不向环境变量写入任何路径：空间/工作区一律由后续各 hook 以当次 payload 的
+# cwd 实时解析（见 hook-common.sh「工作区解析」段），多项目窗口与同空间
+# 多工作区并行天然安全。
 #
 # 降级语义：非 tack 空间 / 任何异常 -> 零输出、退出 0，会话完全不受影响。
 #
@@ -33,8 +35,9 @@ hook_log_ctx "$ROOT"
 HARNESS="$ROOT/harness"
 [ -d "$HARNESS/cmd" ] || exit 0
 
-# 活跃工作区快照（可能没有）
-WORK="$(hook_active_work "$ROOT" 2>/dev/null)" || true
+# 工作区快照（可能没有）：cwd 在某工作区内（IDE 从 worktree 目录打开）则精确
+# 命中；cwd 在空间根等位置时回退最近活跃工作区
+WORK="$(hook_detect_work "$ROOT" "$CWD" 2>/dev/null)" || true
 WORK_NAME=""
 SNAPSHOT=""
 if [ -n "$WORK" ]; then
@@ -42,15 +45,6 @@ if [ -n "$WORK" ]; then
     SNAPSHOT="$(hook_work_snapshot "$WORK" 2>/dev/null)" || SNAPSHOT=""
 fi
 hook_log_ctx "$ROOT" "$WORK"
-
-# 环境变量导出（后续 hook 与 RunCommand 可见；文件不存在/未注入则跳过）
-ENVF="${TRAE_ENV_FILE:-${CLAUDE_ENV_FILE:-}}"
-if [ -n "$ENVF" ]; then
-    {
-        printf 'export TACK_ROOT=%s\n' "$(hook_shq "$ROOT")"
-        printf 'export TACK_WORK=%s\n' "$(hook_shq "$WORK")"
-    } >> "$ENVF" 2>/dev/null || true
-fi
 
 # 路由全表（单 awk 进程；失败则放弃注入，绝不报错）
 ROUTES="$(sh "$HARNESS/script/scan-routes.sh" list "$HARNESS" 2>/dev/null)" || exit 0

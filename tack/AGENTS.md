@@ -6,7 +6,7 @@
 
 - `$root` = tack 空间的根目录（本文件所在目录）
 - `$work` = 当前正在进行的工作目录（`$root/space/<workspace>/`；工作区目录名 `<workspace>` = `<YYYYMMDD>-<branch>`，如 `20261001-user-login`——日期前缀使目录按名排序即按创建时间排序；目录内 worktree 检出的 git 分支名仍为 `<branch>`，不含日期前缀）
-- 会话执行环境（Hook 进程与 RunCommand 工具）中另有由 SessionStart 自动导出的环境变量：`TACK_ROOT` = `$root`、`TACK_WORK` = `$work`（无活跃工作区时为空）。执行命令时可直接引用（PowerShell 用 `$env:TACK_ROOT`，sh 用 `$TACK_ROOT`），无需拼写绝对路径；脚本侧只把它们当缓存、消费前校验有效性，空间迁移或工作区关闭后自动回退实时探测，不影响正确性
+- Hook 不向会话环境写入任何路径变量（无 `TACK_ROOT`/`TACK_WORK`）：三个 Hook 一律以当次调用 payload 的 cwd 实时解析空间根与工作区，多个项目窗口、同一空间多个工作区并行互不串扰；AI 拼命令时直接使用 Hook 注入文本中的绝对路径，不要假定存在路径类环境变量（仅 `TACK_HOOK_LOG`/`TACK_HOOK_ENFORCE` 两个模式开关走环境变量）
 
 ## 加载 tack harness
 
@@ -32,8 +32,8 @@
 
 | 事件 | 加速内容 | 对会话的影响 |
 |------|----------|--------------|
-| SessionStart | 注入命令/工作流路由全表、`$root`/`$work` 路径、当前工作区快照；向环境写入 `TACK_ROOT`/`TACK_WORK` | 省去首轮 `scan-routes list` 往返 |
-| UserPromptSubmit | 复用 `TACK_ROOT`/`TACK_WORK` 缓存路径（失效自动回退探测）；对用户输入做 `scan-routes resolve`，唯一命中时直接注入对应 cmd/workflow 正文与状态快照，多命中列候选，无命中给全表 | 省去路由解析往返与重复的空间/工作区扫描 |
+| SessionStart | 注入命令/工作流路由全表、`$root`/`$work` 路径、工作区快照（cwd 在工作区内则精确命中，否则取最近活跃并提示确认） | 省去首轮 `scan-routes list` 往返 |
+| UserPromptSubmit | 以当次 cwd 实时解析空间根与工作区（cwd 在 `space/<name>/` 内精确命中，支持多工作区并行；之外回退最近活跃）；对用户输入做 `scan-routes resolve`，唯一命中时直接注入对应 cmd/workflow 正文与状态快照，多命中列候选，无命中给全表 | 省去路由解析往返与重复的空间/工作区扫描 |
 | PreToolUse | 观察模式：命令执行类工具（RunCommand/Bash）调用与 Git 双层边界、`--force`/`--no-verify` 等规则命中情况经统一日志记录；`TACK_HOOK_ENFORCE=1` 才输出 deny（**当前预留，默认不拦截**） | 默认零输出、零拦截 |
 
 统一日志：设置环境变量 `TACK_HOOK_LOG=1` 后，三个 Hook **每次被调用**都把一条完整记录追加到 `$root/.tack/log/hook.log`——时间、事件名、pid、`$root`/`$work`、cwd、环境变量、输入 payload 全文、注入/拦截输出全文、退出码与耗时（并发调用按整块串行写入、互不交错）；非 tack 空间回退系统临时目录。默认关闭，关闭时 Hook 的 stdout 与不启用日志时逐字节一致；`.tack/` 不入库、日志可随时清理。

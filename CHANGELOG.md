@@ -6,6 +6,10 @@
 - `release.sh` 发版时校验目标 tag 在本文件中有对应段落，缺失即中止
 - CI 创建 GitHub Release 时抽取对应段落作为 Release body；`check-update.sh` 检查提醒与 `update` 命令展示「本次更新内容」均以本文件为来源
 
+## V0.0.14 (未发布)
+
+- 优化: Hook 空间/工作区解析改为无状态的当次 cwd 实时判定，移除 SessionStart 经 ENV_FILE 写入的 `TACK_ROOT`/`TACK_WORK` 路径环境变量——会话级缓存在多项目窗口、同一空间多工作区并行时无法表达「当次调用归属哪个空间/工作区」，且缓存校验只验自身有效、不查与 cwd 的从属关系，错配时不会触发回退；现三个 Hook 一律从 payload cwd 向上探测空间根，工作区先按 cwd 是否位于 `space/<name>/` 内精确命中（多工作区并行互不串扰），cwd 在工作区外时 SessionStart/UserPromptSubmit 回退最近活跃并提示确认、PreToolUse 留空且不扫描；拼命令改用注入文本中的绝对路径，`TACK_HOOK_LOG`/`TACK_HOOK_ENFORCE` 两个模式开关不变
+
 ## V0.0.13 (2026-10-03)
 
 - 新增: `code-review` 代码审查命令（简写 `rv`，触发词「代码审查/审查报告」）——以 `plan.md`/`tech-design.md` 为规范、与目标分支的三点 diff 为事实，按「仓库→文件→函数」逐函数分析改动内容（附代码锚点）、逻辑正确性、明显 bug 与代码层面危害（安全/性能/兼容性），并评估受影响接口与涉及业务场景，产出独立报告 `$work/code-review.md`；跨模块大改动可委派 code-reviewer 三视角并行，审查基准一致时 `merge` 门禁可复用报告结论

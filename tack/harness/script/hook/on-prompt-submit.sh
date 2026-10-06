@@ -30,8 +30,8 @@ CWD="$(hook_json_get cwd "$PAYLOAD")"
 # 开关关闭时仅接管临时文件清理，stdout 行为与原先完全一致
 hook_log_setup "UserPromptSubmit" "$PAYLOAD" "$ERRF"
 
-# ROOT 优先复用 SessionStart 导出的 TACK_ROOT（内部校验有效性，失效自动回退探测）
-ROOT="$(hook_resolve_root "$CWD" 2>/dev/null)" || true
+# ROOT 从当次 cwd 向上实时探测（无环境变量缓存，多项目窗口互不串扰）
+ROOT="$(hook_detect_root "$CWD" 2>/dev/null)" || true
 [ -n "$ROOT" ] || exit 0
 hook_log_ctx "$ROOT"
 HARNESS="$ROOT/harness"
@@ -50,8 +50,9 @@ KW=$(printf '%s' "$RAW_PROMPT" | awk '
     }')
 
 # 工作区状态快照文本（所有分支共用；无活跃工作区时给出明确提示）
-# WORK 优先复用 TACK_WORK（校验 status.yaml/非 completed），失效回退全量扫描
-WORK="$(hook_resolve_work "$ROOT" 2>/dev/null)" || true
+# WORK 以当次 cwd 精确判定（cwd 在哪个工作区内就是哪个，支持多工作区并行），
+# cwd 不在工作区内时回退最近活跃工作区
+WORK="$(hook_detect_work "$ROOT" "$CWD" 2>/dev/null)" || true
 hook_log_ctx "$ROOT" "$WORK"
 STATE_BLOCK=""
 if [ -n "$WORK" ]; then
