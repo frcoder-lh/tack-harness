@@ -104,12 +104,14 @@ mkdir -p "$ROOT/space" "$ROOT/repo" "$ROOT/wiki"
 # 移除（重复执行安全）
 mkdir -p "$ROOT/.tack/log" "$ROOT/.tack/backup" "$ROOT/.tack/state"
 
-# README.md 是 skill 安装目录根的使用说明，物化到 harness/ 目录（已存在则跳过）；
-# 不放空间根——根目录 README.md 位置留给用户项目自身。
+# README.md（及英文版 README.en.md）是 skill 安装目录根的使用说明，物化到 harness/ 目录
+# （已存在则跳过）；不放空间根——根目录 README.md 位置留给用户项目自身。
 # README 引用的 contact.png（联系方式二维码）随之复制到 harness/，保持相对路径不断链。
 SKILL_ROOT="$(cd "$TACK_DIR/.." && pwd)"
 [ -f "$SKILL_ROOT/README.md" ] && [ ! -e "$ROOT/harness/README.md" ] && \
     cp "$SKILL_ROOT/README.md" "$ROOT/harness/README.md"
+[ -f "$SKILL_ROOT/README.en.md" ] && [ ! -e "$ROOT/harness/README.en.md" ] && \
+    cp "$SKILL_ROOT/README.en.md" "$ROOT/harness/README.en.md"
 [ -f "$SKILL_ROOT/contact.png" ] && [ ! -e "$ROOT/harness/contact.png" ] && \
     cp "$SKILL_ROOT/contact.png" "$ROOT/harness/contact.png"
 
