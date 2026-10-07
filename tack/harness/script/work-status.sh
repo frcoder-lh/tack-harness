@@ -40,14 +40,14 @@ fi
 FILE="$1"
 SUBCMD="$2"
 shift 2
-if [ ! -f "$FILE" ]; then
-  echo "work-status: 文件不存在: $FILE" >&2
+if [ ! -f "${FILE}" ]; then
+  echo "work-status: 文件不存在: ${FILE}" >&2
   exit 1
 fi
-case "$SUBCMD" in
+case "${SUBCMD}" in
   set|guidance) ;;
   *)
-    echo "work-status: 未知子命令: $SUBCMD（支持 set / guidance）" >&2
+    echo "work-status: 未知子命令: ${SUBCMD}（支持 set / guidance）" >&2
     usage
     exit 2
     ;;
@@ -55,23 +55,23 @@ esac
 
 # 临时文件优先放 tack 空间 .tack/tmp/（不写系统 temp，退出即清）；
 # 仅当 FILE 不在规范空间布局内（<root>/space/<workspace>/status.yaml）时回退系统临时目录
-SPACE_ROOT="$(cd "$(dirname "$FILE")/../.." 2>/dev/null && pwd)" || SPACE_ROOT=""
+SPACE_ROOT="$(cd "$(dirname "${FILE}")/../.." 2>/dev/null && pwd)" || SPACE_ROOT=""
 TMP_DIR=""
-if [ -n "$SPACE_ROOT" ] && [ -d "$SPACE_ROOT/harness" ]; then
-    TMP_DIR="$SPACE_ROOT/.tack/tmp"
-    mkdir -p "$TMP_DIR" 2>/dev/null || TMP_DIR=""
+if [ -n "${SPACE_ROOT}" ] && [ -d "${SPACE_ROOT}/harness" ]; then
+    TMP_DIR="${SPACE_ROOT}/.tack/tmp"
+    mkdir -p "${TMP_DIR}" 2>/dev/null || TMP_DIR=""
 fi
-if [ -n "$TMP_DIR" ]; then
-    PAIRS="$TMP_DIR/work-status.$$.pairs"
-    TMP="$TMP_DIR/work-status.$$.out"
+if [ -n "${TMP_DIR}" ]; then
+    PAIRS="${TMP_DIR}/work-status.$$.pairs"
+    TMP="${TMP_DIR}/work-status.$$.out"
 else
     PAIRS="$(mktemp)"
     TMP="$(mktemp)"
 fi
-trap 'rm -f "$PAIRS" "$TMP"; rmdir "$TMP_DIR" 2>/dev/null || true' EXIT HUP INT TERM
+trap 'rm -f "${PAIRS}" "${TMP}"; rmdir "${TMP_DIR}" 2>/dev/null || true' EXIT HUP INT TERM
 
 # guidance 子命令：固化结论回写（distilled 写「落点:」行；dismissed 仅置状态）
-if [ "$SUBCMD" = "guidance" ]; then
+if [ "${SUBCMD}" = "guidance" ]; then
   if [ $# -lt 2 ]; then
     echo "work-status: guidance 用法: guidance <id> <distilled|dismissed> [落点路径 ...]" >&2
     exit 2
@@ -79,19 +79,19 @@ if [ "$SUBCMD" = "guidance" ]; then
   GID="$1"
   GSTATE="$2"
   shift 2
-  case "$GSTATE" in
+  case "${GSTATE}" in
     distilled|dismissed) ;;
-    *) echo "work-status: guidance 状态只允许 distilled|dismissed: $GSTATE" >&2; exit 2 ;;
+    *) echo "work-status: guidance 状态只允许 distilled|dismissed: ${GSTATE}" >&2; exit 2 ;;
   esac
   GLAND=""
-  if [ "$GSTATE" = "distilled" ]; then
+  if [ "${GSTATE}" = "distilled" ]; then
     [ $# -ge 1 ] || { echo "work-status: distilled 必须提供至少一个落点路径（相对 \$root，多落点空格分隔）" >&2; exit 2; }
-    for _lp in "$@"; do GLAND="$GLAND $_lp"; done
+    for _lp in "$@"; do GLAND="${GLAND} ${_lp}"; done
     GLAND="${GLAND# }"
   else
     [ $# -eq 0 ] || { echo "work-status: dismissed 不接受落点路径" >&2; exit 2; }
   fi
-  if awk -v GID="$GID" -v GSTATE="$GSTATE" -v GLAND="$GLAND" -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" '
+  if awk -v GID="${GID}" -v GSTATE="${GSTATE}" -v GLAND="${GLAND}" -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" '
     function vof(line,   v) {
         v = line; sub(/^[^:]*:/, "", v)
         sub(/^[[:space:]]+/, "", v); sub(/[[:space:]]+$/, "", v)
@@ -148,18 +148,18 @@ if [ "$SUBCMD" = "guidance" ]; then
         finish()
         if (!found) exit 3
     }
-  ' "$FILE" > "$TMP"; then
+  ' "${FILE}" > "${TMP}"; then
     :
   else
     _rc=$?
-    if [ "$_rc" -eq 3 ]; then
-      echo "work-status: guidance 条目不存在: $GID" >&2
+    if [ "${_rc}" -eq 3 ]; then
+      echo "work-status: guidance 条目不存在: ${GID}" >&2
     else
       echo "work-status: 写入失败" >&2
     fi
-    exit "$_rc"
+    exit "${_rc}"
   fi
-  mv "$TMP" "$FILE"
+  mv "${TMP}" "${FILE}"
   exit 0
 fi
 
@@ -171,15 +171,15 @@ fi
 HAS_UPDATED_AT=0
 while [ $# -gt 0 ]; do
   k="$1"; v="$2"; shift 2
-  case "$k" in
+  case "${k}" in
     status|stage|task|next|updated_at) ;;
     progress.*) ;;
-    *) echo "work-status: 未知 key: $k（允许 status|stage|task|next|updated_at|progress.<名称>）" >&2; exit 3 ;;
+    *) echo "work-status: 未知 key: ${k}（允许 status|stage|task|next|updated_at|progress.<名称>）" >&2; exit 3 ;;
   esac
-  if [ "$k" = "updated_at" ]; then HAS_UPDATED_AT=1; fi
-  printf '%s\t%s\n' "$k" "$v" >> "$PAIRS"
+  if [ "${k}" = "updated_at" ]; then HAS_UPDATED_AT=1; fi
+  printf '%s\t%s\n' "${k}" "${v}" >> "${PAIRS}"
 done
-if [ "$HAS_UPDATED_AT" = "0" ]; then printf 'updated_at\t%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" >> "$PAIRS"; fi
+if [ "${HAS_UPDATED_AT}" = "0" ]; then printf 'updated_at\t%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" >> "${PAIRS}"; fi
 
 awk -F'\t' '
 function fmt(v) {
@@ -236,7 +236,7 @@ END {
     done[i] = 1
   }
 }
-' "$PAIRS" "$FILE" "$FILE" > "$TMP" || { echo "work-status: 写入失败" >&2; exit 1; }
+' "${PAIRS}" "${FILE}" "${FILE}" > "${TMP}" || { echo "work-status: 写入失败" >&2; exit 1; }
 
-mv "$TMP" "$FILE"
+mv "${TMP}" "${FILE}"
 exit 0

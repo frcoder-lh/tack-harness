@@ -21,7 +21,7 @@ _TACK_HOOK_MARK='本空间由 tack harness 驱动'
 # Git for Windows 的 GNU grep 3.0 在 zh_CN.UTF-8 下对中文模式行为不稳定，
 # 模式与文件同为 UTF-8 字节时 LC_ALL=C 最可靠（macOS BSD grep 同样适用）
 hook_grep_mark() {
-    LC_ALL=C grep -qF "$_TACK_HOOK_MARK" "$1" 2>/dev/null
+    LC_ALL=C grep -qF "${_TACK_HOOK_MARK}" "$1" 2>/dev/null
 }
 
 # hook_json_get <field> <payload-file> [occurrence]
@@ -108,17 +108,17 @@ hook_json_get() {
 # 兼容 Git Bash（/d/x、D:/x、反斜杠）；找不到无输出并返回 1。
 hook_detect_root() {
     _dr=$(printf '%s' "$1" | tr '\\' '/')
-    [ -n "$_dr" ] || return 1
-    while [ "$_dr" != "." ] && [ "$_dr" != "/" ] && [ "$_dr" != "" ]; do
-        if [ -f "$_dr/AGENTS.md" ] && hook_grep_mark "$_dr/AGENTS.md"; then
-            printf '%s' "$_dr"
+    [ -n "${_dr}" ] || return 1
+    while [ "${_dr}" != "." ] && [ "${_dr}" != "/" ] && [ "${_dr}" != "" ]; do
+        if [ -f "${_dr}/AGENTS.md" ] && hook_grep_mark "${_dr}/AGENTS.md"; then
+            printf '%s' "${_dr}"
             return 0
         fi
-        _parent=$(dirname "$_dr" 2>/dev/null) || return 1
-        [ "$_parent" = "$_dr" ] && break
-        _dr=$_parent
+        _parent=$(dirname "${_dr}" 2>/dev/null) || return 1
+        [ "${_parent}" = "${_dr}" ] && break
+        _dr="${_parent}"
     done
-    if [ "$_dr" = "/" ] && [ -f "/AGENTS.md" ] && hook_grep_mark /AGENTS.md; then
+    if [ "${_dr}" = "/" ] && [ -f "/AGENTS.md" ] && hook_grep_mark /AGENTS.md; then
         printf '/'
         return 0
     fi
@@ -144,15 +144,15 @@ hook_yaml_top() {
 hook_active_work() {
     _found=""
     for _f in "$1"/space/*/status.yaml; do
-        [ -f "$_f" ] || continue
-        _st=$(hook_yaml_top "$_f" status)
-        [ "$_st" = "completed" ] && continue
-        _ts=$(hook_yaml_top "$_f" updated_at)
-        _found="${_found}${_ts}|$(dirname "$_f")
+        [ -f "${_f}" ] || continue
+        _st=$(hook_yaml_top "${_f}" status)
+        [ "${_st}" = "completed" ] && continue
+        _ts=$(hook_yaml_top "${_f}" updated_at)
+        _found="${_found}${_ts}|$(dirname "${_f}")
 "
     done
-    [ -n "$_found" ] || return 1
-    printf '%s' "$_found" | sort -r | head -n 1 | sed 's/^[^|]*|//'
+    [ -n "${_found}" ] || return 1
+    printf '%s' "${_found}" | sort -r | head -n 1 | sed 's/^[^|]*|//'
 }
 
 # ── 工作区解析（无状态：一律以当次 payload 的 cwd 为事实起点）──────────────────
@@ -172,15 +172,15 @@ hook_active_work() {
 hook_work_from_cwd() {
     _wc_root="$(printf '%s' "${1:-}" | tr '\\' '/')"
     _wc_dir="$(printf '%s' "${2:-}" | tr '\\' '/')"
-    [ -n "$_wc_root" ] && [ -n "$_wc_dir" ] || return 1
-    case "$_wc_dir" in
-        "$_wc_root"/space/*)
-            _wc_rest="${_wc_dir#"$_wc_root"/space/}"
+    [ -n "${_wc_root}" ] && [ -n "${_wc_dir}" ] || return 1
+    case "${_wc_dir}" in
+        "${_wc_root}"/space/*)
+            _wc_rest="${_wc_dir#"${_wc_root}"/space/}"
             _wc_name="${_wc_rest%%/*}"
-            _wc_cand="$_wc_root/space/$_wc_name"
-            if [ -n "$_wc_name" ] && [ -f "$_wc_cand/status.yaml" ] \
-                && [ "$(hook_yaml_top "$_wc_cand/status.yaml" status)" != "completed" ]; then
-                printf '%s' "$_wc_cand"
+            _wc_cand="${_wc_root}/space/${_wc_name}"
+            if [ -n "${_wc_name}" ] && [ -f "${_wc_cand}/status.yaml" ] \
+                && [ "$(hook_yaml_top "${_wc_cand}/status.yaml" status)" != "completed" ]; then
+                printf '%s' "${_wc_cand}"
                 return 0
             fi
             ;;
@@ -200,7 +200,7 @@ hook_detect_work() {
 # 输出工作区状态快照（供注入模型）：status/workflow + current 三件套
 hook_work_snapshot() {
     _sf="$1/status.yaml"
-    [ -f "$_sf" ] || return 1
+    [ -f "${_sf}" ] || return 1
     awk '
     function trim(s) { sub(/^[[:space:]]+/,"",s); sub(/[[:space:]]+$/,"",s); return s }
     function val(line,   v) {
@@ -221,7 +221,7 @@ hook_work_snapshot() {
         print "  当前环节: " (stage == "" ? "—" : stage)
         print "  当前任务: " (task == "" ? "—" : task)
         print "  下一步: " (nxt == "" ? "—" : nxt)
-    }' "$_sf"
+    }' "${_sf}"
 }
 
 # hook_strip_frontmatter <file>
@@ -293,21 +293,21 @@ hook_log_setup() {
         _HOOKLOG="$(mktemp 2>/dev/null)" || _HOOKLOG=""
         _HL_OUT="$(mktemp 2>/dev/null)" || _HL_OUT=""
         _HL_T0="$(date '+%s' 2>/dev/null)" || _HL_T0=""
-        if [ -n "$_HOOKLOG" ]; then
+        if [ -n "${_HOOKLOG}" ]; then
             {
                 printf '===== %s event=%s pid=%s phase=begin =====\n' \
-                    "$(hook_log_ts)" "$_HL_EVENT" "$$"
+                    "$(hook_log_ts)" "${_HL_EVENT}" "$$"
                 printf 'cwd: %s\n' "${CWD:-}"
                 printf 'env: TACK_HOOK_LOG=%s TACK_HOOK_ENFORCE=%s\n' \
                     "${TACK_HOOK_LOG:-}" "${TACK_HOOK_ENFORCE:-}"
                 printf 'input.payload:\n'
-                hook_log_block "$_HL_PAYLOAD"
-            } >> "$_HOOKLOG" 2>/dev/null || true
+                hook_log_block "${_HL_PAYLOAD}"
+            } >> "${_HOOKLOG}" 2>/dev/null || true
         fi
-        if [ -n "$_HL_OUT" ]; then
+        if [ -n "${_HL_OUT}" ]; then
             # 保存宿主 stdout 到 fd3，后续 stdout 全部进缓冲，cleanup 中回放
             exec 3>&1
-            exec >"$_HL_OUT"
+            exec >"${_HL_OUT}"
         fi
     fi
     trap _hook_log_cleanup EXIT HUP INT TERM
@@ -319,63 +319,63 @@ hook_log_setup() {
 hook_log_ctx() {
     [ -n "${1:-}" ] && _HL_ROOT="$1"
     [ -n "${2:-}" ] && _HL_WORK="$2"
-    if [ -n "$_HL_ROOT" ] || [ -n "$_HL_WORK" ]; then
+    if [ -n "${_HL_ROOT}" ] || [ -n "${_HL_WORK}" ]; then
         _HL_CTX=1
     fi
-    [ -n "$_HOOKLOG" ] || return 0
-    if [ -n "$_HL_ROOT" ] && [ -z "$_HL_ROOT_DONE" ]; then
+    [ -n "${_HOOKLOG}" ] || return 0
+    if [ -n "${_HL_ROOT}" ] && [ -z "${_HL_ROOT_DONE}" ]; then
         _HL_ROOT_DONE=1
-        printf 'root: %s\n' "$_HL_ROOT" >> "$_HOOKLOG" 2>/dev/null || true
+        printf 'root: %s\n' "${_HL_ROOT}" >> "${_HOOKLOG}" 2>/dev/null || true
     fi
-    if [ -n "$_HL_WORK" ] && [ -z "$_HL_WORK_DONE" ]; then
+    if [ -n "${_HL_WORK}" ] && [ -z "${_HL_WORK_DONE}" ]; then
         _HL_WORK_DONE=1
-        printf 'work: %s\n' "$_HL_WORK" >> "$_HOOKLOG" 2>/dev/null || true
+        printf 'work: %s\n' "${_HL_WORK}" >> "${_HOOKLOG}" 2>/dev/null || true
     fi
 }
 
 # hook_log_note <text> — 追加过程备注（如 PreToolUse 规则命中原因）
 hook_log_note() {
-    [ -n "$_HOOKLOG" ] || return 0
-    printf '%s\n' "$*" >> "$_HOOKLOG" 2>/dev/null || true
+    [ -n "${_HOOKLOG}" ] || return 0
+    printf '%s\n' "$*" >> "${_HOOKLOG}" 2>/dev/null || true
 }
 
 # hook_log_finish <rc> — 追加输出块并把本次缓冲一次性落盘（须在 stdout 恢复后调用）
 hook_log_finish() {
-    [ -n "$_HOOKLOG" ] || return 0
+    [ -n "${_HOOKLOG}" ] || return 0
     _rc="${1:-0}"
     # 上下文缺省字段补 <none>：ctx 从未生效（ROOT 探测前早退）两行都补；
     # 已在 tack 空间但无活跃工作区则只补 work
-    if [ "$_HL_CTX" -eq 0 ]; then
+    if [ "${_HL_CTX}" -eq 0 ]; then
         {
             printf 'root: <none>\n'
             printf 'work: <none>\n'
-        } >> "$_HOOKLOG" 2>/dev/null || true
+        } >> "${_HOOKLOG}" 2>/dev/null || true
     else
-        [ -n "$_HL_WORK_DONE" ] || printf 'work: <none>\n' >> "$_HOOKLOG" 2>/dev/null || true
+        [ -n "${_HL_WORK_DONE}" ] || printf 'work: <none>\n' >> "${_HOOKLOG}" 2>/dev/null || true
     fi
     _t1="$(date '+%s' 2>/dev/null)" || _t1=""
-    if [ -n "$_HL_T0" ] && [ -n "$_t1" ]; then
+    if [ -n "${_HL_T0}" ] && [ -n "${_t1}" ]; then
         _dur="$((_t1 - _HL_T0))s"
     else
         _dur="?"
     fi
     _bytes=0
-    if [ -f "$_HL_OUT" ]; then
-        _bytes=$(wc -c < "$_HL_OUT" 2>/dev/null | tr -d '[:space:]')
+    if [ -f "${_HL_OUT}" ]; then
+        _bytes=$(wc -c < "${_HL_OUT}" 2>/dev/null | tr -d '[:space:]')
     fi
     {
-        printf 'output: rc=%s bytes=%s duration=%s\n' "$_rc" "${_bytes:-0}" "$_dur"
-        hook_log_block "$_HL_OUT"
+        printf 'output: rc=%s bytes=%s duration=%s\n' "${_rc}" "${_bytes:-0}" "${_dur}"
+        hook_log_block "${_HL_OUT}"
         printf '===== %s event=%s pid=%s phase=end =====\n\n' \
-            "$(hook_log_ts)" "$_HL_EVENT" "$$"
-    } >> "$_HOOKLOG" 2>/dev/null || true
-    if [ -n "$_HL_ROOT" ] && mkdir -p "$_HL_ROOT/.tack/log" 2>/dev/null; then
-        _logf="$_HL_ROOT/.tack/log/hook.log"
+            "$(hook_log_ts)" "${_HL_EVENT}" "$$"
+    } >> "${_HOOKLOG}" 2>/dev/null || true
+    if [ -n "${_HL_ROOT}" ] && mkdir -p "${_HL_ROOT}/.tack/log" 2>/dev/null; then
+        _logf="${_HL_ROOT}/.tack/log/hook.log"
     else
         # 无 root 或日志目录创建失败（权限等）：回退系统临时目录，绝不因日志报错
         _logf="${TMPDIR:-/tmp}/tack-hook.log"
     fi
-    hook_log_append "$_HOOKLOG" "$_logf"
+    hook_log_append "${_HOOKLOG}" "${_logf}"
 }
 
 # hook_log_append <src> <dst> — 互斥串行化追加：多个 hook 进程并发退出时
@@ -385,31 +385,31 @@ hook_log_finish() {
 hook_log_append() {
     _la_src="$1"
     _la_dst="$2"
-    _la_lock="$_la_dst.lock"
+    _la_lock="${_la_dst}.lock"
     _la_i=0
-    while ! mkdir "$_la_lock" 2>/dev/null; do
+    while ! mkdir "${_la_lock}" 2>/dev/null; do
         _la_i=$((_la_i + 1))
-        if [ "$_la_i" -ge 50 ]; then
+        if [ "${_la_i}" -ge 50 ]; then
             _la_i=-1
             break
         fi
         sleep 0.02 2>/dev/null || { _la_i=-1; break; }
     done
-    cat "$_la_src" >> "$_la_dst" 2>/dev/null || true
-    [ "$_la_i" -ge 0 ] && rmdir "$_la_lock" 2>/dev/null || true
+    cat "${_la_src}" >> "${_la_dst}" 2>/dev/null || true
+    [ "${_la_i}" -ge 0 ] && rmdir "${_la_lock}" 2>/dev/null || true
 }
 
 # _hook_log_cleanup — EXIT/信号统一清理：先恢复 stdout 并原样回放，再落盘日志
 _hook_log_cleanup() {
     _HL_RC=$?
     trap - EXIT HUP INT TERM
-    if [ -n "$_HL_OUT" ]; then
+    if [ -n "${_HL_OUT}" ]; then
         exec 1>&3 3>&- 2>/dev/null || true
-        cat "$_HL_OUT" 2>/dev/null || true
+        cat "${_HL_OUT}" 2>/dev/null || true
     fi
-    [ -n "$_HOOKLOG" ] && hook_log_finish "$_HL_RC"
-    rm -f "$_HL_PAYLOAD" 2>/dev/null || true
-    [ -n "$_HL_EXTRA" ] && rm -f "$_HL_EXTRA" 2>/dev/null
-    rm -f "$_HOOKLOG" "$_HL_OUT" 2>/dev/null || true
-    exit "$_HL_RC"
+    [ -n "${_HOOKLOG}" ] && hook_log_finish "${_HL_RC}"
+    rm -f "${_HL_PAYLOAD}" 2>/dev/null || true
+    [ -n "${_HL_EXTRA}" ] && rm -f "${_HL_EXTRA}" 2>/dev/null
+    rm -f "${_HOOKLOG}" "${_HL_OUT}" 2>/dev/null || true
+    exit "${_HL_RC}"
 }

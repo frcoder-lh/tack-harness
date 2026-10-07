@@ -54,7 +54,7 @@ ensure_git() {
             elif command -v apk >/dev/null 2>&1; then
                 $PRIV apk add git && ok=1
             fi
-            if [ "$ok" -ne 1 ]; then
+            if [ "${ok}" -ne 1 ]; then
                 echo "Error: automatic Git installation failed (no supported package manager or insufficient privileges)."
                 echo "Install Git manually: https://git-scm.com/downloads"
                 exit 1
@@ -78,71 +78,71 @@ ROOT="${1:-.}"
 
 # 解析脚本所在目录，定位 tack 骨架根目录（本脚本位于 <tack>/harness/script/ 下）
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-TACK_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+TACK_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-if [ ! -d "$TACK_DIR" ]; then
-    echo "Error: tack skeleton not found at $TACK_DIR"
+if [ ! -d "${TACK_DIR}" ]; then
+    echo "Error: tack skeleton not found at ${TACK_DIR}"
     exit 1
 fi
 
 # 物化骨架前先确保 Git 可用（Git 是 worktree 工作流与空间版本管理的基础依赖）
 ensure_git
 
-mkdir -p "$ROOT"
+mkdir -p "${ROOT}"
 
 # 复制 tack 骨架全部内容到目标目录：骨架内文件已位于最终位置，复制即物化
 # -n: 目标已存在的文件跳过，不覆盖用户内容；重复执行安全
-cp -rn "$TACK_DIR/." "$ROOT/"
+cp -rn "${TACK_DIR}/." "${ROOT}/"
 
 # space/ 工作空间、repo/ 代码主仓库、wiki/ 公共知识目录在骨架中均为空目录
 # （Git 不跟踪空目录；wiki 文件由 init 命令按需物化），显式创建
-mkdir -p "$ROOT/space" "$ROOT/repo" "$ROOT/wiki"
+mkdir -p "${ROOT}/space" "${ROOT}/repo" "${ROOT}/wiki"
 
 # .tack/ 是框架本地运行时数据根（log 日志 / backup 回滚备份 / state 本机状态 /
 # tmp 临时文件），整体被 .gitignore 排除、可随时删除。log/backup/state 为常驻
 # 目录，预建让布局显式化；tmp/ 不预建——各脚本按需 mkdir -p、退出时空目录顺手
 # 移除（重复执行安全）
-mkdir -p "$ROOT/.tack/log" "$ROOT/.tack/backup" "$ROOT/.tack/state"
+mkdir -p "${ROOT}/.tack/log" "${ROOT}/.tack/backup" "${ROOT}/.tack/state"
 
 # README.md（及英文版 README.en.md）是 skill 安装目录根的使用说明，物化到 harness/ 目录
 # （已存在则跳过）；不放空间根——根目录 README.md 位置留给用户项目自身。
 # README 中的联系方式二维码引用 GitHub raw 绝对链接，不随包分发、无需物化图片。
-SKILL_ROOT="$(cd "$TACK_DIR/.." && pwd)"
-[ -f "$SKILL_ROOT/README.md" ] && [ ! -e "$ROOT/harness/README.md" ] && \
-    cp "$SKILL_ROOT/README.md" "$ROOT/harness/README.md"
-[ -f "$SKILL_ROOT/README.en.md" ] && [ ! -e "$ROOT/harness/README.en.md" ] && \
-    cp "$SKILL_ROOT/README.en.md" "$ROOT/harness/README.en.md"
+SKILL_ROOT="$(cd "${TACK_DIR}/.." && pwd)"
+[ -f "${SKILL_ROOT}/README.md" ] && [ ! -e "${ROOT}/harness/README.md" ] && \
+    cp "${SKILL_ROOT}/README.md" "${ROOT}/harness/README.md"
+[ -f "${SKILL_ROOT}/README.en.md" ] && [ ! -e "${ROOT}/harness/README.en.md" ] && \
+    cp "${SKILL_ROOT}/README.en.md" "${ROOT}/harness/README.en.md"
 
 # 将 tack 空间根初始化为 Git 仓库（$ROOT/.git 已存在则跳过；重复执行安全）。
 # 空间仓库的 Git 操作全部由框架自动完成：init 后立即做首次提交，
 # 用户无需也不应直接对 $root 执行 git（用户 git 只作用于 $work/repo/ 代码仓库）。
-ABS_ROOT="$(cd "$ROOT" && pwd)"
-if [ -d "$ROOT/.git" ]; then
-    echo "Git repository already exists: $ABS_ROOT"
+ABS_ROOT="$(cd "${ROOT}" && pwd)"
+if [ -d "${ROOT}/.git" ]; then
+    echo "Git repository already exists: ${ABS_ROOT}"
 else
-    git -C "$ROOT" init >/dev/null
-    echo "Git repository initialized: $ABS_ROOT"
+    git -C "${ROOT}" init >/dev/null
+    echo "Git repository initialized: ${ABS_ROOT}"
 fi
 
 # 物化 agent hook 声明（.trae/hooks.json、.claude/settings.json，可选加速层）：
 # 已存在不覆盖；失败不阻断初始化（hook 纯为加速，缺失时自动降级为 AGENTS.md 路由）
-sh "$ABS_ROOT/harness/script/hook/install-hooks.sh" "$ABS_ROOT" || true
+sh "${ABS_ROOT}/harness/script/hook/install-hooks.sh" "${ABS_ROOT}" || true
 
 # 回填 skill_version：版本号以本机 skill 的 SKILL.md front matter 为唯一事实源，
 # 物化后写入 AGENTS.md 项目信息区块（skill_update_url 已在出厂模板中固定）。
 # --if-empty 保证重复执行或已 update 过的空间不被本机旧版本降级；
 # --no-commit 抑制单次提交，交由下方首次提交统一入库。
 SKILL_VER=""
-if [ -f "$SKILL_ROOT/SKILL.md" ]; then
-    SKILL_VER=$(sed -n '2,/^---$/ s/^version:[[:space:]]*"\(.*\)"[[:space:]]*$/\1/p' "$SKILL_ROOT/SKILL.md" | head -1)
+if [ -f "${SKILL_ROOT}/SKILL.md" ]; then
+    SKILL_VER=$(sed -n '2,/^---$/ s/^version:[[:space:]]*"\(.*\)"[[:space:]]*$/\1/p' "${SKILL_ROOT}/SKILL.md" | head -1)
 fi
-if [ -n "$SKILL_VER" ]; then
-    sh "$ABS_ROOT/harness/script/project.sh" skill-version "$ABS_ROOT" "$SKILL_VER" --if-empty --no-commit
+if [ -n "${SKILL_VER}" ]; then
+    sh "${ABS_ROOT}/harness/script/project.sh" skill-version "${ABS_ROOT}" "${SKILL_VER}" --if-empty --no-commit
 else
-    echo "Warning: 未在 $SKILL_ROOT/SKILL.md front matter 找到 version 字段，skill_version 留空（可稍后执行 update 修正）" >&2
+    echo "Warning: 未在 ${SKILL_ROOT}/SKILL.md front matter 找到 version 字段，skill_version 留空（可稍后执行 update 修正）" >&2
 fi
 
 # 首次/补漏自动提交（space.sh 内部判断无变更则跳过，重复执行安全）
-sh "$ABS_ROOT/harness/script/space.sh" commit "$ABS_ROOT" "chore(tack): initialize tack space"
+sh "${ABS_ROOT}/harness/script/space.sh" commit "${ABS_ROOT}" "chore(tack): initialize tack space"
 
-echo "Tack space initialized at: $ABS_ROOT"
+echo "Tack space initialized at: ${ABS_ROOT}"

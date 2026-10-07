@@ -62,7 +62,7 @@ done
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
     echo "错误：当前目录不在 Git 仓库内" >&2; exit 1
 }
-cd "$repo_root"
+cd "${repo_root}"
 
 if [ -n "$(git status --porcelain)" ]; then
     echo "错误：工作区不干净，请先提交 / 暂存 / 清理以下改动：" >&2
@@ -73,184 +73,184 @@ fi
 branch=$(git symbolic-ref --short HEAD 2>/dev/null) || {
     echo "错误：当前处于 detached HEAD 状态，请先切到分支" >&2; exit 1
 }
-base="$REMOTE/$branch"
+base="${REMOTE}/${branch}"
 
-echo ">> 同步远端引用（git fetch $REMOTE --tags）"
-git fetch "$REMOTE" --tags --quiet
+echo ">> 同步远端引用（git fetch ${REMOTE} --tags）"
+git fetch "${REMOTE}" --tags --quiet
 
-if ! git rev-parse --verify --quiet "$base" >/dev/null; then
-    echo "错误：远端分支 $base 不存在，请先执行 git push -u $REMOTE $branch" >&2
+if ! git rev-parse --verify --quiet "${base}" >/dev/null; then
+    echo "错误：远端分支 ${base} 不存在，请先执行 git push -u ${REMOTE} ${branch}" >&2
     exit 1
 fi
 
 # 远端有本地缺失的提交：soft reset 会丢失远端新提交的线索，必须先处理
-behind=$(git rev-list --count "HEAD..$base")
-if [ "$behind" -gt 0 ]; then
-    echo "错误：$base 有 $behind 个本地没有的提交，请先 rebase 或 merge 后再发布" >&2
+behind=$(git rev-list --count "HEAD..${base}")
+if [ "${behind}" -gt 0 ]; then
+    echo "错误：${base} 有 ${behind} 个本地没有的提交，请先 rebase 或 merge 后再发布" >&2
     exit 1
 fi
 
 # —— 1. 收集未推送提交 ——
-ahead=$(git rev-list --count "$base..HEAD")
-if [ "$ahead" -eq 0 ]; then
-    echo "没有未推送的提交（$branch 与 $base 一致），无需发布；如仅需补打 tag，请直接 git tag" >&2
+ahead=$(git rev-list --count "${base}..HEAD")
+if [ "${ahead}" -eq 0 ]; then
+    echo "没有未推送的提交（${branch} 与 ${base} 一致），无需发布；如仅需补打 tag，请直接 git tag" >&2
     exit 1
 fi
-commits_log=$(git log --pretty='- %s (%h)' "$base..HEAD")
+commits_log=$(git log --pretty='- %s (%h)' "${base}..HEAD")
 
 # —— 2. 确定版本号 ——
-if [ -n "$TAG_INPUT" ]; then
-    case "$TAG_INPUT" in
-        V*) TAG="$TAG_INPUT" ;;
-        *)  TAG="V$TAG_INPUT" ;;
+if [ -n "${TAG_INPUT}" ]; then
+    case "${TAG_INPUT}" in
+        V*) TAG="${TAG_INPUT}" ;;
+        *)  TAG="V${TAG_INPUT}" ;;
     esac
 else
     latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || true)
-    if [ -z "$latest_tag" ]; then
+    if [ -z "${latest_tag}" ]; then
         echo "错误：未找到已有 tag，无法自动递增版本号，请显式指定，如 sh release.sh V0.0.1" >&2
         exit 1
     fi
     ver=${latest_tag#V}
-    major=$(printf '%s' "$ver" | cut -d. -f1)
-    minor=$(printf '%s' "$ver" | cut -d. -f2)
-    patch=$(printf '%s' "$ver" | cut -d. -f3)
+    major=$(printf '%s' "${ver}" | cut -d. -f1)
+    minor=$(printf '%s' "${ver}" | cut -d. -f2)
+    patch=$(printf '%s' "${ver}" | cut -d. -f3)
     patch=$((patch + 1))
-    TAG="V$major.$minor.$patch"
+    TAG="V${major}.${minor}.${patch}"
 fi
 
 # 严格校验 V数字.数字.数字
-case "$TAG" in
+case "${TAG}" in
     V*.*.*)
         rest=${TAG#V}
-        case "$rest" in
-            *[!0-9.]*) echo "错误：版本号格式应为 Vx.y.z（纯数字），收到 $TAG" >&2; exit 1 ;;
+        case "${rest}" in
+            *[!0-9.]*) echo "错误：版本号格式应为 Vx.y.z（纯数字），收到 ${TAG}" >&2; exit 1 ;;
         esac
-        n_dots=$(printf '%s' "$rest" | tr -cd '.' | wc -c)
-        [ "$n_dots" -eq 2 ] || { echo "错误：版本号格式应为 Vx.y.z，收到 $TAG" >&2; exit 1; } ;;
+        n_dots=$(printf '%s' "${rest}" | tr -cd '.' | wc -c)
+        [ "${n_dots}" -eq 2 ] || { echo "错误：版本号格式应为 Vx.y.z，收到 ${TAG}" >&2; exit 1; } ;;
     *)
-        echo "错误：版本号格式应为 Vx.y.z，收到 $TAG" >&2; exit 1 ;;
+        echo "错误：版本号格式应为 Vx.y.z，收到 ${TAG}" >&2; exit 1 ;;
 esac
 
-if git show-ref --tags --quiet -- "refs/tags/$TAG"; then
-    echo "错误：tag $TAG 已存在" >&2; exit 1
+if git show-ref --tags --quiet -- "refs/tags/${TAG}"; then
+    echo "错误：tag ${TAG} 已存在" >&2; exit 1
 fi
 
 # 校验中英双语 CHANGELOG 均含目标版本段落（变更说明双语单一事实源，任一缺失即中止）
 CHANGELOG_FILES="CHANGELOG.md CHANGELOG.en.md"
 for CHANGELOG_FILE in $CHANGELOG_FILES; do
-    if [ ! -f "$CHANGELOG_FILE" ]; then
-        echo "错误：未找到 $CHANGELOG_FILE，发版前请补充双语变更说明（新增 \"## $TAG\" 段落）" >&2
+    if [ ! -f "${CHANGELOG_FILE}" ]; then
+        echo "错误：未找到 ${CHANGELOG_FILE}，发版前请补充双语变更说明（新增 \"## ${TAG}\" 段落）" >&2
         exit 1
     fi
-    if ! grep -qF "## ${TAG}" "$CHANGELOG_FILE"; then
-        echo "错误：$CHANGELOG_FILE 缺少 \"## $TAG\" 段落，发版前请在中英两份 CHANGELOG 同步补充本次变更说明" >&2
+    if ! grep -qF "## ${TAG}" "${CHANGELOG_FILE}"; then
+        echo "错误：${CHANGELOG_FILE} 缺少 \"## ${TAG}\" 段落，发版前请在中英两份 CHANGELOG 同步补充本次变更说明" >&2
         exit 1
     fi
 done
 
 # 读取 SKILL.md front matter 中的当前 version（仅匹配开头与第二个 --- 之间）
 SKILL_FILE="SKILL.md"
-if [ ! -f "$SKILL_FILE" ]; then
-    echo "错误：未找到 $SKILL_FILE，无法同步 version 字段" >&2
+if [ ! -f "${SKILL_FILE}" ]; then
+    echo "错误：未找到 ${SKILL_FILE}，无法同步 version 字段" >&2
     exit 1
 fi
-current_version=$(sed -n '2,/^---$/ s/^version:[[:space:]]*"\(.*\)"[[:space:]]*$/\1/p' "$SKILL_FILE" | head -1)
-if [ -z "$current_version" ]; then
-    echo "错误：$SKILL_FILE front matter 中未找到 version 字段（应为 version: \"Vx.y.z\" 形式）" >&2
+current_version=$(sed -n '2,/^---$/ s/^version:[[:space:]]*"\(.*\)"[[:space:]]*$/\1/p' "${SKILL_FILE}" | head -1)
+if [ -z "${current_version}" ]; then
+    echo "错误：${SKILL_FILE} front matter 中未找到 version 字段（应为 version: \"Vx.y.z\" 形式）" >&2
     exit 1
 fi
 
 # —— 3. 准备提交信息 ——
-[ -n "$MSG" ] || MSG="release: $TAG"
+[ -n "${MSG}" ] || MSG="release: ${TAG}"
 msg_file=$(mktemp)
-trap 'rm -f "$msg_file"' EXIT INT TERM
+trap 'rm -f "${msg_file}"' EXIT INT TERM
 {
-    printf '%s\n' "$MSG"
-    if [ "$ahead" -gt 1 ]; then
-        printf '\n整合 %s 个提交：\n' "$ahead"
-        printf '%s\n' "$commits_log"
+    printf '%s\n' "${MSG}"
+    if [ "${ahead}" -gt 1 ]; then
+        printf '\n整合 %s 个提交：\n' "${ahead}"
+        printf '%s\n' "${commits_log}"
     fi
-} > "$msg_file"
+} > "${msg_file}"
 
 # —— 4. 展示计划并确认 ——
 echo ""
 echo "======== 发布计划 ========"
-echo "分支      : $branch（基点 $base）"
-echo "版本 tag  : $TAG"
-echo "变更说明  : CHANGELOG.md / CHANGELOG.en.md 均已含 $TAG 段落（中英双语）"
-if [ "$current_version" = "$TAG" ]; then
-    echo "版本同步  : $SKILL_FILE version 已是 $TAG，无需修改"
+echo "分支      : ${branch}（基点 ${base}）"
+echo "版本 tag  : ${TAG}"
+echo "变更说明  : CHANGELOG.md / CHANGELOG.en.md 均已含 ${TAG} 段落（中英双语）"
+if [ "${current_version}" = "${TAG}" ]; then
+    echo "版本同步  : ${SKILL_FILE} version 已是 ${TAG}，无需修改"
 else
-    echo "版本同步  : $SKILL_FILE version: \"$current_version\" → \"$TAG\""
+    echo "版本同步  : ${SKILL_FILE} version: \"${current_version}\" → \"${TAG}\""
 fi
-if [ "$ahead" -gt 1 ]; then
-    echo "压缩提交  : $ahead 个未推送提交 → 1 个"
-elif [ "$current_version" != "$TAG" ]; then
+if [ "${ahead}" -gt 1 ]; then
+    echo "压缩提交  : ${ahead} 个未推送提交 → 1 个"
+elif [ "${current_version}" != "${TAG}" ]; then
     echo "压缩提交  : 仅 1 个未推送提交，不压缩；版本号修正将 amend 进该提交"
 else
     echo "压缩提交  : 仅 1 个未推送提交，保持原样"
 fi
-echo "提交信息  : $MSG"
+echo "提交信息  : ${MSG}"
 echo "------ 待发布提交 ------"
-printf '%s\n' "$commits_log"
+printf '%s\n' "${commits_log}"
 echo "=========================="
 echo ""
 
-if [ "$DRY_RUN" -eq 1 ]; then
+if [ "${DRY_RUN}" -eq 1 ]; then
     echo "dry-run：未执行任何改动。"
     exit 0
 fi
 
-if [ "$ASSUME_YES" -ne 1 ]; then
+if [ "${ASSUME_YES}" -ne 1 ]; then
     printf '确认执行发布？ [y/N] '
     read -r ans
-    case "$ans" in
+    case "${ans}" in
         y|Y|yes|YES) ;;
         *) echo "已取消。"; exit 1 ;;
     esac
 fi
 
 # —— 5. 同步 SKILL.md 版本号 ——
-if [ "$current_version" = "$TAG" ]; then
-    echo ">> $SKILL_FILE 版本号已是 $TAG，跳过同步"
+if [ "${current_version}" = "${TAG}" ]; then
+    echo ">> ${SKILL_FILE} 版本号已是 ${TAG}，跳过同步"
     version_changed=0
 else
-    echo ">> 同步 $SKILL_FILE 版本号：$current_version → $TAG"
+    echo ">> 同步 ${SKILL_FILE} 版本号：${current_version} → ${TAG}"
     version_tmp=$(mktemp)
-    if ! sed "2,/^---\$/ s|^version:.*|version: \"$TAG\"|" "$SKILL_FILE" > "$version_tmp"; then
-        rm -f "$version_tmp"
-        echo "错误：更新 $SKILL_FILE 失败" >&2
+    if ! sed "2,/^---\$/ s|^version:.*|version: \"${TAG}\"|" "${SKILL_FILE}" > "${version_tmp}"; then
+        rm -f "${version_tmp}"
+        echo "错误：更新 ${SKILL_FILE} 失败" >&2
         exit 1
     fi
-    mv "$version_tmp" "$SKILL_FILE"
+    mv "${version_tmp}" "${SKILL_FILE}"
     version_changed=1
 fi
 
 # —— 6. 压缩提交（ahead=1 时把版本修正 amend 进唯一提交）——
-if [ "$ahead" -gt 1 ]; then
-    echo ">> 压缩 $ahead 个提交为 1 个（reset --soft $base）"
-    git reset --soft "$base"
-    if [ "$version_changed" -eq 1 ]; then
-        git add "$SKILL_FILE"
+if [ "${ahead}" -gt 1 ]; then
+    echo ">> 压缩 ${ahead} 个提交为 1 个（reset --soft ${base}）"
+    git reset --soft "${base}"
+    if [ "${version_changed}" -eq 1 ]; then
+        git add "${SKILL_FILE}"
     fi
-    git commit -F "$msg_file" --quiet
-elif [ "$version_changed" -eq 1 ]; then
+    git commit -F "${msg_file}" --quiet
+elif [ "${version_changed}" -eq 1 ]; then
     echo ">> 将版本号修正 amend 进当前未推送提交"
-    git add "$SKILL_FILE"
+    git add "${SKILL_FILE}"
     git commit --amend --no-edit --quiet
 fi
 
 # —— 7. 打 tag ——
-echo ">> 创建 annotated tag $TAG"
-git tag -a "$TAG" -m "Tack Harness $TAG"
+echo ">> 创建 annotated tag ${TAG}"
+git tag -a "${TAG}" -m "Tack Harness ${TAG}"
 
 # —— 8. 推送（fast-forward）——
-echo ">> 推送 $branch → $REMOTE"
-git push "$REMOTE" "$branch"
+echo ">> 推送 ${branch} → ${REMOTE}"
+git push "${REMOTE}" "${branch}"
 
-echo ">> 推送 tag $TAG → $REMOTE（将触发 Release CI）"
-git push "$REMOTE" "$TAG"
+echo ">> 推送 tag ${TAG} → ${REMOTE}（将触发 Release CI）"
+git push "${REMOTE}" "${TAG}"
 
 echo ""
-echo "✅ 发布完成：$TAG"
-echo "   Release 将由 CI 自动创建：https://github.com/frcoder-lh/tack-harness/releases/tag/$TAG"
+echo "✅ 发布完成：${TAG}"
+echo "   Release 将由 CI 自动创建：https://github.com/frcoder-lh/tack-harness/releases/tag/${TAG}"

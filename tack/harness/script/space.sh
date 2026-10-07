@@ -21,22 +21,22 @@ set -e
 ACTION="$1"
 ROOT="$2"
 
-if [ -z "$ACTION" ] || [ -z "$ROOT" ]; then
+if [ -z "${ACTION}" ] || [ -z "${ROOT}" ]; then
     echo "Usage: sh space.sh <commit> <root> [message]" >&2
     exit 1
 fi
 
-if [ ! -d "$ROOT/.git" ]; then
-    echo "Error: $ROOT 不是 Git 仓库，请先执行 init-tack.sh 初始化" >&2
+if [ ! -d "${ROOT}/.git" ]; then
+    echo "Error: ${ROOT} 不是 Git 仓库，请先执行 init-tack.sh 初始化" >&2
     exit 1
 fi
 
-cd "$ROOT"
+cd "${ROOT}"
 
-case "$ACTION" in
+case "${ACTION}" in
 commit)
     MSG="$3"
-    if [ -z "$MSG" ]; then
+    if [ -z "${MSG}" ]; then
         MSG="chore(tack): auto snapshot $(date '+%Y-%m-%d %H:%M')"
     fi
 
@@ -50,7 +50,7 @@ commit)
     # 凭据硬门禁：wiki/space 文档命中凭据明文时阻断本次提交（set -e 生效）。
     # 误报处理与 TACK_SECRET_SCAN=off 紧急开关见 scan-secrets.sh 头部说明。
     SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-    sh "$SCRIPT_DIR/scan-secrets.sh" "$ROOT"
+    sh "${SCRIPT_DIR}/scan-secrets.sh" "${ROOT}"
 
     git add -A
     if git diff --cached --quiet; then
@@ -58,11 +58,11 @@ commit)
         exit 0
     fi
 
-    git commit -m "$MSG" >/dev/null
-    echo "空间仓库已自动提交: $MSG"
+    git commit -m "${MSG}" >/dev/null
+    echo "空间仓库已自动提交: ${MSG}"
     ;;
 *)
-    echo "Error: 未知动作 '$ACTION'（目前仅支持 commit）" >&2
+    echo "Error: 未知动作 '${ACTION}'（目前仅支持 commit）" >&2
     exit 1
     ;;
 esac

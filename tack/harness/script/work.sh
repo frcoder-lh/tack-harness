@@ -34,93 +34,93 @@ esac
 ROOT="${1:-.}"
 BRANCH="$2"
 
-if [ -z "$BRANCH" ]; then
+if [ -z "${BRANCH}" ]; then
     echo "Usage: sh work.sh <root> <branch> [repo-name ...]" >&2
     exit 1
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # 工作区模板位于 harness/template/（文件复制 + sed 占位替换，不做字符串拼接）
-TEMPLATE_DIR="$SCRIPT_DIR/../template"
+TEMPLATE_DIR="${SCRIPT_DIR}/../template"
 
-cd "$ROOT"
+cd "${ROOT}"
 
 # 分支名安全化（只保留字母数字 _ - /；- 置于字符类末尾按字面量处理，/ 不需转义）
-SAFE_BRANCH=$(printf '%s' "$BRANCH" | sed 's/[^a-zA-Z0-9/_-]/_/g')
+SAFE_BRANCH=$(printf '%s' "${BRANCH}" | sed 's/[^a-zA-Z0-9/_-]/_/g')
 # 工作区目录名 = 创建日期 + 安全化分支名（目录名带日期前缀便于排序，git 分支名保持纯净）
-WORK_BASENAME="$(date +%Y%m%d)-$SAFE_BRANCH"
-BRANCH_DIR="space/$WORK_BASENAME"
+WORK_BASENAME="$(date +%Y%m%d)-${SAFE_BRANCH}"
+BRANCH_DIR="space/${WORK_BASENAME}"
 
-if [ -d "$BRANCH_DIR" ]; then
-    echo "工作区已存在: $BRANCH_DIR"
-    echo "WORKSPACE=$WORK_BASENAME"
-    echo "BRANCH=$SAFE_BRANCH"
+if [ -d "${BRANCH_DIR}" ]; then
+    echo "工作区已存在: ${BRANCH_DIR}"
+    echo "WORKSPACE=${WORK_BASENAME}"
+    echo "BRANCH=${SAFE_BRANCH}"
     exit 0
 fi
 
 # 1. 目录骨架（工作区级文档放 wiki/；仅预建 repo 占位）
-mkdir -p "$BRANCH_DIR/repo" "$BRANCH_DIR/wiki"
-echo "已创建: $BRANCH_DIR/"
+mkdir -p "${BRANCH_DIR}/repo" "${BRANCH_DIR}/wiki"
+echo "已创建: ${BRANCH_DIR}/"
 
 # 2. 确定要建 worktree 的仓库列表
 shift 2
 REPO_NAMES="$*"
-if [ "$NO_WORKTREE" = 1 ]; then
+if [ "${NO_WORKTREE}" = 1 ]; then
     REPO_NAMES=""
-elif [ -z "$REPO_NAMES" ] && [ -d "repo" ]; then
+elif [ -z "${REPO_NAMES}" ] && [ -d "repo" ]; then
     REPO_NAMES=$(ls -1 "repo" 2>/dev/null)
 fi
 
 # 3. 逐仓库创建 worktree
 WORKTREE_CREATED=0
-if [ -n "$REPO_NAMES" ]; then
+if [ -n "${REPO_NAMES}" ]; then
     for name in $REPO_NAMES; do
-        if [ -d "repo/$name" ] && git -C "repo/$name" rev-parse --git-dir >/dev/null 2>&1; then
-            echo "为仓库 '$name' 创建 worktree（分支 $SAFE_BRANCH）..."
-            if sh "$SCRIPT_DIR/git-worktree-helper.sh" create "$ROOT" "$WORK_BASENAME" "$SAFE_BRANCH" "$name"; then
+        if [ -d "repo/${name}" ] && git -C "repo/${name}" rev-parse --git-dir >/dev/null 2>&1; then
+            echo "为仓库 '${name}' 创建 worktree（分支 ${SAFE_BRANCH}）..."
+            if sh "${SCRIPT_DIR}/git-worktree-helper.sh" create "${ROOT}" "${WORK_BASENAME}" "${SAFE_BRANCH}" "${name}"; then
                 WORKTREE_CREATED=1
             fi
         else
-            echo "跳过（不是有效 git 仓库）: repo/$name"
+            echo "跳过（不是有效 git 仓库）: repo/${name}"
         fi
     done
 fi
 
 # 4. 无可用仓库时保留空 repo/ 占位目录
-if [ "$WORKTREE_CREATED" -eq 0 ]; then
-    if [ "$NO_WORKTREE" = 1 ]; then
+if [ "${WORKTREE_CREATED}" -eq 0 ]; then
+    if [ "${NO_WORKTREE}" = 1 ]; then
         echo "骨架模式: 未创建 worktree，由调用方（branch-op.sh prepare）接手"
     else
-        echo "提示: $BRANCH_DIR/repo/ 为占位目录（当前无可用 git 仓库，稍后可用 worktree 命令补建）"
+        echo "提示: ${BRANCH_DIR}/repo/ 为占位目录（当前无可用 git 仓库，稍后可用 worktree 命令补建）"
     fi
 fi
 
 # 5. status.yaml + input.md（模板复制 + sed 占位替换）
 CREATED_AT=$(date '+%Y-%m-%d %H:%M:%S')
-if [ -f "$TEMPLATE_DIR/work-status.yaml" ]; then
-    cp "$TEMPLATE_DIR/work-status.yaml" "$BRANCH_DIR/status.yaml"
+if [ -f "${TEMPLATE_DIR}/work-status.yaml" ]; then
+    cp "${TEMPLATE_DIR}/work-status.yaml" "${BRANCH_DIR}/status.yaml"
     # sed 分隔符用 | ：目录名/分支名允许含 /（如 feature/x），用 / 作分隔符会误伤替换值；
     # 就地改写走临时文件 + mv（兼容 GNU/BSD，不依赖 sed -i）
-    sed "s|{{WORK_DIR}}|$WORK_BASENAME|g; s|{{BRANCH}}|$SAFE_BRANCH|g; s|{{CREATED_AT}}|$CREATED_AT|g" \
-        "$BRANCH_DIR/status.yaml" > "$BRANCH_DIR/status.yaml.tmp" \
-        && mv "$BRANCH_DIR/status.yaml.tmp" "$BRANCH_DIR/status.yaml"
+    sed "s|{{WORK_DIR}}|${WORK_BASENAME}|g; s|{{BRANCH}}|${SAFE_BRANCH}|g; s|{{CREATED_AT}}|${CREATED_AT}|g" \
+        "${BRANCH_DIR}/status.yaml" > "${BRANCH_DIR}/status.yaml.tmp" \
+        && mv "${BRANCH_DIR}/status.yaml.tmp" "${BRANCH_DIR}/status.yaml"
     echo "已创建: status.yaml"
 else
     echo "Warn: 未找到 work-status.yaml，status.yaml 未生成" >&2
 fi
-if [ -f "$TEMPLATE_DIR/work-input.md" ]; then
-    cp "$TEMPLATE_DIR/work-input.md" "$BRANCH_DIR/input.md"
+if [ -f "${TEMPLATE_DIR}/work-input.md" ]; then
+    cp "${TEMPLATE_DIR}/work-input.md" "${BRANCH_DIR}/input.md"
     echo "已创建: input.md"
 else
     echo "Warn: 未找到 work-input.md，input.md 未生成" >&2
 fi
 
 echo ""
-echo "工作区已就绪: $BRANCH_DIR"
-echo "WORKSPACE=$WORK_BASENAME"
-echo "BRANCH=$SAFE_BRANCH"
+echo "工作区已就绪: ${BRANCH_DIR}"
+echo "WORKSPACE=${WORK_BASENAME}"
+echo "BRANCH=${SAFE_BRANCH}"
 
 # 框架自动提交空间仓库（space/*/repo/ 已被 .gitignore 排除，只提交工作区文档）
-sh "$SCRIPT_DIR/space.sh" commit "$ROOT" "chore(tack): create workspace $WORK_BASENAME"
+sh "${SCRIPT_DIR}/space.sh" commit "${ROOT}" "chore(tack): create workspace ${WORK_BASENAME}"
 
 echo "下一步: 1) 执行 project.sh work-add 登记工作  2) 向 input.md 录入原始需求  3) 执行 spec"

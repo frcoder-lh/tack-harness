@@ -25,29 +25,29 @@
 
 HARNESS_DIR="$1"
 
-if [ -z "$HARNESS_DIR" ] || [ ! -d "$HARNESS_DIR" ]; then
-    echo "Error: harness dir not found: $HARNESS_DIR" >&2
+if [ -z "${HARNESS_DIR}" ] || [ ! -d "${HARNESS_DIR}" ]; then
+    echo "Error: harness dir not found: ${HARNESS_DIR}" >&2
     echo "Usage: sh lint-harness.sh <harness-dir>" >&2
     exit 2
 fi
 
 FILES=""
-for f in "$HARNESS_DIR/workflow"/*.md "$HARNESS_DIR/agents"/*.md \
-         "$HARNESS_DIR/reference"/*.md "$HARNESS_DIR/rule"/*.md; do
-    [ -f "$f" ] && FILES="$FILES $f"
+for f in "${HARNESS_DIR}/workflow"/*.md "${HARNESS_DIR}/agents"/*.md \
+         "${HARNESS_DIR}/reference"/*.md "${HARNESS_DIR}/rule"/*.md; do
+    [ -f "${f}" ] && FILES="${FILES} ${f}"
 done
-if [ -d "$HARNESS_DIR/cmd" ]; then
-    for g in $(ls -1 "$HARNESS_DIR/cmd" 2>/dev/null); do
-        [ -d "$HARNESS_DIR/cmd/$g" ] || continue
-        for f in "$HARNESS_DIR/cmd/$g"/*.md; do
-            [ -f "$f" ] && FILES="$FILES $f"
+if [ -d "${HARNESS_DIR}/cmd" ]; then
+    for g in $(ls -1 "${HARNESS_DIR}/cmd" 2>/dev/null); do
+        [ -d "${HARNESS_DIR}/cmd/${g}" ] || continue
+        for f in "${HARNESS_DIR}/cmd/${g}"/*.md; do
+            [ -f "${f}" ] && FILES="${FILES} ${f}"
         done
     done
 fi
 
-[ -z "$FILES" ] && FILES="/dev/null"
+[ -z "${FILES}" ] && FILES="/dev/null"
 
-awk -v H="$HARNESS_DIR" '
+awk -v H="${HARNESS_DIR}" '
 function ltrim(s) { sub(/^[[:space:]]+/, "", s); return s }
 function rtrim(s) { sub(/[[:space:]]+$/, "", s); return s }
 function trim(s)  { return ltrim(rtrim(s)) }

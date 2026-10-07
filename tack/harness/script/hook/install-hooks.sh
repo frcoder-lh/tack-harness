@@ -17,11 +17,11 @@
 set -eu
 
 ROOT="${1:-}"
-[ -n "$ROOT" ] || { echo "Usage: sh install-hooks.sh <root>" >&2; exit 2; }
-[ -f "$ROOT/AGENTS.md" ] || { echo "Error: 不是 tack 空间（缺 AGENTS.md）: $ROOT" >&2; exit 2; }
+[ -n "${ROOT}" ] || { echo "Usage: sh install-hooks.sh <root>" >&2; exit 2; }
+[ -f "${ROOT}/AGENTS.md" ] || { echo "Error: 不是 tack 空间（缺 AGENTS.md）: ${ROOT}" >&2; exit 2; }
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-TMPL_DIR="$(cd "$SCRIPT_DIR/../../template/hook" && pwd)"
+TMPL_DIR="$(cd "${SCRIPT_DIR}/../../template/hook" && pwd)"
 
 # 按平台准备三条命令（JSON 转义：先反斜杠后双引号；本仓命令只用正斜杠，无反斜杠载荷）
 case "$(uname -s)" in
@@ -46,14 +46,14 @@ json_escape() {
 # render <template> <output> —— awk 经 ENVIRON 取值替换占位（避免 sed 替换串 & / 反斜杠陷阱）
 render() {
     _tmpl="$1"; _out="$2"
-    [ -f "$_tmpl" ] || { echo "Error: hook 模板缺失: $_tmpl" >&2; exit 1; }
-    if [ -e "$_out" ]; then
-        echo "hook 声明已存在，跳过: $_out"
+    [ -f "${_tmpl}" ] || { echo "Error: hook 模板缺失: ${_tmpl}" >&2; exit 1; }
+    if [ -e "${_out}" ]; then
+        echo "hook 声明已存在，跳过: ${_out}"
         return 0
     fi
-    E_CS="$(printf '%s' "$CMD_SESSION" | json_escape)" \
-    E_CP="$(printf '%s' "$CMD_PROMPT" | json_escape)" \
-    E_CP2="$(printf '%s' "$CMD_PRETOOL" | json_escape)" \
+    E_CS="$(printf '%s' "${CMD_SESSION}" | json_escape)" \
+    E_CP="$(printf '%s' "${CMD_PROMPT}" | json_escape)" \
+    E_CP2="$(printf '%s' "${CMD_PRETOOL}" | json_escape)" \
     awk '
         function inject(line,   out, p) {
             out=""
@@ -72,12 +72,12 @@ render() {
             return out line
         }
         { print inject($0) }
-    ' "$_tmpl" > "$_out"
-    echo "hook 声明已物化: $_out"
+    ' "${_tmpl}" > "${_out}"
+    echo "hook 声明已物化: ${_out}"
 }
 
-mkdir -p "$ROOT/.trae" "$ROOT/.claude"
-render "$TMPL_DIR/hooks.json.tmpl"    "$ROOT/.trae/hooks.json"
-render "$TMPL_DIR/settings.json.tmpl" "$ROOT/.claude/settings.json"
+mkdir -p "${ROOT}/.trae" "${ROOT}/.claude"
+render "${TMPL_DIR}/hooks.json.tmpl"    "${ROOT}/.trae/hooks.json"
+render "${TMPL_DIR}/settings.json.tmpl" "${ROOT}/.claude/settings.json"
 
 echo "提示: hook 为可选加速层；TRAE 需在 设置 > Hooks 中确认启用项目级 hook，Claude Code 自动读取 .claude/settings.json。"

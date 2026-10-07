@@ -16,43 +16,43 @@
 #   sh check-guidance.sh <root> [workspace]
 #     不传 workspace：扫描 $root/space/*/status.yaml（evolution 全局审查用）
 #     传 workspace  ：只扫 $root/space/<workspace>/status.yaml（close 单工作区用；
-#                     workspace 为工作区目录名 <YYYYMMDD>-<branch>，即 basename "$work"）
+#                     workspace 为工作区目录名 <YYYYMMDD>-<branch>，即 basename "${work}"）
 # Windows: powershell -ExecutionPolicy Bypass -File run.ps1 check-guidance <root> [workspace]
 # 退出码: 0 无失效落点（WARN 不改变退出码）/ 1 存在规范失效落点 / 2 用法错误
 
 ROOT="$1"
 WORKSPACE="$2"
 
-if [ -z "$ROOT" ] || [ ! -d "$ROOT" ]; then
-    echo "Error: tack space root not found: $ROOT" >&2
+if [ -z "${ROOT}" ] || [ ! -d "${ROOT}" ]; then
+    echo "Error: tack space root not found: ${ROOT}" >&2
     echo "Usage: sh check-guidance.sh <root> [workspace]" >&2
     exit 2
 fi
 
-if [ -n "$WORKSPACE" ]; then
-    if [ ! -f "$ROOT/space/$WORKSPACE/status.yaml" ]; then
-        echo "Error: status.yaml not found: $ROOT/space/$WORKSPACE/status.yaml" >&2
+if [ -n "${WORKSPACE}" ]; then
+    if [ ! -f "${ROOT}/space/${WORKSPACE}/status.yaml" ]; then
+        echo "Error: status.yaml not found: ${ROOT}/space/${WORKSPACE}/status.yaml" >&2
         exit 2
     fi
-    FILES="$ROOT/space/$WORKSPACE/status.yaml"
+    FILES="${ROOT}/space/${WORKSPACE}/status.yaml"
 else
-    FILES=$(find "$ROOT/space" -maxdepth 2 -name status.yaml -type f 2>/dev/null)
+    FILES=$(find "${ROOT}/space" -maxdepth 2 -name status.yaml -type f 2>/dev/null)
 fi
 
-if [ -z "$FILES" ]; then
+if [ -z "${FILES}" ]; then
     echo "check-guidance: 无 status.yaml，跳过"
     exit 0
 fi
 
 # 临时文件统一放空间 .tack/tmp/（不写系统 temp），退出即清；目录空时顺手移除
-TMP_DIR="$ROOT/.tack/tmp"
-mkdir -p "$TMP_DIR"
-TMP_OUT="$TMP_DIR/check-guidance.$$.txt"
-trap 'rm -f "$TMP_OUT"; rmdir "$TMP_DIR" 2>/dev/null || true' EXIT INT TERM
-: > "$TMP_OUT"
+TMP_DIR="${ROOT}/.tack/tmp"
+mkdir -p "${TMP_DIR}"
+TMP_OUT="${TMP_DIR}/check-guidance.$$.txt"
+trap 'rm -f "${TMP_OUT}"; rmdir "${TMP_DIR}" 2>/dev/null || true' EXIT INT TERM
+: > "${TMP_OUT}"
 
 for f in $FILES; do
-    awk -v ROOT="$ROOT" -v F="$f" '
+    awk -v ROOT="${ROOT}" -v F="${f}" '
     function trim(s) { sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); return s }
     function val(line, key,   v) {
         v = line
@@ -117,35 +117,35 @@ for f in $FILES; do
         }
     }
     END { flush() }
-    ' "$f"
-done > "$TMP_OUT"
+    ' "${f}"
+done > "${TMP_OUT}"
 
-BROKEN_N=$(grep -c '^BROKEN' "$TMP_OUT" 2>/dev/null || true); BROKEN_N=${BROKEN_N:-0}
-OLD_N=$(grep -c '^OLDFMT' "$TMP_OUT" 2>/dev/null || true); OLD_N=${OLD_N:-0}
-NOLAND_N=$(grep -c '^NOLAND' "$TMP_OUT" 2>/dev/null || true); NOLAND_N=${NOLAND_N:-0}
+BROKEN_N=$(grep -c '^BROKEN' "${TMP_OUT}" 2>/dev/null || true); BROKEN_N=${BROKEN_N:-0}
+OLD_N=$(grep -c '^OLDFMT' "${TMP_OUT}" 2>/dev/null || true); OLD_N=${OLD_N:-0}
+NOLAND_N=$(grep -c '^NOLAND' "${TMP_OUT}" 2>/dev/null || true); NOLAND_N=${NOLAND_N:-0}
 
-if [ "$BROKEN_N" -gt 0 ]; then
+if [ "${BROKEN_N}" -gt 0 ]; then
     echo "check-guidance: ${BROKEN_N} 个 distilled 条目的规范落点文件不存在（已失效）：" >&2
-    grep '^BROKEN' "$TMP_OUT" | while IFS="$(printf '\t')" read -r _ f id p; do
-        echo "  BROKEN  $f  $id -> $p" >&2
+    grep '^BROKEN' "${TMP_OUT}" | while IFS="$(printf '\t')" read -r _ f id p; do
+        echo "  BROKEN  ${f}  ${id} -> ${p}" >&2
     done
     echo "请补回落点文件或更正「落点:」路径后重试；不要删除 guidance 来源条目。" >&2
 fi
-if [ "$OLD_N" -gt 0 ]; then
+if [ "${OLD_N}" -gt 0 ]; then
     echo "check-guidance: ${OLD_N} 个旧格式 distilled 条目的落点路径不存在（WARN，请升级为「落点:」行）："
-    grep '^OLDFMT' "$TMP_OUT" | while IFS="$(printf '\t')" read -r _ f id p; do
-        echo "  OLDFMT  $f  $id -> $p"
+    grep '^OLDFMT' "${TMP_OUT}" | while IFS="$(printf '\t')" read -r _ f id p; do
+        echo "  OLDFMT  ${f}  ${id} -> ${p}"
     done
 fi
-if [ "$NOLAND_N" -gt 0 ]; then
+if [ "${NOLAND_N}" -gt 0 ]; then
     echo "check-guidance: ${NOLAND_N} 个 distilled 条目缺少落点路径（WARN，请补填「落点:」）："
-    grep '^NOLAND' "$TMP_OUT" | while IFS="$(printf '\t')" read -r _ f id _p; do
-        echo "  NOLAND  $f  $id"
+    grep '^NOLAND' "${TMP_OUT}" | while IFS="$(printf '\t')" read -r _ f id _p; do
+        echo "  NOLAND  ${f}  ${id}"
     done
 fi
 
-if [ "$BROKEN_N" -eq 0 ] && [ "$OLD_N" -eq 0 ] && [ "$NOLAND_N" -eq 0 ]; then
+if [ "${BROKEN_N}" -eq 0 ] && [ "${OLD_N}" -eq 0 ] && [ "${NOLAND_N}" -eq 0 ]; then
     echo "check-guidance: distilled 落点全部有效"
 fi
-[ "$BROKEN_N" -gt 0 ] && exit 1
+[ "${BROKEN_N}" -gt 0 ] && exit 1
 exit 0
