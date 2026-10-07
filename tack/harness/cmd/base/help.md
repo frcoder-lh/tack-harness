@@ -25,8 +25,7 @@ summary: 扫描 harness，输出全部工作流与命令的触发词、参数与
    - 动作: 执行 `sh $root/harness/script/scan-routes.sh resolve $root/harness <名称>`，按输出类型前缀（`workflow|` / `cmd|`）定位文件，读取后展示其触发词、适用场景或前置准入条件与内容摘要
 
 4. **版本检查（更新提醒挂载点）**
-   - 动作: 路由表输出后、下一步建议之前，执行 `sh $root/harness/script/check-update.sh $root`（Windows 经 run.ps1 启动；非 tack 空间或脚本内部节流时静默跳过）
-   - 输出协议: 无输出则不提及；stdout 非空时为「有新版本」提醒（首行）+ 本机版本至最新版本区间的更新内容摘要（其后各行，可能没有），在下一步建议中原样转述，并告知「说『更新』即可升级」；脚本非零退出时忽略，不向用户报错
+   - 动作: 按 `harness/rule/update-check.md` 执行 `sh $root/harness/script/check-update.sh $root`；有新版本时在下一步建议中原样转述，并告知「说『更新』即可升级」
 
 ## 后置完成检验
 

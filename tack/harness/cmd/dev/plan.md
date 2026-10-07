@@ -18,16 +18,9 @@ summary: 读 spec、input、wiki（root/work）与代码事实，产出 plan.md�
 - `$work/spec.md` 存在且已经用户确认（`progress.spec: true`）
 - 执行前重新读取 `$work/status.yaml` 与 spec.md，尊重本地最新内容
 
-## 输入源与加载策略（节约 token）
+## 输入源与加载
 
-按优先级：
-
-1. **上一阶段产物**：`$work/spec.md`（整体设计、边界、验收标准）
-2. **`$work/input.md`**：原始需求（查 spec 未覆盖的背景细节时 grep 定位）
-3. **`$root/wiki/`、`$work/wiki/`**：公共知识与工作区代码理解产物（ask 产物优先）
-4. **代码事实**：`$work/repo/<repo-name>/` 现有代码（数据模型、接口、配置、**可复用的类似逻辑**）
-
-**加载纪律**：遵守 `harness/rule/context-loading.md`；关键词从 spec.md 提炼（模块名/服务名/接口名/实体名）；**额外搜索是否已有类似实现**（同名/近义类、工具方法、既有模式），为「复用优先」收集依据
+输入源统一口径、三级降级与防循环放大遵守 `harness/workflow/development-workflow.md`「上下文加载原则」节与 `harness/rule/context-loading.md`。本环节特化：上一阶段产物 `$work/spec.md` 为主（整体设计、边界、验收标准），input.md 仅 grep 查 spec 未覆盖的背景细节；关键词从 spec.md 提炼（模块名/服务名/接口名/实体名）；**额外搜索是否已有类似实现**（同名/近义类、工具方法、既有模式），为「复用优先」收集依据
 
 ## 指令内容
 
@@ -107,7 +100,7 @@ summary: 读 spec、input、wiki（root/work）与代码事实，产出 plan.md�
 ## 框架自动提交（无需用户操作）
 
 - 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): plan <branch>"`，把 plan.md 与 status.yaml（tasks）的变更自动提交到 tack 空间根仓库；无变更自动跳过
-- 边界: 遵守 `harness/rule/git-boundary.md`；代码仓库的提交仍由 `commit` 命令执行（自动生成提交信息后直接提交，无需二次确认）
+- 边界: 遵守 `harness/rule/git-boundary.md`
 
 ## 后置完成检验
 

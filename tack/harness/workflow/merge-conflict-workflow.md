@@ -56,6 +56,6 @@ initialized → fetching → merging → resolving → verifying → pushing →
 
 ## 状态回写要求
 
-- 环节更新 `current.stage: merge`、`current.task`（冲突文件清单）、`current.next`
+- 每环节经 `work-status.sh` 回写：`status` 按状态流转表更新（fetching / merging / resolving / verifying / pushing）、`current.stage`（fetch / merge / resolve / push）、`current.task`（冲突文件清单）、`current.next`
 - 平台合并成功后回填工作区 status.yaml 的 `mr_url`、置 `progress.merged: true`
-- 合并完成回到 development 工作流时由 `close` 收尾；独立执行则置 completed
+- push 完成或平台 MR 合并完成后置 completed；受阻置 blocked；合并完成回到 development 工作流时由 `close` 收尾

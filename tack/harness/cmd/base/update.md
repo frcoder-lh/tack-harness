@@ -22,7 +22,7 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
 
 2. **更新本机 skill**（远端有新版本时执行）
    - 动作: 执行固定流程脚本把本机已安装 skill 更新到最新版本（定位本机 skill 安装目录 → 下载该版本 release 源码 → 完整备份旧目录后整体清空覆盖（SKILL.md/README.md/README.en.md/CHANGELOG.md/CHANGELOG.en.md/install.sh/tack/，旧版残留文件一并清除）→ 校验版本号）：
-     `sh $root/harness/script/skill-update.sh <skill_update_url> <最新tag> --tack-root $root/.tack`（Windows 经 run.ps1 启动）
+     `sh $root/harness/script/skill-update.sh <skill_update_url> <最新tag> --tack-root $root/.tack`
    - 临时产物边界：下载解压目录落 `$root/.tack/tmp/` 下、脚本结束自动清理；旧版 skill 完整备份落 `$root/.tack/backup/skill-<时间戳>/`（回滚用，保留不自动删除，与第 6 步的 `harness-<时间戳>/` 备份同级）
    - `--skill-root <path>` 可省略：脚本按 install.sh 的 agent 预设路径自动探测；探测到多个或零个时脚本报错，向用户询问本机 tack skill 安装目录后以 `--skill-root` 重试
    - **失败即中止**：下载失败/无网络时提示可手动安装最新 skill 后重试，不继续后续步骤——本机 skill 未更新到最新版时，第 3 步的文件对比会拿到旧版内容
@@ -73,7 +73,7 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
    - 动作: 执行 `sh $root/harness/script/scan-routes.sh list $root/harness` 确认工作流与命令路由正常
    - 动作: 对执行过"融合"的脚本文件执行 `sh -n` 语法校验，不通过则回滚该文件并提示用户
    - 动作: 调用 project.sh 把新版本写入 AGENTS.md 项目信息区块（禁止手工编辑 YAML）：
-     `sh $root/harness/script/project.sh skill-version $root <新版本> --no-commit`（Windows 经 run.ps1 启动）；`--no-commit` 表示由下一步框架提交统一入库
+     `sh $root/harness/script/project.sh skill-version $root <新版本> --no-commit`；`--no-commit` 表示由下一步框架提交统一入库
    - 动作: 引导老空间接入自动更新检查（一次性，仅当以下任一缺失时执行；新空间经 init-tack 物化已自带）：
      - `close` / `evolution` / `record` / `help` 命令文件缺少「版本检查（更新提醒挂载点）」步骤时，经用户确认后按本机 skill 的 `tack/harness/cmd/` 同名文件同节内容增补（检查命令与输出协议）
      - `$root/.gitignore` 缺少 `.tack/` 条目时追加一行（tack 本地运行时数据根：log/backup/tmp/state，含 check-update.sh 的本机状态文件，不入库；本项为框架强制兜底——即便用户对 `.gitignore` 选择「保留本地」，`.tack/` 也必须被忽略，否则运行时数据会误入空间仓库）

@@ -13,8 +13,13 @@
 #   sh project.sh ensure        <root>                                              # 区块缺失时在 AGENTS.md 尾部追加空模板（幂等）
 #   sh project.sh set           <root> <name|description|root_path> <value>         # 更新 project 下简单标量
 #   sh project.sh skill-version <root> <version> [--if-empty] [--no-commit]         # 写入 skill_version；--if-empty 仅空值时填充（已有值跳过）
+#   sh project.sh keywords      <root> <kw1,kw2,...> [--no-commit]                  # 覆盖写 project.keywords 列表
+#   sh project.sh service-repo  <root> <service_name> <repo_name> <repo_git> <repo_path> [--no-commit]
+#                                                                                   # 追加一条 project.service_repo_mapping（repo_git 可传空串）
 #   sh project.sh work-add      <root> <id> <description> <work_path> <branch> <svc1,svc2>
 #   sh project.sh work-set      <root> <id> <status>                                # 更新某工作条目状态
+#   sh project.sh work-services <root> <id> <svc1,svc2,...> [status.yaml] [--no-commit]
+#                                                                                   # 覆盖写某工作条目 services；给 status.yaml 时同步其顶层 services
 #
 # --no-commit: 跳过尾部空间仓库自动提交，供 init-tack / update 等复合流程统一收尾提交
 #
@@ -30,7 +35,7 @@ START_MARK='<!-- tack:info:start -->'
 END_MARK='<!-- tack:info:end -->'
 
 if [ -z "$ACTION" ] || [ -z "$ROOT" ]; then
-    echo "Usage: sh project.sh <ensure|set|skill-version|work-add|work-set> <root> [args...]" >&2
+    echo "Usage: sh project.sh <ensure|set|skill-version|keywords|service-repo|work-add|work-set|work-services> <root> [args...]" >&2
     exit 1
 fi
 if [ ! -f "$AGENTS" ]; then
@@ -48,6 +53,15 @@ done
 # 双引号转义
 esc() {
     printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+# 逗号分隔列表 -> YAML 行内序列内容：a,b → "a", "b"（去空白、去空项）
+csv_to_yaml() {
+    printf '%s' "$1" | awk -F',' '
+        { for (i=1;i<=NF;i++) {
+            gsub(/^[[:space:]]+|[[:space:]]+$/,"",$i)
+            if ($i!="") printf "%s\"%s\"", (n++?", ":""), $i
+        } }'
 }
 
 # 提取区块体（两个标记之间的内容）到指定临时文件
@@ -101,7 +115,7 @@ EOF
     {
         echo "## 项目信息"
         echo ""
-        echo "> 以下 YAML 区块由 harness/script/project.sh 维护（init、work、close 时自动更新）；可手工查阅，结构化内容（keywords、service_repo_mapping）由 init 命令经人工确认后编辑。"
+        echo "> 以下 YAML 区块由 harness/script/project.sh 维护（init、work、close 时自动更新）；可手工查阅，结构化内容（keywords、service_repo_mapping、work.services）由 init 等命令经脚本写入（内容经人工确认）。"
         echo ""
         echo "$START_MARK"
         cat "$tmp_body"
@@ -117,7 +131,7 @@ cmd_set() {
     VALUE="$4"
     case "$FIELD" in
         name|description|root_path) ;;
-        *) echo "Error: set 仅支持 name/description/root_path（结构化字段请直接编辑区块）" >&2; exit 1 ;;
+        *) echo "Error: set 仅支持 name/description/root_path（列表字段用 keywords / service-repo / work-services 子命令）" >&2; exit 1 ;;
     esac
     has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
 
@@ -222,12 +236,7 @@ cmd_work_add() {
     fi
 
     # services 逗号分隔 -> ["a", "b"]
-    SVC_LIST=$(printf '%s' "$SERVICES" | awk -F',' '
-        { for (i=1;i<=NF;i++) {
-            gsub(/^[[:space:]]+|[[:space:]]+$/,"",$i)
-            if ($i!="") printf "%s\"%s\"", (n++?", ":""), $i
-        } }
-    ')
+    SVC_LIST=$(csv_to_yaml "$SERVICES")
     CREATED_AT=$(date '+%Y-%m-%d %H:%M:%S')
 
     tmp_entry="$AGENTS.entry.$$"
@@ -299,13 +308,156 @@ cmd_work_set() {
     echo "已更新工作状态: $ID -> $STATUS"
 }
 
+# keywords: 覆盖写 project.keywords（逗号分隔；空值写空序列）
+cmd_keywords() {
+    KW="$3"
+    [ -n "$KW" ] || { echo "Usage: project.sh keywords <root> <kw1,kw2,...>" >&2; exit 1; }
+    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+
+    tmp_body="$AGENTS.body.$$"
+    extract_body "$tmp_body"
+    tmp_new="$AGENTS.new.$$"
+    awk -v kws="$(esc "$KW")" '
+        BEGIN { inproj=0; inkw=0; done=0 }
+        /^project:/ { inproj=1; print; next }
+        inproj==1 && /^[^[:space:]]/ { inproj=0; inkw=0 }
+        inproj==1 && $0 ~ /^  keywords:[[:space:]]*($|#)/ {
+            n = split(kws, arr, ",")
+            c = 0
+            for (i=1;i<=n;i++) {
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", arr[i])
+                if (arr[i] != "") { c++; clean[c] = arr[i] }
+            }
+            if (c == 0) { print "  keywords: []" }
+            else {
+                print "  keywords:"
+                for (i=1;i<=c;i++) print "    - \"" clean[i] "\""
+            }
+            inkw=1; done=1; next
+        }
+        inproj==1 && inkw==1 && $0 ~ /^[[:space:]]*-[[:space:]]/ { next }
+        inproj==1 && inkw==1 && $0 ~ /^  [A-Za-z_]/ { inkw=0 }
+        { print }
+        END { if (done==0) exit 3 }
+    ' "$tmp_body" > "$tmp_new" || {
+        echo "Error: 未在 project 段找到 keywords 字段" >&2
+        rm -f "$tmp_body" "$tmp_new"; exit 1
+    }
+    rewrite_block "$tmp_new"
+    rm -f "$tmp_body" "$tmp_new"
+    echo "已更新 project.keywords"
+}
+
+# service-repo: 追加一条 project.service_repo_mapping（空 [] 替换为块，非空在块尾追加）
+cmd_service_repo() {
+    SVC="$3"; RN="$4"; RG="$5"; RP="$6"
+    if [ -z "$SVC" ] || [ -z "$RN" ] || [ -z "$RP" ]; then
+        echo "Usage: project.sh service-repo <root> <service_name> <repo_name> <repo_git> <repo_path>" >&2
+        exit 1
+    fi
+    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+
+    tmp_body="$AGENTS.body.$$"
+    extract_body "$tmp_body"
+    tmp_new="$AGENTS.new.$$"
+    awk -v svc="$(esc "$SVC")" -v rn="$(esc "$RN")" -v rg="$(esc "$RG")" -v rp="$(esc "$RP")" '
+        function emit() {
+            print "    - service_name: \"" svc "\""
+            print "      repo_name: \"" rn "\""
+            print "      repo_git: \"" rg "\""
+            print "      repo_path: \"" rp "\""
+        }
+        BEGIN { inproj=0; inmap=0; done=0 }
+        /^project:/ { inproj=1; print; next }
+        inproj==1 && /^[^[:space:]]/ {
+            if (inmap==1) { emit(); done=1; inmap=0 }
+            inproj=0
+            print; next
+        }
+        inproj==1 && $0 ~ /^  service_repo_mapping:[[:space:]]*\[\][[:space:]]*(#.*)?$/ {
+            print "  service_repo_mapping:"
+            emit(); done=1
+            next
+        }
+        inproj==1 && $0 ~ /^  service_repo_mapping:[[:space:]]*($|#)/ { inmap=1; print; next }
+        inproj==1 && inmap==1 && $0 ~ /^  [A-Za-z_]/ {
+            emit(); done=1; inmap=0
+            print; next
+        }
+        { print }
+        END { if (inmap==1 && done==0) { emit(); done=1 }; if (done==0) exit 3 }
+    ' "$tmp_body" > "$tmp_new" || {
+        echo "Error: 未在 project 段找到 service_repo_mapping 字段" >&2
+        rm -f "$tmp_body" "$tmp_new"; exit 1
+    }
+    rewrite_block "$tmp_new"
+    rm -f "$tmp_body" "$tmp_new"
+    echo "已登记服务映射: $SVC -> $RN"
+}
+
+# work-services: 覆盖写某 work 条目的 services；给 status.yaml 时同步其顶层 services
+cmd_work_services() {
+    ID="$3"; SVC="$4"; SYNC="$5"
+    [ -n "$ID" ] && [ -n "$SVC" ] || { echo "Usage: project.sh work-services <root> <id> <svc1,svc2,...> [status.yaml]" >&2; exit 1; }
+    if [ -n "$SYNC" ] && [ "$SYNC" != "--no-commit" ] && [ ! -f "$SYNC" ]; then
+        echo "Error: status.yaml 不存在: $SYNC" >&2; exit 1
+    fi
+    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+
+    SVC_LIST=$(csv_to_yaml "$SVC")
+    tmp_body="$AGENTS.body.$$"
+    extract_body "$tmp_body"
+    tmp_new="$AGENTS.new.$$"
+    awk -v want="$(esc "$ID")" -v list="$SVC_LIST" '
+        BEGIN { inwork=0; cur=""; updated=0 }
+        /^work:/ { inwork=1; print; next }
+        inwork==1 && /^[^[:space:]]/ { inwork=0 }
+        inwork==1 && $0 ~ /^[[:space:]]*-[[:space:]]*work_id:/ {
+            line=$0; sub(/.*work_id:[[:space:]]*/,"",line)
+            gsub(/"/,"",line); gsub(/^[[:space:]]+|[[:space:]]+$/,"",line)
+            cur=line
+            print; next
+        }
+        inwork==1 && cur==want && $0 ~ /^[[:space:]]+services:/ {
+            print "    services: [" list "]"
+            updated=1
+            next
+        }
+        { print }
+        END { if (updated==0) exit 3 }
+    ' "$tmp_body" > "$tmp_new" || {
+        echo "Error: 未找到 work_id '$ID' 的条目" >&2
+        rm -f "$tmp_body" "$tmp_new"; exit 1
+    }
+    rewrite_block "$tmp_new"
+    rm -f "$tmp_body" "$tmp_new"
+
+    if [ -n "$SYNC" ] && [ "$SYNC" != "--no-commit" ]; then
+        tmp_s="$SYNC.$$"
+        awk -v list="$SVC_LIST" '
+            /^services:[[:space:]]*/ { print "services: [" list "]"; done=1; next }
+            { print }
+            END { if (done==0) exit 3 }
+        ' "$SYNC" > "$tmp_s" || {
+            echo "Error: $SYNC 缺少顶层 services 字段" >&2
+            rm -f "$tmp_s"; exit 1
+        }
+        mv "$tmp_s" "$SYNC"
+        echo "已同步 $SYNC 的 services"
+    fi
+    echo "已更新工作服务列表: $ID"
+}
+
 case "$ACTION" in
     ensure)        cmd_ensure ;;
     set)           cmd_set "$@" ;;
     skill-version) cmd_skill_version "$@" ;;
+    keywords)      cmd_keywords "$@" ;;
+    service-repo)  cmd_service_repo "$@" ;;
     work-add)      cmd_work_add "$@" ;;
     work-set)      cmd_work_set "$@" ;;
-    *) echo "Error: 未知动作 '$ACTION'（支持 ensure / set / skill-version / work-add / work-set）" >&2; exit 1 ;;
+    work-services) cmd_work_services "$@" ;;
+    *) echo "Error: 未知动作 '$ACTION'（支持 ensure / set / skill-version / keywords / service-repo / work-add / work-set / work-services）" >&2; exit 1 ;;
 esac
 
 # AGENTS.md 项目信息区块变更后，框架自动提交空间仓库（无变更时 space.sh 内部跳过）；

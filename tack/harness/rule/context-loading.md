@@ -12,5 +12,5 @@
 
 ## 引用方式
 
-- dev 组命令（ask / spec / plan / tech-design / code / fix / testcode）在「指令内容」开头引用本文件。
+- dev 组命令（spec / plan / tech-design / code / fix / testcode / test / code-review / release-check）在指令内容中引用本文件。
 - 各命令可保留特有补充说明（如 plan 保留「额外搜索类似实现」、testcode 保留测试命名模式）。

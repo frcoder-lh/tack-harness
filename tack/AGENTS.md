@@ -72,13 +72,13 @@
    - `$root` 空间根仓库（保存 harness/、wiki/、AGENTS.md、space/ 下的工作文档）的 Git 操作**全部由框架自动完成**（初始化首次提交、各命令阶段末经 `harness/script/space.sh commit` 自动提交），**不引导、不要求用户对 `$root` 执行任何 git 命令**
    - 用户的 Git 操作（fetch/commit/push/merge/solve）只作用于 `$work/repo/<repo-name>/` 工作区代码仓库，由用户主动发起命令触发（框架不自动执行）；其中 `commit` 生成提交信息后直接提交、无需二次确认（提交后如实汇报 hash/信息/文件清单），`push` 等影响远端的操作仍需用户明确指令；worktree 的创建/移除也由框架脚本自动完成
    - `.gitignore` 已排除 `repo/` 与 `space/*/repo/`，代码仓库内容与空间仓库互不串扰
-7. 每个任务/环节执行结束后，凡用户对 AI 的做法有过引导、纠偏、补充约定，自动把原始事实追加到 `$work/status.yaml` 的 `guidance` 列表（采集时机与固化时机见第 11 条）；用户要求立即沉淀时走 `record`
+7. 每个任务/环节执行结束后，按第 11 条自动采集 `guidance`（用户对 AI 做法的引导、纠偏、补充约定 → `$work/status.yaml`）；用户要求立即沉淀时走 `record`
 8. **耗时较长任务完成后的主动沉淀预判**：除第 7 条（用户引导触发）与第 10 条（改 cmd 文件触发）外，凡耗时较长的任务（多步骤、跨文件、多轮试错）完成前，AI 主动做一次沉淀预判——本次是否暴露了可复用的操作模式、可固化的机械流程、或值得入 `wiki/`、`decisions/` 的事实？预判结果**不直接改动 harness**，而是作为 `guidance` 原始记录追加到 `$work/status.yaml`（标注建议固化点：cmd/workflow/rule/script/wiki），由第 11 条的 close 自进化审查统一消化。固化门槛同第 10 条：只有"未来会以同样方式重复"的机械步骤才提炼为 `harness/script/` 脚本，一次性操作不固化
 9. 用户主动要求记录或记忆时，使用 record 命令进行记录
 10. **每次优化 `harness/cmd/` 指令文件时，必须同步检查其中是否有固定、可重复的流程可提炼为 `harness/script/` 脚本**：发现机械性固定步骤（确定性的文件操作、状态流转、格式转换、校验等）应沉淀为脚本，并将指令文件中的手工步骤替换为脚本调用；也可运行 `evolution` 命令做专项审查。指令文件只保留意图、判断与决策，不堆叠应由脚本固化的流程
 11. **harness 的更新时机（手动更新 + 自进化）**：
    - **手动更新**：用户明确要求记录/沉淀某个技能时走 `record`（更新优化 cmd/workflow/rule/wiki 或本文件常驻约定）；用户手动发起 harness 优化时走 `evolution`
-   - **自动采集**：每个任务/环节结束时，凡用户对 AI 的做法有过引导、纠偏、补充约定，自动向 `$work/status.yaml` 的 `guidance` 列表追加一条原始记录（无需用户要求；只记事实与建议固化点，**不直接改动 harness**）。记录格式与字段见 `harness/template/work-status.yaml`
+   - **自动采集**：每个任务/环节结束时按第 7 条向 `$work/status.yaml` 的 `guidance` 列表追加原始记录（无需用户要求；只记事实与建议固化点，**不直接改动 harness**）。记录格式与字段见 `harness/template/work-status.yaml`
    - **自动固化**：执行 `close` 关闭工作区时自动触发一次自进化审查——把 `guidance` 中 `raw` 条目的可复用操作习惯固化到 workflow/cmd/rule（先扫描、能融合则融合），经用户确认后落盘并将条目置 `distilled`；未消化完的 raw 条目不阻塞关闭。用户也可随时手动执行 `evolution` 或 `record` 提前固化
 12. **markdown 引用可定位**：生成 markdown 文件时，引用文件或代码一律采用 GitHub 风格的可定位行数锚点格式（如 `path/to/file.md#L12-L15`），读者可直接跳到对应行，禁止只给文件名或"某行附近"式模糊指向
 13. **非必要的反向描述不保留（markdown 与代码注释硬约束）**：生成或修改任何 markdown 文件、代码注释时，事实一旦被取消或移除、且没有必须阻止该行为的意图，**直接删除相关描述**——不保留「不再做 X」「X 已废弃」式反向描述，也不追加「不要做 X」「注意别再 X」式否定补丁；旧事实不存在了，文字里就不再出现它。否定表述只用于**真实禁令**：某行为当下仍可能被执行、必须明确阻止时（如「严禁 force push」）。删除前先确认该事实无文档引用、脚本调用等真实消费者，删除后同步清理失效引用；判断不准时不擅自删，提出交用户决定。存量文档按此标准的清理由 `evolution` 的 cleanup 候选承接
@@ -91,7 +91,7 @@
 | `harness/cmd/` | 命令入口（base/dev/git 分组），定义准入准出 |
 | `harness/agents/` | 可委派角色（code-explorer / code-architect / code-reviewer）：被 cmd 引用后经 Task 子代理在独立上下文执行，可多实例并行；只供发现与委派，不参与命令路由 |
 | `harness/workflow/` | 工作流状态机（development/testing/bugfix/merge-conflict/branch-op） |
-| `harness/script/` | 固定流程脚本（init-tack、space、scan-routes、lint-harness、scan-secrets、check-guidance、work-status、project、repo、work、git-worktree-helper、git-bug-trace、git-diff-context、branch-op、skill-update、check-update；Windows 统一经 `run.ps1` 启动器调用） |
+| `harness/script/` | 固定流程脚本（init-tack、space、scan-routes、lint-harness、scan-secrets、check-guidance、work-status、project、repo、work、git-fetch-helper、git-worktree-helper、git-bug-trace、git-diff-context、branch-op、skill-update、check-update；Windows 统一经 `run.ps1` 启动器调用） |
 | `harness/script/hook/` | TRAE/Claude Code Hooks 可选加速层（SessionStart 预载路由、UserPromptSubmit 零往返路由、PreToolUse 观察层；默认不启用、不拦截，删掉整个目录框架仍完整可用） |
 | `harness/rule/` | 业务、代码与安全规则（coding-standards、security、git-boundary、context-loading、windows-env、record-* 等；不参与路由，按需加载） |
 | `harness/template/` | 命令/工作流/文档/工作区模板 |
@@ -109,7 +109,7 @@
 
 ## 项目信息
 
-> 以下 YAML 区块由 `harness/script/project.sh` 维护（`init`、`work`、`close` 时自动更新）；可手工查阅，keywords、service_repo_mapping 等结构化内容由 init 命令经人工确认后编辑。区块边界标记请勿删除。
+> 以下 YAML 区块由 harness/script/project.sh 维护（init、work、close 时自动更新）；可手工查阅，结构化内容（keywords、service_repo_mapping、work.services）由 init 等命令经脚本写入（内容经人工确认）。区块边界标记请勿删除。
 
 <!-- tack:info:start -->
 skill_version: ""

@@ -17,9 +17,9 @@ summary: 后续环节发现需求不明确或实现不正确时进行修正—�
 - 已有 spec.md（通常也有 plan.md 与部分代码）
 - 执行前重新读取 `$work/status.yaml`、spec.md、plan.md，尊重本地最新状态
 
-## 输入源与加载策略（节约 token）
+## 输入源与加载
 
-遵守 `harness/rule/context-loading.md`：相关产物（spec.md / plan.md / tech-design.md / status.yaml 的 tasks）按修正点 grep 定位相关章节再读取；wiki 与代码按修正点关键词定位后只读必要片段
+输入源统一口径、三级降级与防循环放大遵守 `harness/workflow/development-workflow.md`「上下文加载原则」节与 `harness/rule/context-loading.md`。本环节按修正点定位：相关产物（spec.md / plan.md / tech-design.md / status.yaml 的 tasks）grep 相关章节再读取；wiki 与代码按修正点关键词定位后只读必要片段
 
 ## 指令内容
 
@@ -63,7 +63,7 @@ summary: 后续环节发现需求不明确或实现不正确时进行修正—�
 ## 框架自动提交（无需用户操作）
 
 - 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): fix and sync docs <branch>"`，把 spec.md / plan.md / status.yaml 的修正自动提交到 tack 空间根仓库；无变更自动跳过
-- 边界: 遵守 `harness/rule/git-boundary.md`；工作区代码仓库的修正提交仍由 `commit` 命令执行（自动生成提交信息后直接提交，无需二次确认），不混为一次提交
+- 边界: 遵守 `harness/rule/git-boundary.md`
 
 ## 后置完成检验
 

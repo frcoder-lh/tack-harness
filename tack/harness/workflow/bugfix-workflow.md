@@ -58,7 +58,7 @@ initialized → reproducing → diagnosing → fixing → verifying → complete
 
 ## 状态回写要求
 
-- 每环节更新 `current.stage`（reproduce/diagnose/fix/verify）、`current.task`、`current.next` 与 `updated_at`
+- 每环节经 `work-status.sh` 回写：`status` 按状态流转表更新（reproducing / diagnosing / fixing / verifying）、`current.stage`（reproduce / diagnose / fix / verify）、`current.task`、`current.next`
 - 假设未证实不改代码；根因结论与修复方案需用户确认后才进入 fixing
-- **缺陷溯源结果写入 `bug_origin` 区块**：`git-bug-trace.sh` 输出的 `introduced_commit` / `introduced_at` / `introduced_by` / `requirement` / `commit_url` / `merge_commit` / `merge_url` 等字段回填到 `$work/status.yaml` 的 `bug_origin`（结构见 `harness/template/work-status.yaml`）
-- 完成后若在用户引导下获得可复用排查经验，按核心约束用 `record` 沉淀
+- **缺陷溯源结果写入 `bug_origin` 区块**：`git-bug-trace.sh` 的输出（commit/author/date/commit_url 等标签）按下表字段映射回填到 `$work/status.yaml` 的 `bug_origin`：`introduced_commit` / `introduced_commit_url` / `introduced_at` / `introduced_by` / `requirement` / `merge_commit` / `merge_subject` / `merge_url` / `target_branch` / `note`（结构见 `harness/template/work-status.yaml`）
+- 验证通过、用户确认并提交推送后置 completed；受阻置 blocked；完成后若在用户引导下获得可复用排查经验，按核心约束用 `record` 沉淀

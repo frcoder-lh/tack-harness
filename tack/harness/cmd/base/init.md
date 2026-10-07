@@ -50,7 +50,7 @@ summary: 初始化全局上下文——自动识别输入内容类型（项目�
   - 向用户确认提炼结果，允许修改
 - 落盘:
   - 标量执行脚本写入：`sh $root/harness/script/project.sh set $root name "<名称>"`、`set $root description "<描述>"`、`set $root root_path "<$root 绝对路径>"`
-  - 结构化字段 `project.keywords` 经用户确认后直接编辑 AGENTS.md 项目信息区块的 YAML
+  - 结构化字段 `project.keywords` 经用户确认后执行 `sh $root/harness/script/project.sh keywords $root "<kw1,kw2,...>"` 写入
 
 ### 3. 收集业务文档与全局上下文
 
@@ -86,9 +86,9 @@ summary: 初始化全局上下文——自动识别输入内容类型（项目�
   - 对应代码仓库（已接入的 repo 名）
   - 服务职责简述（可为空）——代码外信息，不进 YAML，随第 6 步 `wiki/manifest.md` 物化
 - 落盘:
-  - 直接编辑 AGENTS.md 项目信息区块的 `project.service_repo_mapping`（每条**仅含服务↔仓库映射字段**：service_name / repo_name / repo_git / repo_path）
+  - 每个仓库执行一次 `sh $root/harness/script/project.sh service-repo $root "<服务名称>" "<repo 名>" "<repo_git，无则空串>" "<repo_path>"` 追加映射（每条**仅含服务↔仓库映射字段**：service_name / repo_name / repo_git / repo_path）
   - 服务职责等代码外信息不进 YAML，在第 6 步物化到 `wiki/manifest.md`
-  - `project.repo_scan_path` 记录本地扫描目录
+  - `project.repo_scan_path` 记录本地扫描目录（直接编辑区块该字段）
   - 提示用户人工审阅补全
 
 ### 6. AI 按事实物化到 wiki/（有内容才生成，不造空文件）

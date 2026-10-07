@@ -135,7 +135,7 @@ fi
 # ---- 5. 查找把该 commit 带入主干的合并提交 ----
 # --ancestry-path 限定在 commit..target 的路径上；--merges 只看合并提交
 # 取最近的一个（离 target 最近的 merge 最先被 log 输出）
-MERGE_INFO="$(git log --merges --ancestry-path --format='%H%n%s' "$INTRO_COMMIT..$TARGET_BRANCH" 2>/dev/null | head -2 || true)"
+MERGE_INFO="$(git log --merges --ancestry-path --format='%H%n%s' "$INTRO_COMMIT..$TARGET_BRANCH" 2>/dev/null | head -n 2 || true)"
 MERGE_COMMIT=""
 MERGE_SUBJECT=""
 NOTE=""
@@ -155,7 +155,7 @@ MERGE_URL=""
 
 if [ -n "$REMOTE_URL" ]; then
     # 归一化 remote URL → host + path（去掉 .git 后缀、协议、git@ 前缀）
-    NORMALIZED="$(printf '%s' "$REMOTE_URL" | sed -e 's|^https\?://||' -e 's|^git@||' -e 's|^ssh://git@||' -e 's|:|/|' -e 's|\.git$||')"
+    NORMALIZED="$(printf '%s' "$REMOTE_URL" | sed -E -e 's|^https?://||' -e 's|^git@||' -e 's|^ssh://git@||' -e 's|:|/|' -e 's|\.git$||')"
     HOST="$(printf '%s' "$NORMALIZED" | cut -d'/' -f1)"
     REPO_PATH="$(printf '%s' "$NORMALIZED" | cut -d'/' -f2-)"
 

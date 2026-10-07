@@ -8,7 +8,7 @@ summary: 按需命令（非开发必经环节，用户需要时触发）——�
 
 # run 脚本执行（按需命令）
 
-> **按需触发，不是 development 主链路的必经环节**：仅当用户主动要求执行脚本（或 `test` 方案需要脚本）时运行，不需要任何"跳过"标记，不执行不阻塞提交与合并。
+> **按需触发，不是 development 主链路的必经环节**：仅当用户主动要求执行脚本（或 `test` 方案需要脚本）时运行；不执行不阻塞提交与合并。
 > 两种模式自动判断：`$work/run/` 不存在 → 初始化；`$work/run/run.md` 存在 → 执行。
 > 用户也可显式传 `init` 强制初始化。
 
@@ -28,7 +28,7 @@ summary: 按需命令（非开发必经环节，用户需要时触发）——�
 
 1. **创建目录骨架**
    - 动作: 创建 `$work/run/` 与 `$work/run/local/`
-   - 边界: `run/local/` 已被 `.gitignore` 全局忽略，敏感数据不入版本库
+   - 边界: `run/local/` 已被 `.gitignore` 全局忽略，敏感数据不入版本库（落位规则见 `harness/rule/security.md`「工作区凭据落位」）
 
 2. **生成 run.md**
    - 动作: 复制 `harness/template/run.md` 到 `$work/run/run.md`
@@ -52,7 +52,7 @@ summary: 按需命令（非开发必经环节，用户需要时触发）——�
    - 边界: 某条脚本退出码非 0 时停止后续步骤，报告失败原因，由用户决定修复后重跑或中止；需要人工介入的步骤等待用户确认
 
 4. **回写状态**
-   - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml set stage run next "<执行结果摘要>"`
+   - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml set stage run progress.run true next "<执行结果摘要>"`（初始化模式不置 `progress.run`）
 
 ## 框架自动提交（无需用户操作）
 
@@ -67,7 +67,7 @@ summary: 按需命令（非开发必经环节，用户需要时触发）——�
 - 执行模式:
   - [ ] run.md 脚本清单已逐条执行，退出码与结果已报告
   - [ ] 失败脚本已停止后续步骤并告知用户
-  - [ ] status.yaml 已同步（stage=run）
+  - [ ] status.yaml 已同步（stage=run、progress.run=true）
 
 ## 下一步建议
 

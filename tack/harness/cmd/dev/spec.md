@@ -17,17 +17,9 @@ summary: 读 input.md、wiki（root/work）与代码事实，按 harness/templat
 - `$work/input.md` 中已有真实的原始需求；为空时先引导用户补充，不凭空编造需求
 - 执行前重新读取 `$work/status.yaml`，尊重本地最新状态
 
-## 输入源与加载策略（节约 token）
+## 输入源与加载
 
-本环节可参考的输入（按优先级）：
-
-1. **`$work/input.md`**：原始需求（全文读取，篇幅不大时）
-2. **`$root/wiki/`**：项目公共知识（business-understanding.md、code-understanding.md、manifest.md、decisions.md 等）；wiki 文件由 init/record/close 按需物化，**只加载实际存在的文件，缺失文件视为该领域暂无沉淀，不是异常**
-3. **`$work/wiki/`**：工作区级代码理解产物（如 ask 生成的 `<repo>-analysis.md` 及问答文档）
-4. **代码事实**：`$work/repo/<repo-name>/` 中的现有代码（只读）
-5. **上一阶段产物**：本环节为首环节，无
-
-**加载纪律**：遵守 `harness/rule/context-loading.md`——先 grep/glob 定位再只读命中片段，禁止整仓通读；关键词从 input.md 提炼（业务名词、服务名、接口名、模块名）
+输入源统一口径、三级降级与防循环放大遵守 `harness/workflow/development-workflow.md`「上下文加载原则」节与 `harness/rule/context-loading.md`（先 grep/glob 定位再只读命中片段，禁止整仓通读）。本环节为首环节：`$work/input.md` 全文读取；wiki 只加载实际存在的文件（缺失视为该领域暂无沉淀，不是异常）；检索关键词从 input.md 提炼（业务名词、服务名、接口名、模块名）
 
 ## 指令内容
 
@@ -53,7 +45,7 @@ summary: 读 input.md、wiki（root/work）与代码事实，按 harness/templat
 ## 框架自动提交（无需用户操作）
 
 - 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): spec <branch>"`，把 spec.md 与 status.yaml 的变更自动提交到 tack 空间根仓库；无变更自动跳过
-- 边界: 遵守 `harness/rule/git-boundary.md`；代码仓库的提交仍由 `commit` 命令执行（自动生成提交信息后直接提交，无需二次确认）
+- 边界: 遵守 `harness/rule/git-boundary.md`
 
 ## 后置完成检验
 

@@ -20,16 +20,9 @@ summary: 编码前先判定涉及仓库并确保就绪（主仓库缺失转 crea
 - **仓库准入已判定**：已汇总本批任务涉及的仓库清单；仓库模式（默认）下各仓库在 `$root/repo/<name>` 存在且 `$work/repo/<name>` 有可用 worktree，未就绪须先转 `create-repo` / `worktree`（见指令内容第 1 步）；片段模式（用户明确选择）豁免本项
 - 仓库模式下所有代码改动只能在 `$work/repo/<repo-name>/`（git worktree）内，禁止直接修改 `$root/repo/`；片段模式不创建、不改动任何仓库文件，仅在回复中交付代码片段
 
-## 输入源与加载策略（节约 token）
+## 输入源与加载
 
-按优先级：
-
-1. **上一阶段产物**：`$work/plan.md`（模块划分、逐环节落地、决策记录、任务清单）、`$work/spec.md`（验收标准）、`$work/tech-design.md`（如有）
-2. **`$work/wiki/`、`$root/wiki/`**：工作区分析产物与公共知识
-3. **代码事实**：`$work/repo/<repo-name>/` 现有代码
-4. **`$work/input.md`**：仅在需要核对原始需求时 grep 定位
-
-**加载纪律**：遵守 `harness/rule/context-loading.md`；每个任务开工前按任务标题/模块/涉及接口提取关键词；定位时**额外搜索类似实现**；plan/spec 可按任务读取相关章节而非每次全文重读
+输入源统一口径、三级降级与防循环放大遵守 `harness/workflow/development-workflow.md`「上下文加载原则」节与 `harness/rule/context-loading.md`。本环节特化：上一阶段产物以 `$work/plan.md` 为主（模块划分、逐环节落地、决策记录、任务清单），spec.md 取验收标准、tech-design.md 如有再读；每个任务开工前按任务标题/模块/涉及接口提取关键词，plan/spec 按任务读相关章节而非每次全文重读；定位时**额外搜索类似实现**；input.md 仅在核对原始需求时 grep 定位
 
 ## 指令内容
 
@@ -82,7 +75,7 @@ summary: 编码前先判定涉及仓库并确保就绪（主仓库缺失转 crea
 ## 框架自动提交（无需用户操作）
 
 - 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): workspace state <branch>"`，把本命令对 status.yaml（任务状态）的变更自动提交到 tack 空间根仓库；无变更自动跳过
-- 边界: 遵守 `harness/rule/git-boundary.md`；代码改动在 `$work/repo/` 工作区代码仓库内，其提交由 `commit` 命令执行（自动生成提交信息后直接提交，无需二次确认），本步骤绝不代为提交代码
+- 边界: 遵守 `harness/rule/git-boundary.md`
 
 ## 后置完成检验
 

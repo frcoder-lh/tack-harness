@@ -8,7 +8,7 @@ summary: 按需命令（非开发必经环节，用户需要时触发）——�
 
 # test 系统测试（按需命令）
 
-> **按需触发，不是 development 主链路的必经环节**：code 完成后可直接 commit/push，AI 不主动引导进入系统测试；仅当用户主动表达（如"做系统测试/集成测试/e2e"）或进入 testing 工作流时才执行，不需要任何"跳过"标记。
+> **按需触发，不是 development 主链路的必经环节**：code 完成后可直接 commit/push，AI 不主动引导进入系统测试；仅当用户主动表达（如"做系统测试/集成测试/e2e"）或进入 testing 工作流时才执行。
 > 与 `testcode`（单元测试，目标代码覆盖率达标）明确区分：本命令面向**完整系统功能**，目标是验证系统端到端行为是否符合预期。
 > 产物是 `$work/test.md`（可落地、可执行的测试方案）；测试脚本放在 `$work/run/`。
 
@@ -35,11 +35,11 @@ summary: 按需命令（非开发必经环节，用户需要时触发）——�
      - 测试用例（场景 / 前置条件 / 操作步骤 / 预期结果 / 状态）
      - 测试数据准备
      - 执行方式（手工步骤 + 自动化脚本）
-   - 边界: 敏感信息（密钥、token、账号）**一律不写入 test.md**，只标注「凭据来自 `run/local/<文件>`」
+   - 边界: 凭据落位遵守 `harness/rule/security.md`「工作区凭据落位」：敏感信息不写入 test.md，只标注「凭据来自 `run/local/<文件>`」
 
 4. **按需初始化 run/ 目录与脚本**
    - 判定: 若测试方案中需要运行脚本（数据准备、接口调用、自动化验证、部署等），确保 `$work/run/` 存在
-   - 动作: `$work/run/` 不存在时按 `run` 命令的初始化流程创建（`run.md` + `local/`）；测试脚本落在 `$work/run/` 下，脚本读取凭据时从 `$work/run/local/` 获取，不得硬编码
+   - 动作: `$work/run/` 不存在时按 `run` 命令的初始化流程创建（`run.md` + `local/`）；测试脚本落在 `$work/run/` 下，凭据读取遵守 `harness/rule/security.md`「工作区凭据落位」
    - 边界: 初始化 run 后回到本命令继续，不切换到 run 执行流程
 
 5. **回写状态**
@@ -48,7 +48,7 @@ summary: 按需命令（非开发必经环节，用户需要时触发）——�
 ## 框架自动提交（无需用户操作）
 
 - 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): workspace state <branch>"`，把本命令对 status.yaml 与 test.md 的变更自动提交到 tack 空间根仓库；无变更自动跳过
-- 边界: 遵守 `harness/rule/git-boundary.md`；测试脚本属于工作区产物，由本步骤一并提交（`run/local/` 已被 .gitignore 排除，不会入库）
+- 边界: 遵守 `harness/rule/git-boundary.md`；测试脚本属于工作区产物，由本步骤一并提交（凭据目录 `run/local/` 不入库，见 `harness/rule/security.md`）
 
 ## 后置完成检验
 

@@ -11,6 +11,17 @@
 - 新增: 「非必要的反向描述不保留」升级为全仓库硬约束——tack/AGENTS.md 核心约束新增第 13 条，源仓库根 AGENTS.md 新增「文档与注释写作纪律」节：生成或修改任何 markdown 文件与代码注释时，事实被取消且无明确禁止意图即直接删除相关描述，不留「不再做 X」式反向描述、不追加否定补丁，否定表述只用于当下仍可能发生且必须阻止的真实禁令；evolution 的 cleanup 候选改为引用该硬约束，规则单一事实源
 - 优化: evolution 审查新增两项要求——① 新增 cleanup 候选：被取消的事实若无明确禁止意图，相关描述整段删除，不保留「不再做 X」式反向描述、不追加否定句补丁（删除前 grep 确认无真实消费者、删除后校验无悬空引用）；② sh 脚本审查从跨平台兼容升级为按 `harness/rule/coding-standards-shell.md` 全量编码规范审查，不符合项发现即当场修正（保持行为与退出码语义不变、改完必跑 `sh -n`），不再走候选确认，仅涉及行为/逻辑选择的修法降级为 script 候选
 - 优化: README 联系方式二维码改用 GitHub raw 绝对链接（`https://raw.githubusercontent.com/frcoder-lh/tack-harness/master/contact.png`），安装包、本机升级与空间初始化不再分发或物化 `contact.png`——物化到 `harness/` 的 README 在任意目录阅读均可直接显示图片；`contact.png` 源文件保留在仓库根供链接引用
+- 新增: `harness/rule/update-check.md` 统一版本检查口径——调用时机（close/evolution/record/help 收尾执行、会话加载时不检查）、三行输出协议（无输出静默 / 首行版本提醒加区间更新摘要 / 非零退出静默忽略）与双节流（7 天一次、同版本只提醒一次）收敛为单一事实源，四个命令文件中的重复说明瘦身为一行引用
+- 新增: work-status.sh 新增 `guidance` 子命令——guidance 条目 distilled/dismissed 回写脚本化：替换或补写状态行与中文「落点:」行，distilled 必须带 ≥1 个落点、dismissed 拒绝落点，条目不存在返回退出码 3 并同步刷新 updated_at；close/record/evolution 中手工编辑 YAML 的步骤统一改为脚本调用
+- 新增: project.sh 新增三个结构化回写子命令——`keywords`（覆盖写项目关键词）、`service-repo`（追加服务↔仓库映射，空 `[]` 自动展开为列表块）、`work-services`（回写 work 条目服务列表并可同步 status.yaml 顶层 services）；init/create-repo/worktree 中「直接编辑项目信息区块 YAML」的步骤全部改为脚本调用，区块维护入口收敛到 project.sh
+- 优化: lint-harness.sh 新增 frontmatter 完整性检查（ERROR 级）——首行非 `---`（缺 frontmatter）、fence 仅出现一次（未闭合）均检出；reference/rule 等本无 frontmatter 的文件豁免，不误报
+- 优化: code-review 方法论收敛为单一框架——统一以 reference/code-review.md 的「双轴」（改动内容事实组织 / Spec 轴含 bug 深化 / Standards 轴含安全性能兼容）为准，审查三视角（规范符合度 / bug 与正确性 / 约定与安全）明确标注为双轴的执行分解，命令文件、agent 文件与工作流映射不再两套框架并列
+- 优化: 工作区状态回写口径对齐——testing/bugfix/merge-conflict 三工作流的「状态回写要求」统一为 `status` 按状态流转表加 `current.stage` 经 work-status.sh 回写的双写口径；`run` 命令 init 模式不再误置 progress.run，完成检验补 progress.run=true；work-status.yaml 模板 stage 枚举补 bugfix（reproduce/diagnose/fix/verify）与 merge-conflict（fetch/merge/resolve/push）取值
+- 优化: `rule/security.md` 新增「工作区凭据落位」节（敏感数据落 run/local/、入库文档只标来源不写真值），run/test/development-workflow 等处散落说明收敛为引用；`rule/git-boundary.md` 明确「提交统一由 commit 命令完成、框架不代提代码仓库、空间仓库与代码仓库两类提交不合并」，六个命令文件的边界半句统一改为引用该规则
+- 优化: spec/plan/code/testcode/fix 五个命令文件的「输入源与加载策略」重复样板收敛——统一口径（输入源清单、三级降级、防循环放大）以 development 工作流「上下文加载原则」节为单一事实源，各命令只保留本环节特化（首环节输入、复用搜索、任务级定位、修正点定位等）
+- 优化: tack/AGENTS.md 核心约束第 7 条与第 11 条的 guidance 自动采集描述去重（第 7 条保留触发点、口径归第 11 条）；项目信息区块说明文字与 project.sh 内置模板同步
+- 修复: 6 个脚本的 POSIX 兼容性问题（scan-routes.sh、work-status.sh 的 awk FNR 判定与分支闭合、git-bug-trace.sh、repo.sh、work.sh、git-diff-context.sh），Git for Windows（GNU 工具）与 macOS（BSD 工具）下行为一致
+- 修复: 一批文档结构与悬空引用——study.md 三处失效的 `$root/SKILL.md` 引用、commit.md frontmatter 未闭合、development-workflow 环节映射表重编号（补「7 按需命令」行）、testcode.md 步骤交叉引用、tack/AGENTS.md 脚本清单漏列 git-fetch-helper、ask.md 残留的 progress.analysis 字段、context-loading.md 引用方数量；同步删除四处已失效的「跳过标记」反向描述
 
 ## V0.0.14 (2026-10-07)
 

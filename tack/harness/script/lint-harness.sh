@@ -3,7 +3,8 @@
 #
 # 检查项：
 #   E（ERROR，退出码 1，必须修复）
-#     1. workflow/cmd/agents 的 frontmatter 必需字段缺失
+#     1. workflow/cmd/agents frontmatter 结构损坏：首行非 ---（缺失）或有开头无
+#        结束 ---（未闭合，字段检查会因此失察）；以及必需字段缺失
 #        - workflow 文件: workflow / triggers / summary
 #        - cmd 文件:     command  / triggers / summary
 #        - agents 文件:  agent    / triggers / summary
@@ -89,7 +90,11 @@ function inspect(file,   bn, d1, d2, kind, namefield, fence, line, v,
     else return
 
     fence = 0
+    nline = 0
+    first_is_fence = 0
     while ((getline line < file) > 0) {
+        nline++
+        if (nline == 1 && line ~ /^---[[:space:]]*$/) first_is_fence = 1
         if (line ~ /^---[[:space:]]*$/) { fence++; if (fence >= 2) break; continue }
         if (fence == 1) {
             v = fval(line, "workflow"); if (v != "") namev = v
@@ -121,6 +126,12 @@ function inspect(file,   bn, d1, d2, kind, namefield, fence, line, v,
     close(file)
 
     if (kind == "reference" || kind == "rule") return
+
+    # frontmatter 完整性：首行须为 ---，且必须有结束 ---（结束缺失时正文会被误当字段区）
+    if (nline > 0 && !first_is_fence)
+        err(file, "缺少 frontmatter（文件首行须为 \x27---\x27）")
+    else if (first_is_fence && fence == 1)
+        err(file, "frontmatter 未闭合（缺少结束行 \x27---\x27）")
 
     # 必需字段
     if (namev == "") {

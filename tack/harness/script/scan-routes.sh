@@ -273,7 +273,7 @@ if [ "$ACTION" = "resolve" ]; then
     set +e
     awk -v MODE=resolve -v H="$HARNESS_DIR" -v KEYWORD="$3" "$AWK_PROG" $FILES
     rc=$?
-    exit $rc
+    exit "${rc}"
 fi
 
 case "$ACTION" in

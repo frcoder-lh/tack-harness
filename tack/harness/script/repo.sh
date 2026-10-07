@@ -33,7 +33,7 @@ case "$ACTION" in
             exit 1
         fi
         # -maxdepth 5：只向下最多 5 层；-prune 避免钻进仓库内部继续扫描
-        find "$SCAN_DIR" -maxdepth 5 -type d -name .git -prune 2>/dev/null | while read -r gitdir; do
+        find "$SCAN_DIR" -maxdepth 5 -type d -name .git -prune 2>/dev/null | while IFS= read -r gitdir; do
             dirname "$gitdir"
         done
         ;;

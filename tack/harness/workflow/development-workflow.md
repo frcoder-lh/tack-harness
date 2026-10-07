@@ -39,22 +39,23 @@ initialized → planning → developing → reviewing → merged → completed
 
 | # | 环节 | 命令 | 产物 | 完成后状态/进度 |
 |---|------|------|------|----------------|
-| 0 | 初始化项目空间 | `init` | AGENTS.md 项目信息、repo/ 接入 | — |
-| 1 | 新建工作区 | `work` | `space/<YYYYMMDD>-<branch>/`、worktree、AGENTS.md work 条目、开场知识清单（roster） | initialized |
-| 1.5 | 代码理解（可选） | `ask` | `$work/wiki/<repo>-analysis.md` 及问答文档（含基准 commit 与 git history 线索；大仓库可委派 code-explorer 并行勘探） | — / progress.ask |
-| 2 | 需求规划（整体设计） | `spec` | spec.md | planning / progress.spec |
-| 3 | 开发计划（方案对比 + 详细设计 + 任务拆解） | `plan` | plan.md（复杂任务多方案对比与选定、含任务清单）、status.yaml 的 tasks 列表 | planning / progress.plan |
-| 4 | 技术评审文档 | `tech-design` | tech-design.md（可委派 code-architect 深化设计） | planning / progress.tech-design |
-| 5 | 编码 | `code` | worktree 内代码 | developing / progress.code |
-| 5.5 | 需求/实现修正（任意环节） | `fix` | 同步修正 spec/plan/tasks/代码 | 回到修正点所属环节 |
-| 7 | 拉取/提交/推送 | `fetch` `commit` `push` | 提交与远端分支、mr_url | developing |
-| 8 | 代码审查与合并 | `merge`（委派 code-reviewer 审查，结论三选一分流；冲突转 merge-conflict 工作流） | 审查结论与分流记录、MR/PR 合并 | reviewing → merged |
-| 9 | 关闭工作区 | `close` | 交付摘要、内容提炼入 wiki 四类页面（含 decisions，用户确认）、guidance 自进化固化到 workflow/cmd/rule（check-guidance 校验落点）、worktree 移除、work 条目 completed | completed |
+| 1 | 初始化项目空间 | `init` | AGENTS.md 项目信息、repo/ 接入 | — |
+| 2 | 新建工作区 | `work` | `space/<YYYYMMDD>-<branch>/`、worktree、AGENTS.md work 条目、开场知识清单（roster） | initialized |
+| 2.5 | 代码理解（可选） | `ask` | `$work/wiki/<repo>-analysis.md` 及问答文档（含基准 commit 与 git history 线索；大仓库可委派 code-explorer 并行勘探） | — / progress.ask |
+| 3 | 需求规划（整体设计） | `spec` | spec.md | planning / progress.spec |
+| 4 | 开发计划（方案对比 + 详细设计 + 任务拆解） | `plan` | plan.md（复杂任务多方案对比与选定、含任务清单）、status.yaml 的 tasks 列表 | planning / progress.plan |
+| 5 | 技术评审文档 | `tech-design` | tech-design.md（可委派 code-architect 深化设计） | planning / progress.tech-design |
+| 6 | 编码 | `code` | worktree 内代码 | developing / progress.code |
+| 6.5 | 需求/实现修正（任意环节） | `fix` | 同步修正 spec/plan/tasks/代码 | 回到修正点所属环节 |
+| 7 | 按需命令（非主链路，见下表） | `testcode` `test` `run` `code-review` `release-check` | 各命令产物（见下表） | 仅 `progress` 事实记录 |
+| 8 | 拉取/提交/推送 | `fetch` `commit` `push` | 提交与远端分支、mr_url | developing |
+| 9 | 代码审查与合并 | `merge`（委派 code-reviewer 审查，结论三选一分流；冲突转 merge-conflict 工作流） | 审查结论与分流记录、MR/PR 合并 | reviewing → merged |
+| 10 | 关闭工作区 | `close` | 交付摘要、内容提炼入 wiki 四类页面（含 decisions，用户确认）、guidance 自进化固化到 workflow/cmd/rule（check-guidance 校验落点）、worktree 移除、work 条目 completed | completed |
 | — | 经验沉淀 | `record` | cmd/workflow/rule/wiki | 任意环节之后 |
 
 ### 按需命令（非主链路环节，用户需要时才触发）
 
-以下命令**不是开发必经环节**：不在主链路状态机中占位、不阻塞 commit/push/merge/close，code 完成后可直接提交，AI 不主动询问"是否进入"、也不需要任何"跳过"标记——**用户不触发即视为本工作不需要**。用户直接表达意图（跑单测/系统测试/执行脚本）或进入 `testing` 工作流时才执行；执行期间只临时占用 `current.stage`，完成与否仅作 `progress` 事实记录。
+以下命令**不是开发必经环节**：不在主链路状态机中占位、不阻塞 commit/push/merge/close，code 完成后可直接提交，AI 不主动询问"是否进入"——**用户不触发即视为本工作不需要**。用户直接表达意图（跑单测/系统测试/执行脚本）或进入 `testing` 工作流时才执行；执行期间只临时占用 `current.stage`，完成与否仅作 `progress` 事实记录。
 
 | 命令 | 用途 | 产物 | 完成后进度记录 |
 |------|------|------|----------------|
@@ -74,9 +75,9 @@ initialized → planning → developing → reviewing → merged → completed
 5. **tech-design**：读技术模板与 spec/plan，产出 tech-design.md；飞书等外链回填工作区 status.yaml
 6. **code**：编码前先做仓库准入判定——汇总 tasks 的 repo 字段与 plan 模块划分得到涉及仓库清单，主仓库缺失转 `create-repo` 新建、worktree 缺失转 `worktree` 补建，用户拒绝致准入无法满足则 blocked；用户明确说明「只生成代码片段、不编译不运行」时进入片段模式，仅在回复交付片段（标注建议落点）、不动仓库文件。按 tasks 的 deps 拓扑调度，无依赖任务并行、有依赖串行，连续开发尽量不打扰用户；已有类似逻辑优先复用或模仿；plan 外的多方案自动按工程最优解实现并记录；仅在受阻、业务决策不明或模块里程碑时暂停。参考 reference：implement.md、codebase-design.md、research.md
 6.5 **fix**：需求修正走 spec→plan→tasks→代码；代码修正走代码→再评估并反向同步文档，保持四者一致
-7. **testcode / test / run（按需命令，见上节）**：均非必经环节，只在用户主动触发时执行，AI 不在 code 完成后主动引导或询问；准入准出与执行细节以各自 `harness/cmd/dev/` 命令文件为唯一权威。testcode 参考 reference：tdd.md、code-review.md；test 的敏感数据一律写 `run/local/`（.gitignore 已忽略），test.md 只标注凭据来源
+7. **testcode / test / run（按需命令，见上节）**：均非必经环节，只在用户主动触发时执行，AI 不在 code 完成后主动引导或询问；准入准出与执行细节以各自 `harness/cmd/dev/` 命令文件为唯一权威。testcode 参考 reference：tdd.md、code-review.md；测试凭据落位遵守 `harness/rule/security.md`（入库文档只标来源）
 8. **commit/push**：非 git 目录先 init；未关联远端先引导关联；不跳过 hooks、不 force push
-9. **merge**：合并前审查必选——读取 `harness/agents/code-reviewer.md` 委派审查（小改动单实例，大改动并行三视角：规范符合度/bug 与正确性/约定与安全），方法遵循 reference `code-review.md` 双轴；审查结论由用户三选一分流：立即修复（回 fix 后复审）/ 记录后续（登记 status.yaml `follow_ups` 或 issue，允许合并）/ 维持现状（用户确认承担风险）；之后优先平台 MR/PR 合并；冲突不静默取舍，进入 solve
+9. **merge**：合并前审查必选——读取 `harness/agents/code-reviewer.md` 委派审查（小改动单实例，大改动按其三视角并行：规范符合度/bug 与正确性/约定与安全；审查框架为 reference `code-review.md` 双轴，三视角是双轴的执行分解）；审查结论由用户三选一分流：立即修复（回 fix 后复审）/ 记录后续（登记 status.yaml `follow_ups` 或 issue，允许合并）/ 维持现状（用户确认承担风险）；之后优先平台 MR/PR 合并；冲突不静默取舍，进入 solve
 10. **close**：完成态直接收尾，非完成态经用户确认才可关闭；**worktree 移除前输出四段交付摘要（构建内容/关键决策/改动文件/建议后续步骤）**；提炼工作区**原始产物**中的可复用知识（事实/锚点/业务知识/**技术决策与工程约定**四类，后者含 plan 决策记录 → `wiki/decisions.md`），每条带来源、矛盾保留演变，经用户确认与人工审阅后写入 `$root/wiki/`；**自动触发一次自进化**——消费 status.yaml 的 guidance 中 raw 条目，将可复用操作习惯固化到 workflow/cmd/rule（经用户确认，能融合则融合），回写 distilled/dismissed（distilled 按 `落点: <相对 $root 路径>` 注明并经 `check-guidance.sh` 校验）；移除 worktree，`project.sh work-set ... completed`，文档按用户选择保留或清理
 
 ## 上下文加载原则（spec/plan/code/testcode 共同遵守）

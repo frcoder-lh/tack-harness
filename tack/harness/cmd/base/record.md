@@ -49,11 +49,10 @@ summary: 沉淀知识或扩展能力——优先融合已有条目；可落命�
    - 动作:
      - cmd / workflow：执行 `sh $root/harness/script/scan-routes.sh list $root/harness`，确认新建/修改后的条目出现在路由表中
      - agents：重新读取 `$root/AGENTS.md`，确认条目位置正确、区块标记与项目信息区块完好
-     - 本次内容来自 guidance 条目: 在来源 status.yaml 中将该条 `status` 置 `distilled`，并另起一行按固定格式注明落点：`落点: <相对 $root 的路径>`（多落点空格分隔，格式见 `harness/template/work-status.yaml`）；用户挑选后放弃的条目置 `dismissed`
+     - 本次内容来自 guidance 条目: 执行 `sh $root/harness/script/work-status.sh <来源 status.yaml> guidance <id> distilled <落点路径...>`（多落点空格分隔，脚本同步写 `status` 与 `落点:` 行，格式见 `harness/template/work-status.yaml`）；用户挑选后放弃的条目执行 `sh $root/harness/script/work-status.sh <来源 status.yaml> guidance <id> dismissed`
 
 7. **版本检查（更新提醒挂载点）**
-   - 动作: 沉淀完成、下一步建议之前，执行 `sh $root/harness/script/check-update.sh $root`（Windows 经 run.ps1 启动；脚本内部双节流，无新版本时静默）
-   - 输出协议: 无输出则不提及；stdout 非空时为「有新版本」提醒（首行）+ 本机版本至最新版本区间的更新内容摘要（其后各行，可能没有），原样转述并**建议先执行 `update` 再继续沉淀**（避免在旧版 harness 上落盘，改动可能与新版冲突）；脚本非零退出时忽略，不向用户报错
+   - 动作: 按 `harness/rule/update-check.md` 执行 `sh $root/harness/script/check-update.sh $root`；有新版本时原样转述并**建议先执行 `update` 再继续沉淀**（避免在旧版 harness 上落盘，改动可能与新版冲突）
 
 ## 框架自动提交（无需用户操作）
 

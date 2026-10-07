@@ -66,6 +66,6 @@ initialized → test-planning → testing → verifying → completed
 
 ## 状态回写要求
 
-- 环节开始前更新 `current.stage: testcode`、`current.task`（被测任务 ID）、`current.next`
-- 覆盖率达标且回归通过后：`progress.testcode: true`；从 development 按需切入的，status 回到所属主工作流状态（commit/push 是否执行由用户决定，测试不构成前置门禁）
-- 独立测试任务完成并提交后可置 completed；受阻置 blocked 并写明缺口
+- 环节开始前经 `work-status.sh` 回写：`status` 按状态流转表更新（test-planning / testing / verifying）、`current.stage`（testcode / test / run）、`current.task`（被测任务 ID）、`current.next`
+- 环节完成事实：覆盖率达标且回归通过置 `progress.testcode: true`；系统测试方案确认置 `progress.test: true`；run 脚本执行完成置 `progress.run: true`
+- 独立测试任务完成并提交后置 completed（从 development 按需切入的，status 回到所属主工作流状态；commit/push 是否执行由用户决定，测试不构成前置门禁）；受阻置 blocked 并写明缺口

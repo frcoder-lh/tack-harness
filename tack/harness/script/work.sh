@@ -46,7 +46,7 @@ TEMPLATE_DIR="$SCRIPT_DIR/../template"
 cd "$ROOT"
 
 # 分支名安全化（只保留字母数字 _ - /；- 置于字符类末尾按字面量处理，/ 不需转义）
-SAFE_BRANCH=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9/_-]/_/g')
+SAFE_BRANCH=$(printf '%s' "$BRANCH" | sed 's/[^a-zA-Z0-9/_-]/_/g')
 # 工作区目录名 = 创建日期 + 安全化分支名（目录名带日期前缀便于排序，git 分支名保持纯净）
 WORK_BASENAME="$(date +%Y%m%d)-$SAFE_BRANCH"
 BRANCH_DIR="space/$WORK_BASENAME"

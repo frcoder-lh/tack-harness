@@ -96,7 +96,7 @@ fi
 mkdir -p "${OUT_DIR}"
 
 REPO_NAME="$(basename "${REPO}")"
-SAFE_TARGET="$(echo "${TARGET_REF}" | tr '/' '-')"
+SAFE_TARGET="$(printf '%s' "${TARGET_REF}" | tr '/' '-')"
 OUT_BASE="${OUT_DIR}/${REPO_NAME}-vs-${SAFE_TARGET}"
 DIFF_FILE="${OUT_BASE}.diff"
 STAT_FILE="${OUT_BASE}.stat"

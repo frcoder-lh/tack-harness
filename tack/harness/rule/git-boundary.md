@@ -10,6 +10,7 @@
 
 - 代码仓库的操作**只允许**在 `$work/repo/<repo-name>/` 的 git worktree 内进行。
 - worktree 的创建与移除只能经 `harness/script/git-worktree-helper.sh` 完成。
+- 代码仓库的提交统一由 `commit` 命令执行（自动生成提交信息后直接提交，无需二次确认）；框架自动提交只处理空间根仓库，不代为提交代码，两类提交不合并为一次。
 
 ## 引用方式
 

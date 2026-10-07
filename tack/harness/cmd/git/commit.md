@@ -4,6 +4,7 @@ short: ci
 triggers: 提交, 本地提交, commit, local commit
 params: [提交说明（可选）]
 summary: 提交工作区内各仓库的本地改动；非 git 目录先初始化再提交；提交信息自动生成后直接提交，无需用户二次确认
+---
 
 # commit 本地提交
 
