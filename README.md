@@ -294,7 +294,7 @@ flowchart LR
 | `update` | u | 更新 / 更新skill / update / update skill /update | 更新 harness 与空间根 .gitignore（.tack/ 强制兜底），保留自定义 cmd/rule 与 AGENTS.md |
 | `create-repo` | cr | 新建仓库 / 建仓 / create repo / new repository /createrepo /create-repo | 新建并初始化本地代码仓库，纳入项目空间管理 |
 | `record` | r | 记录 / 记忆 / 沉淀 / record / remember / distill /record | 优先融合已有条目；可落命令 / 工作流 / 规则 / wiki / AGENTS.md 常驻约定，新建时仅需提供 command |
-| `evolution` | evo | 进化 / 进化harness / evolve / evolve harness /evolution | 结构自检（lint-harness）并审查指令，提炼 rule/reference/script 候选，人工确认后落盘 |
+| `evolution` | evo | 进化 / 进化harness / evolve / evolve harness /evolution | 结构自检（lint-harness）并审查指令，提炼 rule/reference/script 候选、清理过时事实与非必要反向描述（cleanup 候选）；sh 脚本不符合 shell 编码规范的当场修正，其余人工确认后落盘 |
 | `study` | st | 学习 / 研习 / 借鉴 / study / learn / learn from /study | 向外学习外部 skill 或仓库的设计，提炼可借鉴点并落盘到 harness 对应位置，统一预览确认后提交，随后自动执行一次 evolution |
 
 ### 7.2 需求开发命令（cmd/dev/）

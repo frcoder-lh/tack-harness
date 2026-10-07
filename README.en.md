@@ -294,7 +294,7 @@ All commands support Chinese and English triggers plus short forms, in the forma
 | `update` | u | update / update skill /update | Updates the harness and the space-root .gitignore (`.tack/` enforced as a fallback), preserving custom cmd/rule and AGENTS.md |
 | `create-repo` | cr | create repo / new repository /createrepo /create-repo | Creates and initializes a local code repository and brings it under project-space management |
 | `record` | r | record / remember / distill /record | Prefers merging into existing entries; can land commands / workflows / rules / wiki / AGENTS.md resident agreements; for new entries you only need to supply command |
-| `evolution` | evo | evolve / evolve harness /evolution | Runs the structure self-check (lint-harness), reviews instructions, distills rule/reference/script candidates, and lands them after human confirmation |
+| `evolution` | evo | evolve / evolve harness /evolution | Runs the structure self-check (lint-harness) and reviews instructions, distilling rule/reference/script candidates and cleaning up stale facts or needless negative descriptions (cleanup candidates); shell scripts violating the shell coding standard are fixed on the spot, everything else lands after human confirmation |
 | `study` | st | study / learn / learn from /study | Learns from the design of external skills or repositories, distills borrowable ideas into the corresponding harness locations, commits after a unified preview confirmation, then automatically runs one evolution |
 
 ### 7.2 Requirement development commands (cmd/dev/)

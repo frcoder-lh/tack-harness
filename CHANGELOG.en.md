@@ -10,6 +10,7 @@ This file is the single source of truth for tack harness release notes:
 
 ## V0.0.15 (Unreleased)
 
+- Improved: The evolution review gains two requirements—(1) new cleanup candidates: when a fact has been removed and there is no intent to explicitly forbid it, its descriptions are deleted wholesale instead of keeping "X is no longer done"-style negative statements or appending negation patches (grep confirms no real consumers before deletion and no dangling references afterward); (2) the shell review is upgraded from cross-platform compatibility to a full coding-standard review against `harness/rule/coding-standards-shell.md`—violations are fixed on the spot without candidate confirmation (behavior and exit-code semantics stay unchanged, `sh -n` must pass after each fix), and only fixes involving behavioral or logical choices fall back to script candidates
 - Improved: The contact QR code in both READMEs now uses an absolute GitHub raw URL (`https://raw.githubusercontent.com/frcoder-lh/tack-harness/master/contact.png`), so installation, local skill upgrade, and space initialization no longer distribute or materialize `contact.png`—READMEs materialized under `harness/` render the image directly from any directory; the source `contact.png` stays in the repository root to back the link
 
 ## V0.0.14 (2026-10-07)
