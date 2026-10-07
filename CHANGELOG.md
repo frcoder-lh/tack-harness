@@ -8,6 +8,7 @@
 
 ## V0.0.15 (未发布)
 
+- 新增: 「非必要的反向描述不保留」升级为全仓库硬约束——tack/AGENTS.md 核心约束新增第 13 条，源仓库根 AGENTS.md 新增「文档与注释写作纪律」节：生成或修改任何 markdown 文件与代码注释时，事实被取消且无明确禁止意图即直接删除相关描述，不留「不再做 X」式反向描述、不追加否定补丁，否定表述只用于当下仍可能发生且必须阻止的真实禁令；evolution 的 cleanup 候选改为引用该硬约束，规则单一事实源
 - 优化: evolution 审查新增两项要求——① 新增 cleanup 候选：被取消的事实若无明确禁止意图，相关描述整段删除，不保留「不再做 X」式反向描述、不追加否定句补丁（删除前 grep 确认无真实消费者、删除后校验无悬空引用）；② sh 脚本审查从跨平台兼容升级为按 `harness/rule/coding-standards-shell.md` 全量编码规范审查，不符合项发现即当场修正（保持行为与退出码语义不变、改完必跑 `sh -n`），不再走候选确认，仅涉及行为/逻辑选择的修法降级为 script 候选
 - 优化: README 联系方式二维码改用 GitHub raw 绝对链接（`https://raw.githubusercontent.com/frcoder-lh/tack-harness/master/contact.png`），安装包、本机升级与空间初始化不再分发或物化 `contact.png`——物化到 `harness/` 的 README 在任意目录阅读均可直接显示图片；`contact.png` 源文件保留在仓库根供链接引用
 
