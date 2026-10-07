@@ -8,6 +8,10 @@ This file is the single source of truth for tack harness release notes:
 - `release.sh` verifies before releasing that the target tag has corresponding sections in both `CHANGELOG.md` (Chinese) and `CHANGELOG.en.md` (English); release aborts if either is missing
 - CI extracts the corresponding sections from both changelogs and concatenates them as the bilingual GitHub Release body; the `check-update.sh` reminder and the `update` command's "What's new" view are sourced from both files
 
+## V0.0.15 (Unreleased)
+
+- Improved: The contact QR code in both READMEs now uses an absolute GitHub raw URL (`https://raw.githubusercontent.com/frcoder-lh/tack-harness/master/contact.png`), so installation, local skill upgrade, and space initialization no longer distribute or materialize `contact.png`—READMEs materialized under `harness/` render the image directly from any directory; the source `contact.png` stays in the repository root to back the link
+
 ## V0.0.14 (2026-10-07)
 
 - Improved: Hook space/workspace resolution is now stateless and determined in real time from the cwd of each invocation; the `TACK_ROOT`/`TACK_WORK` path environment variables written by SessionStart via ENV_FILE were removed—session-level caches cannot express "which space/workspace does this call belong to" with multiple project windows or multiple parallel workspaces in one space, and cache validation only checked their own validity without checking containment of the cwd, so mismatches never triggered fallback. All three Hooks now probe upward from the payload cwd for the space root; a workspace is matched exactly when the cwd lies inside `space/<name>/` (parallel workspaces never interfere), and when the cwd is outside any workspace SessionStart/UserPromptSubmit fall back to the most recently active one with a confirmation prompt while PreToolUse leaves it blank and skips scanning; commands are assembled using the absolute paths in the injected text, and the two mode switches `TACK_HOOK_LOG`/`TACK_HOOK_ENFORCE` are unchanged

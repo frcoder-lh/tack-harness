@@ -3,7 +3,7 @@
 #
 # update 命令的固定流程脚本：定位本机 skill 安装目录 → 下载指定版本源码 →
 # 整体覆盖本机 skill 目录（先完整备份旧目录，再清空后复制
-# SKILL.md / README.md / README.en.md / CHANGELOG.md / CHANGELOG.en.md / contact.png / install.sh / tack/，旧版残留文件一并清除）→ 校验版本号。
+# SKILL.md / README.md / README.en.md / CHANGELOG.md / CHANGELOG.en.md / install.sh / tack/，旧版残留文件一并清除）→ 校验版本号。
 # 只有覆盖动作，不做版本对比（对比由 update 命令负责）。
 #
 # Usage:
@@ -177,7 +177,7 @@ case "$SKILL_ROOT" in
 esac
 rm -rf "$SKILL_ROOT"
 mkdir -p "$SKILL_ROOT"
-for item in SKILL.md README.md README.en.md CHANGELOG.md CHANGELOG.en.md contact.png install.sh tack; do
+for item in SKILL.md README.md README.en.md CHANGELOG.md CHANGELOG.en.md install.sh tack; do
     if [ -e "$SRC_ROOT/$item" ]; then
         cp -R "$SRC_ROOT/$item" "$SKILL_ROOT/$item"
     fi

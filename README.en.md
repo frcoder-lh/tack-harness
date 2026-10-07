@@ -428,7 +428,7 @@ New commands, new workflows, documentation fixes, and issue reports are all welc
 Welcome to join the TackHarness QQ group (group number **1128954501**) to discuss usage questions, hands-on experience, and improvement ideas:
 
 <p align="center">
-  <img src="contact.png" alt="TackHarness QQ group QR code, group number 1128954501" width="280">
+  <img src="https://raw.githubusercontent.com/frcoder-lh/tack-harness/master/contact.png" alt="TackHarness QQ group QR code, group number 1128954501" width="280">
 </p>
 
 Bug reports and feature requests can also go directly to [GitHub Issues](https://github.com/frcoder-lh/tack-harness/issues).

@@ -428,7 +428,7 @@ sh harness/script/lint-harness.sh          harness   # 结构自检：frontmatte
 欢迎加入 TackHarness QQ 交流群（群号 **1128954501**）交流使用问题、实践经验与改进想法：
 
 <p align="center">
-  <img src="contact.png" alt="TackHarness QQ 交流群二维码，群号 1128954501" width="280">
+  <img src="https://raw.githubusercontent.com/frcoder-lh/tack-harness/master/contact.png" alt="TackHarness QQ 交流群二维码，群号 1128954501" width="280">
 </p>
 
 问题反馈与功能建议也可以直接提 [GitHub Issues](https://github.com/frcoder-lh/tack-harness/issues)。

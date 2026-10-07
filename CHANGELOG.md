@@ -6,6 +6,10 @@
 - 中英两份文件同版本条目一一对应、同步维护；`release.sh` 发版时校验目标 tag 在两份文件中均有对应段落，任一缺失即中止
 - CI 创建 GitHub Release 时分别抽取两份文件的对应段落拼接为双语 Release body；`check-update.sh` 检查提醒与 `update` 命令展示「本次更新内容」均同时以两份文件为来源
 
+## V0.0.15 (未发布)
+
+- 优化: README 联系方式二维码改用 GitHub raw 绝对链接（`https://raw.githubusercontent.com/frcoder-lh/tack-harness/master/contact.png`），安装包、本机升级与空间初始化不再分发或物化 `contact.png`——物化到 `harness/` 的 README 在任意目录阅读均可直接显示图片；`contact.png` 源文件保留在仓库根供链接引用
+
 ## V0.0.14 (2026-10-07)
 
 - 优化: Hook 空间/工作区解析改为无状态的当次 cwd 实时判定，移除 SessionStart 经 ENV_FILE 写入的 `TACK_ROOT`/`TACK_WORK` 路径环境变量——会话级缓存在多项目窗口、同一空间多工作区并行时无法表达「当次调用归属哪个空间/工作区」，且缓存校验只验自身有效、不查与 cwd 的从属关系，错配时不会触发回退；现三个 Hook 一律从 payload cwd 向上探测空间根，工作区先按 cwd 是否位于 `space/<name>/` 内精确命中（多工作区并行互不串扰），cwd 在工作区外时 SessionStart/UserPromptSubmit 回退最近活跃并提示确认、PreToolUse 留空且不扫描；拼命令改用注入文本中的绝对路径，`TACK_HOOK_LOG`/`TACK_HOOK_ENFORCE` 两个模式开关不变
