@@ -6,7 +6,7 @@
 - 中英两份文件同版本条目一一对应、同步维护；`release.sh` 发版时校验目标 tag 在两份文件中均有对应段落，任一缺失即中止
 - CI 创建 GitHub Release 时分别抽取两份文件的对应段落拼接为双语 Release body；`check-update.sh` 检查提醒与 `update` 命令展示「本次更新内容」均同时以两份文件为来源
 
-## V0.0.15 (未发布)
+## V0.0.15 (2026-10-07)
 
 - 新增: 「非必要的反向描述不保留」升级为全仓库硬约束——tack/AGENTS.md 核心约束新增第 13 条，源仓库根 AGENTS.md 新增「文档与注释写作纪律」节：生成或修改任何 markdown 文件与代码注释时，事实被取消且无明确禁止意图即直接删除相关描述，不留「不再做 X」式反向描述、不追加否定补丁，否定表述只用于当下仍可能发生且必须阻止的真实禁令；evolution 的 cleanup 候选改为引用该硬约束，规则单一事实源
 - 优化: evolution 审查新增两项要求——① 新增 cleanup 候选：被取消的事实若无明确禁止意图，相关描述整段删除，不保留「不再做 X」式反向描述、不追加否定句补丁（删除前 grep 确认无真实消费者、删除后校验无悬空引用）；② sh 脚本审查从跨平台兼容升级为按 `harness/rule/coding-standards-shell.md` 全量编码规范审查，不符合项发现即当场修正（保持行为与退出码语义不变、改完必跑 `sh -n`），不再走候选确认，仅涉及行为/逻辑选择的修法降级为 script 候选
@@ -22,6 +22,7 @@
 - 优化: tack/AGENTS.md 核心约束第 7 条与第 11 条的 guidance 自动采集描述去重（第 7 条保留触发点、口径归第 11 条）；项目信息区块说明文字与 project.sh 内置模板同步
 - 修复: 6 个脚本的 POSIX 兼容性问题（scan-routes.sh、work-status.sh 的 awk FNR 判定与分支闭合、git-bug-trace.sh、repo.sh、work.sh、git-diff-context.sh），Git for Windows（GNU 工具）与 macOS（BSD 工具）下行为一致
 - 修复: 一批文档结构与悬空引用——study.md 三处失效的 `$root/SKILL.md` 引用、commit.md frontmatter 未闭合、development-workflow 环节映射表重编号（补「7 按需命令」行）、testcode.md 步骤交叉引用、tack/AGENTS.md 脚本清单漏列 git-fetch-helper、ask.md 残留的 progress.analysis 字段、context-loading.md 引用方数量；同步删除四处已失效的「跳过标记」反向描述
+- 优化: 全仓 24 个 shell 脚本的变量引用统一为 `"${VAR}"`（双引号加花括号），按 `harness/rule/coding-standards-shell.md` 保留刻意分词、命令位置变量、awk 字段引用等豁免项，全部脚本 `sh -n` 通过；源仓库取消「存量代码不批量追溯」条款，evolution 的 sh 脚本审查即修边界升级为同一脚本内存量不符合项一次性全量修正
 
 ## V0.0.14 (2026-10-07)
 
