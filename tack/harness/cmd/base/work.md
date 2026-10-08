@@ -34,27 +34,35 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
    - 动作: 结合 AGENTS.md 项目信息区块的 keywords、service_repo_mapping（`wiki/manifest.md` 存在时一并参考），给出 3 个左右可能的具体意图候选，每条一句话说明对应要解决的问题方向；用户可单选、组合多个候选或自行补充
    - 输入: 用户选定后固化为明确的目的描述；一次澄清仍不明确则继续追问，直到问题边界可判断
 
-3. **生成并确认分支名**（澄清意图之后才进行命名）
+3. **提取触发词（从目的描述分词）**
+   - 动作: 对上一步固化的目的描述做关键词提取，产出触发词列表（用于后续切换工作区时的模糊匹配）
+   - 分词规则:
+     - 中文：提取有意义的词/短语，去掉停用词（的/了/在/是/和/与/及等）；同时保留整体短语和核心词（如「用户登录功能」→ `用户登录,登录,用户`）
+     - 英文：按空格/标点分割转小写，去掉常见停用词（the/a/an/is/are/of/to/for 等）
+     - 中英文混合：分别处理后合并
+   - 边界: 触发词用于切换匹配，宁多勿漏但不堆砌单字；最终以逗号分隔字符串形式传入 work-add
+
+4. **生成并确认分支名**（澄清意图之后才进行命名）
    - 动作: 依据明确后的目的，生成 3 个英文 kebab-case 分支名候选
    - 输入: 用户选择候选或自行输入；展示最终名称并请用户确认
 
-4. **自动推断需要的服务**
+5. **自动推断需要的服务**
    - 输入: 工作区目的 + AGENTS.md 项目信息区块的 service_repo_mapping（主数据源，必然存在）
    - `wiki/manifest.md` 存在时一并读取，补充职责等上下文；不存在不影响推断（wiki 文件按需物化）
    - 动作: 根据目的关键词推断涉及的服务/仓库，列出推断结果由用户多选确认（可全部取消）
 
-5. **创建工作区**
+6. **创建工作区**
    - 动作: 执行
      `sh $root/harness/script/work.sh $root <branch> <已选仓库名...>`
      脚本自动取当天日期生成工作区目录 `space/<YYYYMMDD>-<branch>/` 扁平骨架（status.yaml、input.md、repo/），并为每个仓库创建 git worktree 到 `space/<YYYYMMDD>-<branch>/repo/<repo-name>`（worktree 检出分支仍为 `<branch>`）
-   - 解析输出: 脚本末尾输出结果行 `WORKSPACE=<工作区目录名>` 与 `BRANCH=<安全化分支名>`（工作区已存在时同样输出），第 6 步一律使用 `WORKSPACE` 值拼路径，不得自行按分支名猜目录
+   - 解析输出: 脚本末尾输出结果行 `WORKSPACE=<工作区目录名>` 与 `BRANCH=<安全化分支名>`（工作区已存在时同样输出），第 7 步一律使用 `WORKSPACE` 值拼路径，不得自行按分支名猜目录
 
-6. **登记并切换上下文**
+7. **登记并切换上下文**
    - 动作: 用上一步的 `WORKSPACE` 值执行
-     `sh $root/harness/script/project.sh work-add $root <branch> "<目的描述>" "$root/space/<WORKSPACE>" <branch> "<服务1,服务2>"`
-     在 AGENTS.md 项目信息区块追加 work 条目（work_id/branch 为分支名，work_path 为带日期前缀的实际目录）；为上下文赋值 `$work=$root/space/<WORKSPACE>`
+     `sh $root/harness/script/project.sh work-add $root <branch> "<目的描述>" "$root/space/<WORKSPACE>" <branch> "<服务1,服务2>" "<触发词1,触发词2>"`
+     在 AGENTS.md 项目信息区块追加 work 条目（work_id/branch 为分支名，work_path 为带日期前缀的实际目录，trigger_words 为第 3 步提取的触发词）；为上下文赋值 `$work=$root/space/<WORKSPACE>`
 
-7. **输出开场知识清单（roster，只列不读）**
+8. **输出开场知识清单（roster，只列不读）**
    - 动作: 上下文就绪后，给用户一份「一行一项」的知识清单，**不贴正文**，需要时再按路径读取：
      1. `$root/wiki/` 下已存在的页面（manifest / code-understanding / business-understanding / decisions，标注各自用途一句话）
      2. `$root/wiki/code-understanding.md`「工作区分析文档索引」中与本次已选仓库相关的分析文档（含基准 commit）；
@@ -93,8 +101,8 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 
 6. **登记并切换上下文**
    - 动作: 执行
-     `sh $root/harness/script/project.sh work-add $root <branch> "branch-op: <op> <A> → <B>" "$root/space/<WORKSPACE>" <branch> "<repo1,repo2>"`
-     并直接编辑 `$work/status.yaml`：`workflow` 改为 `branch-op`、`status` 置 `preparing`、`services` 写入选定仓库，且按 `harness/template/work-status.yaml` 的结构写入 `branch_op` 区块（每仓库的临时分支名与 pushed: false）
+     `sh $root/harness/script/project.sh work-add $root <branch> "branch-op: <op> <A> → <B>" "$root/space/<WORKSPACE>" <branch> "<repo1,repo2>" "<触发词1,触发词2>"`
+     触发词从 "branch-op: <op> <A> → <B>" 提取（如 `merge,rebase,branch-op,<A>,<B>`，op/A/B 取实际值）；并直接编辑 `$work/status.yaml`：`workflow` 改为 `branch-op`、`status` 置 `preparing`、`services` 写入选定仓库，且按 `harness/template/work-status.yaml` 的结构写入 `branch_op` 区块（每仓库的临时分支名与 pushed: false）
    - 为上下文赋值 `$work=$root/space/<WORKSPACE>`
 
 7. **跳过常规开场动作**
@@ -110,13 +118,20 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 ### 切换工作区
 
 1. 读取 AGENTS.md 项目信息区块的 work 列表（或扫描 `space/` 目录），高亮当前工作区
-2. 输入目标工作区；目标不存在时询问是否新建
+2. 对用户输入（去掉 `/tack` 前缀与首尾空白）按以下优先级多级匹配，命中唯一即进入第 3 步，命中多个进入第 4 步，均无命中进入第 5 步：
+   - **精确匹配**：输入等于某条目的 `work_id` 或 `branch` → 唯一命中
+   - **触发词精确匹配**：输入（或其分词）完整命中某条目的 `trigger_words` 之一 → 唯一命中
+   - **触发词子串匹配**：输入是某 `trigger_word` 的子串，或某 `trigger_word` 是输入的子串 → 收集候选
+   - **描述包含匹配**：输入关键词出现在某条目的 `description` 中 → 收集候选
+   - 降级规则：高优先级命中唯一时不降级；高优先级无命中或命中多个时才降到下一级
 3. 以目标 work 条目的 `work_path`（即 `$root/space/<YYYYMMDD>-<branch>`）为上下文赋值 `$work`，重新读取该工作区 status.yaml（不相信上下文里的旧内容）；不要凭分支名自行拼目录
-4. 按「新建工作区」第 7 步输出该工作区的开场知识清单（wiki 页面 + 相关分析文档新鲜度 + 冷仓库建议），只列不读
+4. **多候选选择**：以表格列出候选（work_id / 描述 / 触发词 / 状态），请用户选择；用户选中后，把本次输入的查询词（及其分词）通过 `work-trigger` 追加到选中工作区的 `trigger_words`（`sh $root/harness/script/project.sh work-trigger $root <work_id> "<词1,词2>"`，脚本自动去重并跳过等于 work_id/branch 的词），使下次相同输入直接命中；随后进入第 3 步
+5. **无命中**：询问是否新建工作区
+6. 按「新建工作区」第 8 步输出该工作区的开场知识清单（wiki 页面 + 相关分析文档新鲜度 + 冷仓库建议），只列不读
 
 ### 列出工作区
 
-1. 以表格展示全部工作区：work_id / 描述 / 状态 / 分支（可附工作区目录名），当前工作区标记「（当前）」；按工作区目录名排序即按创建时间排序
+1. 以表格展示全部工作区：work_id / 描述（含触发词，格式 `用户登录功能 [触发词: 登录, user login]`） / 状态 / 分支（可附工作区目录名），当前工作区标记「（当前）」；按工作区目录名排序即按创建时间排序
 2. 可接受用户序号或分支名输入，直接进入切换
 
 ## 框架自动提交（无需用户操作）

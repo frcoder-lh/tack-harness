@@ -16,10 +16,11 @@
 #   sh project.sh keywords      <root> <kw1,kw2,...> [--no-commit]                  # 覆盖写 project.keywords 列表
 #   sh project.sh service-repo  <root> <service_name> <repo_name> <repo_git> <repo_path> [--no-commit]
 #                                                                                   # 追加一条 project.service_repo_mapping（repo_git 可传空串）
-#   sh project.sh work-add      <root> <id> <description> <work_path> <branch> <svc1,svc2>
+#   sh project.sh work-add      <root> <id> <description> <work_path> <branch> <svc1,svc2> [triggers]
 #   sh project.sh work-set      <root> <id> <status>                                # 更新某工作条目状态
 #   sh project.sh work-services <root> <id> <svc1,svc2,...> [status.yaml] [--no-commit]
 #                                                                                   # 覆盖写某工作条目 services；给 status.yaml 时同步其顶层 services
+#   sh project.sh work-trigger  <root> <id> <kw1,kw2,...> [--no-commit]            # 追加触发词到 work 条目（去重、跳过等于 work_id/branch 的词）
 #
 # --no-commit: 跳过尾部空间仓库自动提交，供 init-tack / update 等复合流程统一收尾提交
 #
@@ -35,7 +36,7 @@ START_MARK='<!-- tack:info:start -->'
 END_MARK='<!-- tack:info:end -->'
 
 if [ -z "${ACTION}" ] || [ -z "${ROOT}" ]; then
-    echo "Usage: sh project.sh <ensure|set|skill-version|keywords|service-repo|work-add|work-set|work-services> <root> [args...]" >&2
+    echo "Usage: sh project.sh <ensure|set|skill-version|keywords|service-repo|work-add|work-set|work-services|work-trigger> <root> [args...]" >&2
     exit 1
 fi
 if [ ! -f "${AGENTS}" ]; then
@@ -215,8 +216,10 @@ cmd_skill_version() {
 
 # work-add: 追加工作条目
 cmd_work_add() {
-    ID="$3"; DESC="$4"; WPATH="$5"; BRANCH="$6"; SERVICES="${7:-}"
-    [ -n "${ID}" ] || { echo "Usage: project.sh work-add <root> <id> <description> <work_path> <branch> [services]" >&2; exit 1; }
+    ID="$3"; DESC="$4"; WPATH="$5"; BRANCH="$6"; SERVICES="${7:-}"; TRIGGERS="${8:-}"
+    # --no-commit 可落在第 8 位（未传 triggers 时），此时清空 triggers
+    [ "${TRIGGERS}" = "--no-commit" ] && TRIGGERS=""
+    [ -n "${ID}" ] || { echo "Usage: project.sh work-add <root> <id> <description> <work_path> <branch> [services] [triggers]" >&2; exit 1; }
     has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
 
     tmp_body="${AGENTS}.body.$$"
@@ -235,14 +238,16 @@ cmd_work_add() {
         rm -f "${tmp_body}"; exit 1
     fi
 
-    # services 逗号分隔 -> ["a", "b"]
+    # services / triggers 逗号分隔 -> ["a", "b"]
     SVC_LIST=$(csv_to_yaml "${SERVICES}")
+    TRIG_LIST=$(csv_to_yaml "${TRIGGERS}")
     CREATED_AT=$(date '+%Y-%m-%d %H:%M:%S')
 
     tmp_entry="${AGENTS}.entry.$$"
     cat > "${tmp_entry}" <<EOF
   - work_id: "$(esc "${ID}")"
     description: "$(esc "${DESC}")"
+    trigger_words: [$TRIG_LIST]
     work_path: "$(esc "${WPATH}")"
     branch: "$(esc "${BRANCH}")"
     services: [$SVC_LIST]
@@ -448,6 +453,81 @@ cmd_work_services() {
     echo "已更新工作服务列表: ${ID}"
 }
 
+# work-trigger: 追加触发词到指定 work 条目（去重，跳过等于 work_id/branch 的词）
+cmd_work_trigger() {
+    ID="$3"; KWS="$4"
+    # --no-commit 落在第 4 位（未传 kws 时），视为缺少 kws 参数
+    [ "${KWS}" = "--no-commit" ] && KWS=""
+    [ -n "${ID}" ] && [ -n "${KWS}" ] || { echo "Usage: project.sh work-trigger <root> <id> <kw1,kw2,...>" >&2; exit 1; }
+    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+
+    tmp_body="${AGENTS}.body.$$"
+    extract_body "${tmp_body}"
+
+    # 提取目标条目的现有 trigger_words 与 branch（用 sed 范围匹配，兼容有无 trigger_words 字段的条目）
+    WANT_ID="$(esc "${ID}")"
+    EXISTING=$(sed -n '/work_id: "'"${WANT_ID}"'"/,/work_id: *"/{ /trigger_words:/!d; s/.*trigger_words: *\[//; s/\].*//; s/"//g; p }' "${tmp_body}")
+    BR=$(sed -n '/work_id: "'"${WANT_ID}"'"/,/work_id: *"/{ /branch:/!d; s/.*branch: *"//; s/".*//; p }' "${tmp_body}")
+
+    # 验证 work_id 存在（EXISTING 和 BR 同时为空且无匹配 → 报错）
+    if [ -z "${BR}" ]; then
+        # 再确认一次条目是否存在（可能条目无 branch 字段，极少情况）
+        if ! awk -v id="$(esc "${ID}")" '
+            /^[[:space:]]*-[[:space:]]*work_id:/ {
+                line=$0; sub(/.*work_id:[[:space:]]*/,"",line)
+                gsub(/"/,"",line); gsub(/^[[:space:]]+|[[:space:]]+$/,"",line)
+                if (line==id) found=1
+            }
+            END { exit (found?0:1) }
+        ' "${tmp_body}"; then
+            echo "Error: 未找到 work_id '${ID}' 的条目" >&2
+            rm -f "${tmp_body}"; exit 1
+        fi
+    fi
+
+    # 合并现有词与新词，去重，跳过 work_id 与 branch
+    ALL="${EXISTING},${KWS}"
+    MERGED=$(printf '%s' "${ALL}" | awk -F',' -v id="$(esc "${ID}")" -v br="${BR}" '
+    {
+        for (i=1;i<=NF;i++) {
+            w=$i; gsub(/^[[:space:]]+|[[:space:]]+$/,"",w)
+            if (w=="" || w==id || w==br) continue
+            if (!(w in seen)) { seen[w]=1; if (first) printf ","; printf "%s", w; first=1 }
+        }
+    }')
+
+    MERGED_LIST=$(csv_to_yaml "${MERGED}")
+    tmp_new="${AGENTS}.new.$$"
+    awk -v want="$(esc "${ID}")" -v list="${MERGED_LIST}" '
+        BEGIN { inwork=0; cur=""; inserted=0 }
+        /^work:/ { inwork=1; print; next }
+        inwork==1 && /^[^[:space:]]/ { inwork=0 }
+        inwork==1 && $0 ~ /^[[:space:]]*-[[:space:]]*work_id:/ {
+            line=$0; sub(/.*work_id:[[:space:]]*/,"",line)
+            gsub(/"/,"",line); gsub(/^[[:space:]]+|[[:space:]]+$/,"",line)
+            cur=line
+            print; next
+        }
+        inwork==1 && cur==want && $0 ~ /^[[:space:]]+description:/ {
+            print
+            if (inserted==0) { print "    trigger_words: [" list "]"; inserted=1 }
+            next
+        }
+        inwork==1 && cur==want && $0 ~ /^[[:space:]]+trigger_words:/ {
+            if (inserted==0) { print "    trigger_words: [" list "]"; inserted=1 }
+            next
+        }
+        { print }
+        END { if (inserted==0) exit 3 }
+    ' "${tmp_body}" > "${tmp_new}" || {
+        echo "Error: 未找到 work_id '${ID}' 的条目" >&2
+        rm -f "${tmp_body}" "${tmp_new}"; exit 1
+    }
+    rewrite_block "${tmp_new}"
+    rm -f "${tmp_body}" "${tmp_new}"
+    echo "已更新工作触发词: ${ID}"
+}
+
 case "${ACTION}" in
     ensure)        cmd_ensure ;;
     set)           cmd_set "$@" ;;
@@ -457,7 +537,8 @@ case "${ACTION}" in
     work-add)      cmd_work_add "$@" ;;
     work-set)      cmd_work_set "$@" ;;
     work-services) cmd_work_services "$@" ;;
-    *) echo "Error: 未知动作 '${ACTION}'（支持 ensure / set / skill-version / keywords / service-repo / work-add / work-set / work-services）" >&2; exit 1 ;;
+    work-trigger)  cmd_work_trigger "$@" ;;
+    *) echo "Error: 未知动作 '${ACTION}'（支持 ensure / set / skill-version / keywords / service-repo / work-add / work-set / work-services / work-trigger）" >&2; exit 1 ;;
 esac
 
 # AGENTS.md 项目信息区块变更后，框架自动提交空间仓库（无变更时 space.sh 内部跳过）；
