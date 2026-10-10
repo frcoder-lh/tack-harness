@@ -21,6 +21,17 @@ workflow: "development"
 branch: "{{BRANCH}}"
 # 本工作区涉及的服务/仓库
 services: []
+# 工作区期间由框架创建的分支登记簿（统一记录所有新建分支，close 时据此清理）
+# 与 branch 字段（当前主分支名）和 branch_op 区块（branch-op 工作流细节）并存：
+#   branch 是单值快照，branches 是全量索引，branch_op 保留 branch-op 专用字段
+branches: []
+# 每条结构:
+#   - repo: ""           # 仓库名
+#     name: ""           # 分支名
+#     role: "main"       # main=工作区主分支 / tmp=临时分支（branch-op prepare 创建）
+#     source: "work"     # 创建来源: work / worktree / branch-op / rename
+#     merged: false      # close 清理前由脚本判定（git branch --merged <主干>）
+#     cleaned: false     # close 清理后置 true
 # MR / PR 地址（push 或平台合并后回填）
 mr_url: ""
 # 需求/工作项地址（如 Meego）

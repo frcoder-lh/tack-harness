@@ -73,12 +73,20 @@ fi
 
 # 3. 逐仓库创建 worktree
 WORKTREE_CREATED=0
+NEW_BRANCHES=""
 if [ -n "${REPO_NAMES}" ]; then
     for name in $REPO_NAMES; do
         if [ -d "repo/${name}" ] && git -C "repo/${name}" rev-parse --git-dir >/dev/null 2>&1; then
             echo "为仓库 '${name}' 创建 worktree（分支 ${SAFE_BRANCH}）..."
-            if sh "${SCRIPT_DIR}/git-worktree-helper.sh" create "${ROOT}" "${WORK_BASENAME}" "${SAFE_BRANCH}" "${name}"; then
+            helper_rc=0
+            helper_out="$(sh "${SCRIPT_DIR}/git-worktree-helper.sh" create "${ROOT}" "${WORK_BASENAME}" "${SAFE_BRANCH}" "${name}")" || helper_rc=$?
+            echo "${helper_out}"
+            if [ "${helper_rc}" -eq 0 ]; then
                 WORKTREE_CREATED=1
+                # 提取 BRANCH_CREATED=1（新建分支的仓库，供调用方登记到 branches）
+                if echo "${helper_out}" | grep -q "^BRANCH_CREATED=1$"; then
+                    if [ -n "${NEW_BRANCHES}" ]; then NEW_BRANCHES="${NEW_BRANCHES},${name}"; else NEW_BRANCHES="${name}"; fi
+                fi
             fi
         else
             echo "跳过（不是有效 git 仓库）: repo/${name}"
@@ -119,6 +127,7 @@ echo ""
 echo "工作区已就绪: ${BRANCH_DIR}"
 echo "WORKSPACE=${WORK_BASENAME}"
 echo "BRANCH=${SAFE_BRANCH}"
+echo "NEW_BRANCHES=${NEW_BRANCHES}"
 
 # 框架自动提交空间仓库（space/*/repo/ 已被 .gitignore 排除，只提交工作区文档）
 sh "${SCRIPT_DIR}/space.sh" commit "${ROOT}" "chore(tack): create workspace ${WORK_BASENAME}"

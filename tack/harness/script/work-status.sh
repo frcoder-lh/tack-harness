@@ -8,10 +8,18 @@
 #     progress.<名称>   progress 区块下的布尔开关（值 true/false）
 #     updated_at        顶层 updated_at（一般不显式传；每次执行自动刷新为当前时间）
 #
-# 用法: sh work-status.sh <status.yaml> guidance <id> <distilled|dismissed> [落点路径 ...]
+# 用法: sh work-status.sh <status.yaml> guidance <id> <distilled|dismissed> [落点路径 ..]
 #   - distilled: 置该条 status，并写/更新「落点:」行（须给 ≥1 个落点，相对 $root，空格分隔）
 #   - dismissed: 仅置该条 status（不接受落点参数）
 #   - 条目（guidance 区块内 - id: "<id>"）不存在时退出码 3
+#
+# 用法: sh work-status.sh <status.yaml> branch register <repo> <name> <role> <source>
+#   - 往 branches 列表追加一条（同 repo+name 已存在则跳过，退出码 0）
+#   - role: main（工作区主分支）/ tmp（临时分支）；source: work / worktree / branch-op / rename
+# 用法: sh work-status.sh <status.yaml> branch mark <repo> <name> cleaned
+#   - 置匹配条目的 cleaned: true（条目不存在时退出码 3）
+# 用法: sh work-status.sh <status.yaml> branch list
+#   - 输出 branches 列表，每行一条：repo|name|role|source|merged|cleaned（供 close 遍历）
 #
 # 行为:
 #   - 字段已存在则就地更新；缺失则插入对应区块头部（顶层缺失则追加到文件末尾）
@@ -30,7 +38,10 @@ set -e
 usage() {
   echo "work-status: 用法:" >&2
   echo "  sh work-status.sh <status.yaml> set <key> <value> [<key> <value> ...]" >&2
-  echo "  sh work-status.sh <status.yaml> guidance <id> <distilled|dismissed> [落点路径 ...]" >&2
+  echo "  sh work-status.sh <status.yaml> guidance <id> <distilled|dismissed> [落点路径 ..]" >&2
+  echo "  sh work-status.sh <status.yaml> branch register <repo> <name> <role> <source>" >&2
+  echo "  sh work-status.sh <status.yaml> branch mark <repo> <name> cleaned" >&2
+  echo "  sh work-status.sh <status.yaml> branch list" >&2
 }
 
 if [ $# -lt 3 ]; then
@@ -45,9 +56,9 @@ if [ ! -f "${FILE}" ]; then
   exit 1
 fi
 case "${SUBCMD}" in
-  set|guidance) ;;
+  set|guidance|branch) ;;
   *)
-    echo "work-status: 未知子命令: ${SUBCMD}（支持 set / guidance）" >&2
+    echo "work-status: 未知子命令: ${SUBCMD}（支持 set / guidance / branch）" >&2
     usage
     exit 2
     ;;
@@ -161,6 +172,182 @@ if [ "${SUBCMD}" = "guidance" ]; then
   fi
   mv "${TMP}" "${FILE}"
   exit 0
+fi
+
+# branch 子命令：branches 列表登记簿的 register / mark / list
+if [ "${SUBCMD}" = branch ]; then
+  BACT="${1:-}"
+  [ -n "${BACT}" ] || { echo "work-status: branch 缺少子动作（register|mark|list）" >&2; exit 2; }
+  shift
+  case "${BACT}" in
+    register)
+      [ $# -ge 4 ] || { echo "work-status: branch register 需要 <repo> <name> <role> <source>" >&2; exit 2; }
+      B_REP="$1"; B_NAM="$2"; B_ROL="$3"; B_SRC="$4"
+      set +e
+      awk -v REP="${B_REP}" -v NAM="${B_NAM}" -v ROL="${B_ROL}" -v SRC="${B_SRC}" -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" '
+        function vof(line,   v) {
+            v = line; sub(/^[^:]*:/, "", v)
+            sub(/^[[:space:]]+/, "", v); sub(/[[:space:]]+$/, "", v)
+            sub(/[[:space:]]*#.*$/, "", v)
+            gsub(/^"|"$/, "", v)
+            return v
+        }
+        function emit_new() {
+            print "  - repo: \"" REP "\""
+            print "    name: \"" NAM "\""
+            print "    role: \"" ROL "\""
+            print "    source: \"" SRC "\""
+            print "    merged: false"
+            print "    cleaned: false"
+        }
+        BEGIN { in_b=0; cur_repo=""; found=0 }
+        /^[A-Za-z_][A-Za-z0-9_]*:/ {
+            if (in_b && !found) { emit_new(); found=1 }
+            in_b=0
+            if ($0 ~ /^branches[[:space:]]*:[[:space:]]*\[\][[:space:]]*$/) {
+                print "branches:"
+                if (!found) { emit_new(); found=1 }
+                in_b=1
+                next
+            }
+            if ($0 ~ /^branches[[:space:]]*:[[:space:]]*$/) in_b=1
+            if ($0 ~ /^updated_at[[:space:]]*:/) { print "updated_at: \"" NOW "\""; next }
+            print
+            next
+        }
+        {
+            if (!in_b) { print; next }
+            if ($0 ~ /^[[:space:]]*-[[:space:]]*repo[[:space:]]*:/) {
+                cur_repo = vof($0)
+                print; next
+            }
+            if ($0 ~ /^[[:space:]]*name[[:space:]]*:/ && cur_repo != "") {
+                if (cur_repo == REP && vof($0) == NAM) found=1
+                print; next
+            }
+            print
+        }
+        END {
+            if (in_b && !found) emit_new()
+            if (found) exit 2
+        }
+      ' "${FILE}" > "${TMP}"
+      rc=$?
+      set -e
+      if [ "${rc}" -eq 2 ]; then
+        rm -f "${TMP}"
+        echo "work-status: branch 已存在，跳过: ${B_REP}/${B_NAM}"
+        exit 0
+      elif [ "${rc}" -ne 0 ]; then
+        rm -f "${TMP}"
+        echo "work-status: 写入失败" >&2
+        exit 1
+      fi
+      mv "${TMP}" "${FILE}"
+      echo "work-status: 已登记分支: ${B_REP}/${B_NAM}（${B_ROL}，${B_SRC}）"
+      exit 0
+      ;;
+    mark)
+      [ $# -ge 3 ] || { echo "work-status: branch mark 需要 <repo> <name> cleaned" >&2; exit 2; }
+      B_REP="$1"; B_NAM="$2"; B_FLAG="$3"
+      [ "${B_FLAG}" = cleaned ] || { echo "work-status: branch mark 仅支持 cleaned" >&2; exit 2; }
+      set +e
+      awk -v REP="${B_REP}" -v NAM="${B_NAM}" -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" '
+        function vof(line,   v) {
+            v = line; sub(/^[^:]*:/, "", v)
+            sub(/^[[:space:]]+/, "", v); sub(/[[:space:]]+$/, "", v)
+            sub(/[[:space:]]*#.*$/, "", v)
+            gsub(/^"|"$/, "", v)
+            return v
+        }
+        BEGIN { in_b=0; cur_repo=""; target=0; found=0; saw_cleaned=0 }
+        /^[A-Za-z_][A-Za-z0-9_]*:/ {
+            if (target && !saw_cleaned) print "    cleaned: true"
+            if (in_b) { target=0; saw_cleaned=0 }
+            in_b=0
+            if ($0 ~ /^branches[[:space:]]*:/) in_b=1
+            if ($0 ~ /^updated_at[[:space:]]*:/) { print "updated_at: \"" NOW "\""; next }
+            print
+            next
+        }
+        {
+            if (!in_b) { print; next }
+            if ($0 ~ /^[[:space:]]*-[[:space:]]*repo[[:space:]]*:/) {
+                if (target && !saw_cleaned) print "    cleaned: true"
+                cur_repo = vof($0); target=0; saw_cleaned=0
+                print; next
+            }
+            if ($0 ~ /^[[:space:]]*name[[:space:]]*:/ && cur_repo != "") {
+                if (cur_repo == REP && vof($0) == NAM) { target=1; found=1 }
+                print; next
+            }
+            if (target && $0 ~ /^[[:space:]]*cleaned[[:space:]]*:/) {
+                print "    cleaned: true"; saw_cleaned=1; next
+            }
+            print
+        }
+        END {
+            if (target && !saw_cleaned) print "    cleaned: true"
+            if (!found) exit 3
+        }
+      ' "${FILE}" > "${TMP}"
+      rc=$?
+      set -e
+      if [ "${rc}" -eq 3 ]; then
+        rm -f "${TMP}"
+        echo "work-status: branch 条目不存在: ${B_REP}/${B_NAM}" >&2
+        exit 3
+      elif [ "${rc}" -ne 0 ]; then
+        rm -f "${TMP}"
+        echo "work-status: 写入失败" >&2
+        exit 1
+      fi
+      mv "${TMP}" "${FILE}"
+      echo "work-status: 已标记 cleaned: ${B_REP}/${B_NAM}"
+      exit 0
+      ;;
+    list)
+      awk '
+        function vof(line,   v) {
+            v = line; sub(/^[^:]*:/, "", v)
+            sub(/^[[:space:]]+/, "", v); sub(/[[:space:]]+$/, "", v)
+            sub(/[[:space:]]*#.*$/, "", v)
+            gsub(/^"|"$/, "", v)
+            return v
+        }
+        BEGIN { in_b=0; cur_repo=""; cur_name=""; cur_role=""; cur_src=""; cur_mrg="false"; cur_cln="false"; has=0 }
+        /^[A-Za-z_][A-Za-z0-9_]*:/ {
+            if (in_b && cur_repo != "") { print cur_repo "|" cur_name "|" cur_role "|" cur_src "|" cur_mrg "|" cur_cln; cur_repo="" }
+            in_b=0
+            if ($0 ~ /^branches[[:space:]]*:/) in_b=1
+            next
+        }
+        {
+            if (!in_b) next
+            if ($0 ~ /^[[:space:]]*-[[:space:]]*repo[[:space:]]*:/) {
+                if (cur_repo != "") print cur_repo "|" cur_name "|" cur_role "|" cur_src "|" cur_mrg "|" cur_cln
+                cur_repo=vof($0); cur_name=""; cur_role=""; cur_src=""; cur_mrg="false"; cur_cln="false"; has=1
+                next
+            }
+            if (cur_repo != "") {
+                if ($0 ~ /^[[:space:]]*name[[:space:]]*:/) { cur_name=vof($0); next }
+                if ($0 ~ /^[[:space:]]*role[[:space:]]*:/) { cur_role=vof($0); next }
+                if ($0 ~ /^[[:space:]]*source[[:space:]]*:/) { cur_src=vof($0); next }
+                if ($0 ~ /^[[:space:]]*merged[[:space:]]*:/) { cur_mrg=vof($0); next }
+                if ($0 ~ /^[[:space:]]*cleaned[[:space:]]*:/) { cur_cln=vof($0); next }
+            }
+        }
+        END {
+            if (in_b && cur_repo != "") print cur_repo "|" cur_name "|" cur_role "|" cur_src "|" cur_mrg "|" cur_cln
+        }
+      ' "${FILE}"
+      exit 0
+      ;;
+    *)
+      echo "work-status: 未知 branch 子动作: ${BACT}（register|mark|list）" >&2
+      exit 2
+      ;;
+  esac
 fi
 
 if [ $# -lt 2 ] || [ $(( $# % 2 )) -ne 0 ]; then

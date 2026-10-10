@@ -55,12 +55,16 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
    - 动作: 执行
      `sh $root/harness/script/work.sh $root <branch> <已选仓库名...>`
      脚本自动取当天日期生成工作区目录 `space/<YYYYMMDD>-<branch>/` 扁平骨架（status.yaml、input.md、repo/），并为每个仓库创建 git worktree 到 `space/<YYYYMMDD>-<branch>/repo/<repo-name>`（worktree 检出分支仍为 `<branch>`）
-   - 解析输出: 脚本末尾输出结果行 `WORKSPACE=<工作区目录名>` 与 `BRANCH=<安全化分支名>`（工作区已存在时同样输出），第 7 步一律使用 `WORKSPACE` 值拼路径，不得自行按分支名猜目录
+   - 解析输出: 脚本末尾输出结果行 `WORKSPACE=<工作区目录名>`、`BRANCH=<安全化分支名>`、`NEW_BRANCHES=<逗号分隔的仓库名>`（worktree 新建主分支的仓库，已存在分支的仓库不在内；工作区已存在时为空），第 7 步一律使用 `WORKSPACE` 值拼路径，不得自行按分支名猜目录
 
 7. **登记并切换上下文**
    - 动作: 用上一步的 `WORKSPACE` 值执行
      `sh $root/harness/script/project.sh work-add $root <branch> "<目的描述>" "$root/space/<WORKSPACE>" <branch> "<服务1,服务2>" "<触发词1,触发词2>"`
-     在 AGENTS.md 项目信息区块追加 work 条目（work_id/branch 为分支名，work_path 为带日期前缀的实际目录，trigger_words 为第 3 步提取的触发词）；为上下文赋值 `$work=$root/space/<WORKSPACE>`
+     在 AGENTS.md 项目信息区块追加 work 条目（work_id/branch 为分支名，work_path 为带日期前缀的实际目录，trigger_words 为第 3 步提取的触发词）
+   - **登记新建分支**: 若第 6 步 `NEW_BRANCHES` 非空，对其中每个仓库名 `<rn>` 执行
+     `sh $root/harness/script/work-status.sh $work/status.yaml branch register <rn> <branch> main work`
+     把 worktree 新建的主分支登记到 status.yaml 的 branches 列表（close 时据此清理）
+   - 为上下文赋值 `$work=$root/space/<WORKSPACE>`
 
 8. **输出开场知识清单（roster，只列不读）**
    - 动作: 上下文就绪后，给用户一份「一行一项」的知识清单，**不贴正文**，需要时再按路径读取：
@@ -103,6 +107,10 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
    - 动作: 执行
      `sh $root/harness/script/project.sh work-add $root <branch> "branch-op: <op> <A> → <B>" "$root/space/<WORKSPACE>" <branch> "<repo1,repo2>" "<触发词1,触发词2>"`
      触发词从 "branch-op: <op> <A> → <B>" 提取（如 `merge,rebase,branch-op,<A>,<B>`，op/A/B 取实际值）；并直接编辑 `$work/status.yaml`：`workflow` 改为 `branch-op`、`status` 置 `preparing`、`services` 写入选定仓库，且按 `harness/template/work-status.yaml` 的结构写入 `branch_op` 区块（每仓库的临时分支名与 pushed: false）
+   - **登记临时分支**: 对每个涉及仓库执行
+     `sh $root/harness/script/work-status.sh $work/status.yaml branch register <repo> <source_tmp> tmp branch-op`
+     `sh $root/harness/script/work-status.sh $work/status.yaml branch register <repo> <target_tmp> tmp branch-op`
+     把两个临时分支登记到 branches 列表（与 branch_op 区块并存：branch_op 留 source/target/working/pushed 细节，branches 作统一索引供 close 遍历标记清理）
    - 为上下文赋值 `$work=$root/space/<WORKSPACE>`
 
 7. **跳过常规开场动作**
@@ -113,7 +121,7 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 1. 输入新的目的描述；描述宽泛时按「新建工作区」第 2 步先澄清意图，再生成并确认新分支名
 2. 重命名工作区目录：`space/<原日期>-<old>/` 改为 `space/<原日期>-<new>/`——**保留原创建日期前缀**（排序位置与创建事实不变），只替换分支名部分
 3. 遍历该工作区每个仓库，在 worktree 内执行 `git branch -m <old> <new>`
-4. 直接编辑 AGENTS.md 项目信息区块中该条目（work_id / work_path / branch）与 `$work/status.yaml`（work_id / work_dir / branch）；若重命名的是当前工作区，更新 `$work`
+4. 直接编辑 AGENTS.md 项目信息区块中该条目（work_id / work_path / branch）与 `$work/status.yaml`（work_id / work_dir / branch）；若重命名的是当前工作区，更新 `$work`；若 status.yaml 的 branches 列表中存在 `name: <old>` 的 main 条目，一并把 name 改为 `<new>`（重命名不增删条目，只更新 name）
 
 ### 切换工作区
 
@@ -145,7 +153,8 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 - [ ] 已选仓库在 `space/<YYYYMMDD>-<branch>/repo/` 下有可用 worktree（检出分支为 `<branch>`）
 - [ ] AGENTS.md 项目信息区块的 work 列表与磁盘一致
 - [ ] 常规建区：已输出开场知识清单（roster）——wiki 页面与相关分析文档（含新鲜度），冷仓库已建议 ask；未向上下文塞入 wiki 全文
-- [ ] branch-op：op/A/B 已解析且仓库经用户确认；prepare 成功，status.yaml 已置 `workflow: branch-op`、`status: preparing` 并写入 `branch_op` 区块（临时分支名齐全）
+- [ ] 常规建区：NEW_BRANCHES 中的仓库已登记到 status.yaml 的 branches 列表（role=main, source=work）
+- [ ] branch-op：op/A/B 已解析且仓库经用户确认；prepare 成功，status.yaml 已置 `workflow: branch-op`、`status: preparing` 并写入 `branch_op` 区块（临时分支名齐全），两个临时分支已登记到 branches 列表（role=tmp, source=branch-op）
 
 ## 下一步建议
 

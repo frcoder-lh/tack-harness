@@ -9,6 +9,11 @@
 #   sh git-worktree-helper.sh create <root-path> <workspace> <branch> <repo-name>
 #   sh git-worktree-helper.sh remove <root-path> <workspace> [repo-name]
 #   sh git-worktree-helper.sh list   <root-path>
+#   sh git-worktree-helper.sh branch-remove  <root-path> <repo-name> <branch> [force]
+#   sh git-worktree-helper.sh branch-merged  <root-path> <repo-name> <branch> <target>
+#
+# create 输出结果行 BRANCH_CREATED=0|1（0=分支已存在，1=新建分支），供调用方登记到 branches 列表
+# branch-remove：force 时 git branch -D，否则 git branch -d（仅删已合并分支，未合并退出码 2）
 
 set -e
 
@@ -49,14 +54,17 @@ case "${ACTION}" in
         # 而 MSYS shell 内是 /tmp 形式，字符串匹配会失效）
         if [ -d "${WORKTREE_PATH}" ]; then
             echo "Worktree already exists: ${WORKTREE_PATH}"
+            echo "BRANCH_CREATED=0"
         else
             echo "Creating worktree: ${BRANCH} -> ${WORKTREE_PATH}"
             mkdir -p "${ABS_ROOT}/space/${WORKSPACE}/repo"
             if git -C "${REPO_PATH}" worktree add "${WORKTREE_PATH}" "${BRANCH}" 2>/dev/null; then
                 echo "Worktree created successfully."
+                echo "BRANCH_CREATED=0"
             else
                 echo "Branch doesn't exist yet, creating new branch..."
                 git -C "${REPO_PATH}" worktree add -b "${BRANCH}" "${WORKTREE_PATH}"
+                echo "BRANCH_CREATED=1"
             fi
         fi
         ;;
@@ -117,9 +125,75 @@ case "${ACTION}" in
         done
         ;;
 
+    branch-remove|BranchRemove)
+        REPO_NAME="$3"
+        BRANCH="$4"
+        FORCE="${5:-}"
+        if [ -z "${REPO_NAME}" ] || [ -z "${BRANCH}" ]; then
+            echo "Error: <repo-name> and <branch> are required for branch-remove"
+            echo "Usage: $0 branch-remove <root-path> <repo-name> <branch> [force]"
+            exit 1
+        fi
+        REPO_PATH="repo/${REPO_NAME}"
+        if [ ! -d "${REPO_PATH}" ]; then
+            echo "Error: Repo not found at ${REPO_PATH}"
+            exit 1
+        fi
+        # 分支不存在则跳过（close 幂等清理，多次调用安全）
+        if ! git -C "${REPO_PATH}" show-ref --verify --quiet "refs/heads/${BRANCH}"; then
+            echo "Branch not found, skip: ${BRANCH}"
+            exit 0
+        fi
+        if [ "${FORCE}" = force ]; then
+            git -C "${REPO_PATH}" branch -D "${BRANCH}"
+            echo "Force removed branch: ${BRANCH}"
+        else
+            # -d 仅删已合并分支，未合并时 git 返回非 0；set -e 下 if 内命令失败不退出
+            if git -C "${REPO_PATH}" branch -d "${BRANCH}" 2>/dev/null; then
+                echo "Removed merged branch: ${BRANCH}"
+            else
+                echo "Branch not merged, keep: ${BRANCH}"
+                exit 2
+            fi
+        fi
+        ;;
+
+    branch-merged|BranchMerged)
+        REPO_NAME="$3"
+        BRANCH="$4"
+        TARGET="$5"
+        if [ -z "${REPO_NAME}" ] || [ -z "${BRANCH}" ] || [ -z "${TARGET}" ]; then
+            echo "Error: <repo-name> <branch> <target> are required for branch-merged"
+            echo "Usage: $0 branch-merged <root-path> <repo-name> <branch> <target>"
+            exit 1
+        fi
+        REPO_PATH="repo/${REPO_NAME}"
+        if [ ! -d "${REPO_PATH}" ]; then
+            echo "Error: Repo not found at ${REPO_PATH}"
+            exit 1
+        fi
+        # 分支已不存在视为可清理（输出 1）
+        if ! git -C "${REPO_PATH}" show-ref --verify --quiet "refs/heads/${BRANCH}"; then
+            echo "1"
+            exit 0
+        fi
+        # TARGET 不存在则保守视为未合并（输出 0）
+        if ! git -C "${REPO_PATH}" rev-parse --verify -q "${TARGET}" >/dev/null 2>&1; then
+            echo "0"
+            exit 0
+        fi
+        # BRANCH 相对 TARGET 的独有提交数；0 表示 BRANCH 的提交都在 TARGET 中（已合并）
+        ahead=$(git -C "${REPO_PATH}" rev-list --count "${TARGET}..${BRANCH}" 2>/dev/null || echo "?")
+        if [ "${ahead}" = "0" ]; then
+            echo "1"
+        else
+            echo "0"
+        fi
+        ;;
+
     *)
         echo "Error: Unknown action '${ACTION}'"
-        echo "Valid actions: create, remove, list"
+        echo "Valid actions: create, remove, list, branch-remove, branch-merged"
         exit 1
         ;;
 esac
