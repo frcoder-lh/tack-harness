@@ -30,8 +30,7 @@ branches: []
 #     name: ""           # 分支名
 #     role: "main"       # main=工作区主分支 / tmp=临时分支（branch-op prepare 创建）
 #     source: "work"     # 创建来源: work / worktree / branch-op / rename
-#     merged: false      # close 清理前由脚本判定（git branch --merged <主干>）
-#     cleaned: false     # close 清理后置 true
+#     cleaned: false     # close 删除分支后置 true（合并状态由 close 实时 git 判定，不落字段）
 # MR / PR 地址（push 或平台合并后回填）
 mr_url: ""
 # 需求/工作项地址（如 Meego）

@@ -19,7 +19,7 @@
 # 用法: sh work-status.sh <status.yaml> branch mark <repo> <name> cleaned
 #   - 置匹配条目的 cleaned: true（条目不存在时退出码 3）
 # 用法: sh work-status.sh <status.yaml> branch list
-#   - 输出 branches 列表，每行一条：repo|name|role|source|merged|cleaned（供 close 遍历）
+#   - 输出 branches 列表，每行一条：repo|name|role|source|cleaned（供 close 遍历）
 #
 # 行为:
 #   - 字段已存在则就地更新；缺失则插入对应区块头部（顶层缺失则追加到文件末尾）
@@ -197,16 +197,15 @@ if [ "${SUBCMD}" = branch ]; then
             print "    name: \"" NAM "\""
             print "    role: \"" ROL "\""
             print "    source: \"" SRC "\""
-            print "    merged: false"
             print "    cleaned: false"
         }
-        BEGIN { in_b=0; cur_repo=""; found=0 }
+        BEGIN { in_b=0; cur_repo=""; dup=0; emitted=0 }
         /^[A-Za-z_][A-Za-z0-9_]*:/ {
-            if (in_b && !found) { emit_new(); found=1 }
+            if (in_b && !emitted && !dup) { emit_new(); emitted=1 }
             in_b=0
             if ($0 ~ /^branches[[:space:]]*:[[:space:]]*\[\][[:space:]]*$/) {
                 print "branches:"
-                if (!found) { emit_new(); found=1 }
+                emit_new(); emitted=1
                 in_b=1
                 next
             }
@@ -222,14 +221,14 @@ if [ "${SUBCMD}" = branch ]; then
                 print; next
             }
             if ($0 ~ /^[[:space:]]*name[[:space:]]*:/ && cur_repo != "") {
-                if (cur_repo == REP && vof($0) == NAM) found=1
+                if (cur_repo == REP && vof($0) == NAM) dup=1
                 print; next
             }
             print
         }
         END {
-            if (in_b && !found) emit_new()
-            if (found) exit 2
+            if (in_b && !emitted && !dup) emit_new()
+            if (dup) exit 2
         }
       ' "${FILE}" > "${TMP}"
       rc=$?
@@ -315,9 +314,9 @@ if [ "${SUBCMD}" = branch ]; then
             gsub(/^"|"$/, "", v)
             return v
         }
-        BEGIN { in_b=0; cur_repo=""; cur_name=""; cur_role=""; cur_src=""; cur_mrg="false"; cur_cln="false"; has=0 }
+        BEGIN { in_b=0; cur_repo=""; cur_name=""; cur_role=""; cur_src=""; cur_cln="false" }
         /^[A-Za-z_][A-Za-z0-9_]*:/ {
-            if (in_b && cur_repo != "") { print cur_repo "|" cur_name "|" cur_role "|" cur_src "|" cur_mrg "|" cur_cln; cur_repo="" }
+            if (in_b && cur_repo != "") { print cur_repo "|" cur_name "|" cur_role "|" cur_src "|" cur_cln; cur_repo="" }
             in_b=0
             if ($0 ~ /^branches[[:space:]]*:/) in_b=1
             next
@@ -325,20 +324,19 @@ if [ "${SUBCMD}" = branch ]; then
         {
             if (!in_b) next
             if ($0 ~ /^[[:space:]]*-[[:space:]]*repo[[:space:]]*:/) {
-                if (cur_repo != "") print cur_repo "|" cur_name "|" cur_role "|" cur_src "|" cur_mrg "|" cur_cln
-                cur_repo=vof($0); cur_name=""; cur_role=""; cur_src=""; cur_mrg="false"; cur_cln="false"; has=1
+                if (cur_repo != "") print cur_repo "|" cur_name "|" cur_role "|" cur_src "|" cur_cln
+                cur_repo=vof($0); cur_name=""; cur_role=""; cur_src=""; cur_cln="false"
                 next
             }
             if (cur_repo != "") {
                 if ($0 ~ /^[[:space:]]*name[[:space:]]*:/) { cur_name=vof($0); next }
                 if ($0 ~ /^[[:space:]]*role[[:space:]]*:/) { cur_role=vof($0); next }
                 if ($0 ~ /^[[:space:]]*source[[:space:]]*:/) { cur_src=vof($0); next }
-                if ($0 ~ /^[[:space:]]*merged[[:space:]]*:/) { cur_mrg=vof($0); next }
                 if ($0 ~ /^[[:space:]]*cleaned[[:space:]]*:/) { cur_cln=vof($0); next }
             }
         }
         END {
-            if (in_b && cur_repo != "") print cur_repo "|" cur_name "|" cur_role "|" cur_src "|" cur_mrg "|" cur_cln
+            if (in_b && cur_repo != "") print cur_repo "|" cur_name "|" cur_role "|" cur_src "|" cur_cln
         }
       ' "${FILE}"
       exit 0

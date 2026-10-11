@@ -65,7 +65,7 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
      `sh $root/harness/script/branch-op.sh cleanup $root space/<workspace> <repo> <source_tmp> <target_tmp>`（`<workspace>` 取 `basename "$work"`）
      一次性移除工作 worktree 并删除 `A-ts`、`B-ts` 两个临时分支；worktree 存在未提交改动时脚本停止，报告事实并经用户确认后追加 `force` 参数；成功后在 `branch_op` 区块置 `cleaned: true`，并对 branches 列表中两条 tmp 条目执行 `sh $root/harness/script/work-status.sh $work/status.yaml branch mark <repo> <tmp分支名> cleaned`
    - **其他工作流**：先执行 `sh $root/harness/script/git-worktree-helper.sh remove $root <workspace>`（`<workspace>` 取 `basename "$work"`），移除各仓库在 `$work/repo/` 下的 worktree；随后遍历 status.yaml 的 branches 列表逐条清理已登记分支：
-     - 读取: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml branch list` 输出每条 `repo|name|role|source|merged|cleaned`，仅处理 `cleaned=false` 的条目
+     - 读取: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml branch list` 输出每条 `repo|name|role|source|cleaned`，仅处理 `cleaned=false` 的条目
      - **role=tmp**（临时分支，已废弃）：执行 `sh $root/harness/script/git-worktree-helper.sh branch-remove $root <repo> <name> force` 直接删除
      - **role=main**（工作区主分支）：
        - 判定合并状态: 执行 `sh $root/harness/script/git-worktree-helper.sh branch-merged $root <repo> <name> <主干>`（主干默认 master/main，按仓库实际确认），或 status.yaml 的 `progress.merged` 为 true 视为已合并
