@@ -99,7 +99,7 @@ section{position:relative}
 
 /* ---------- hero ---------- */
 .hero{padding:68px 0 76px;overflow:hidden}
-.hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:56px;align-items:center}
 .hero .tag{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:13px;letter-spacing:.12em;text-transform:uppercase;
   color:var(--accent);margin-bottom:22px}
 .hero .tag .dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
@@ -114,6 +114,7 @@ section{position:relative}
 .hero-install .copy-btn{position:static;width:30px;height:30px;border-color:rgba(242,243,239,.25);color:#f2f3ef;background:transparent;flex:none}
 .hero-cta{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:30px}
 .hero-meta{display:flex;gap:30px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:22px}
+.hero-meta .m{flex:0 0 auto;min-width:0}
 .hero-meta .m .n{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--text)}
 .hero-meta .m .l{font-size:13px;color:var(--text-3);margin-top:2px}
 
@@ -293,7 +294,7 @@ html:lang(en) .cta h2{font-size:clamp(23px,3.1vw,30px)}
 
 /* ---------- responsive ---------- */
 @media (max-width:960px){
-  .hero-grid{grid-template-columns:1fr;gap:40px}
+  .hero-grid{grid-template-columns:minmax(0,1fr);gap:40px}
   .hero{padding:60px 0 56px}
   .prin-grid{grid-template-columns:repeat(2,1fr)}
   .prin:nth-child(5){grid-column:span 2}
@@ -317,6 +318,10 @@ html:lang(en) .cta h2{font-size:clamp(23px,3.1vw,30px)}
   .prin:nth-child(5){grid-column:auto}
   .term-body{font-size:12.5px;min-height:260px}
   .hero-meta{gap:20px}
+  .hero-install{flex-wrap:wrap;padding:10px 12px 10px 14px}
+  .hero-install code{white-space:normal;word-break:break-all;line-height:1.5;padding:1px 0}
+  .hero-install .hi-gt{align-self:flex-start;margin-top:2px}
+  .hero-install .copy-btn{align-self:flex-start}
 }
 @media (prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important}
