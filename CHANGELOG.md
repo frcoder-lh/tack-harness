@@ -6,6 +6,14 @@
 - 中英两份文件同版本条目一一对应、同步维护；`release.sh` 发版时校验目标 tag 在两份文件中均有对应段落，任一缺失即中止
 - CI 创建 GitHub Release 时分别抽取两份文件的对应段落拼接为双语 Release body；`check-update.sh` 检查提醒与 `update` 命令展示「本次更新内容」均同时以两份文件为来源
 
+## V0.0.16 (2026-10-11)
+
+- 新增: 工作区分支登记簿与关闭时统一清理——`status.yaml` 新增 `branches` 列表（repo/name/role[main|tmp]/source/cleaned），work 新建工作区、worktree 补建、branch-op prepare 产生的分支全部自动登记（`work.sh` 新增 `NEW_BRANCHES` 结果行、`git-worktree-helper.sh create` 输出 `BRANCH_CREATED`，登记经 `work-status.sh branch register` 脚本化）；close 移除 worktree 后遍历登记簿清理：tmp 分支直接删除，main 分支先经 `branch-merged` 实时判定合并状态（不落字段），已合并用 `-d` 安全删除、未合并列出由用户选择 force 删除或保留，每条删除后 `branch mark ... cleaned`；用户手工创建、未登记的分支不自动删除
+- 新增: 工作区触发词（trigger_words）机制——AGENTS.md 项目信息区块 work 条目新增 `trigger_words` 字段，创建工作区时自动从目的描述分词提取（中文去停用词、保留短语与核心词；英文小写去停用词），`project.sh` 新增 `work-trigger` 子命令（自动去重、跳过与 work_id/branch 相同的词）；切换工作区改为四级匹配：work_id/branch 精确 → 触发词精确 → 触发词子串 → 描述包含，多候选选中后把查询词追加为触发词形成正反馈，工作区列表展示触发词
+- 新增: 项目主页（GitHub Pages）上线——仓库根新增 `index.html` 中英双语产品落地页（首屏字体预加载、导航交互、移动端首屏适配、站点图标）；中英 README 标题链接由 GitHub 仓库页改指 `https://frcoder-lh.github.io/tack-harness/`
+- 优化: testcode 核心原则新增第 4 条——改动已有断言前先回 spec/plan 反向核对，先判定「单测过时」还是「代码实现有问题」，需求不清晰时询问用户，不自行改断言去适配代码
+- 修复: branches 登记簿 `register` 在空列表首次登记时误判为重复而跳过（awk 单一 found 标志同时承担去重命中与已追加两种语义，拆为 dup/emitted 双标志），隔离临时仓库 E2E 16 项断言通过
+
 ## V0.0.15 (2026-10-07)
 
 - 新增: 「非必要的反向描述不保留」升级为全仓库硬约束——tack/AGENTS.md 核心约束新增第 13 条，源仓库根 AGENTS.md 新增「文档与注释写作纪律」节：生成或修改任何 markdown 文件与代码注释时，事实被取消且无明确禁止意图即直接删除相关描述，不留「不再做 X」式反向描述、不追加否定补丁，否定表述只用于当下仍可能发生且必须阻止的真实禁令；evolution 的 cleanup 候选改为引用该硬约束，规则单一事实源

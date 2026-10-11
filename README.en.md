@@ -1,4 +1,4 @@
-# [Tack Harness](https://github.com/frcoder-lh/tack-harness)
+# [Tack Harness](https://frcoder-lh.github.io/tack-harness/)
 
 **Minimal & restrained · Human-readable · Fully configurable** — A programming workflow framework built for software R&D
 
@@ -211,7 +211,7 @@ Code changes are allowed only inside the worktree at `space/20261001-user-login/
 /tack commit        # Auto-generates a Conventional Commits message and commits directly (no second confirmation)
 /tack push          # Pushes; if no remote is associated, guides you to associate one first
 /tack merge         # Delegates to a reviewer (three perspectives in parallel); the conclusion is one of three: fix / record as follow-up / keep as-is; prefers raising an MR/PR on the platform; on conflicts, /tack solve guides file-by-file resolution
-/tack close         # Delivery check → delivery summary → distill wiki (incl. technical decisions) → consume guidance for self-evolution → remove worktree → mark completed
+/tack close         # Delivery check → delivery summary → distill wiki (incl. technical decisions) → consume guidance for self-evolution → remove worktree and clean up registered branches → mark completed
 ```
 
 ### 4.6 Experience distillation and reuse
@@ -312,7 +312,7 @@ All commands support Chinese and English triggers plus short forms, in the forma
 | `run` | rn | execute / run script /run | On demand, not mandatory: initializes when `run/` is absent (`run.md` + `local/`), executes per checklist when `run.md` exists; sensitive data lands in `run/local/` (gitignored) |
 | `code-review` | rv | code review / review report /code-review | On demand: using plan/tech-design as the spec and the target-branch three-dot diff as facts, analyzes changes function by function for correctness and hazards, assesses affected interfaces and scenarios, and produces `$work/code-review.md` |
 | `release-check` | rc | release check / go-live check /release-check | On demand: identifies database changes (with migration statements), config changes (with templates), new API calls (permission requests), and new middleware (resource requests), producing `$work/release-check.md` |
-| `close` | cl | close workspace / finish /close | Delivery check and summary, distills wiki (incl. technical decisions), consumes guidance to crystallize the harness and verifies landing points, removes worktrees, and finalizes status |
+| `close` | cl | close workspace / finish /close | Delivery check and summary, distills wiki (incl. technical decisions), consumes guidance to crystallize the harness and verifies landing points, removes worktrees and cleans up branches per the `branches` register (tmp deleted directly; main branches checked for merged status first, unmerged ones need user confirmation), and finalizes status |
 
 ### 7.3 Git commands (cmd/git/)
 

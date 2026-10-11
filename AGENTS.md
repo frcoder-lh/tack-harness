@@ -24,7 +24,11 @@
    - `tack/harness/workflow/*.md` → README「工作流模型」表
    - `CHANGELOG.md` 本版本段落 → 够格的新能力补入「核心特性」表
    - 原则：只融入已落地的新增/变更能力，不重写既有条目、不动章节结构
-6. **面向人类读者的文档中英双语同步**：`README.md`↔`README.en.md`、`CHANGELOG.md`↔`CHANGELOG.en.md` 同版本条目一一对应、同一提交内同步落库，禁止只改一种语言；发版前 `release.sh` 校验两份 CHANGELOG 均含目标 tag 段落（任一缺失即中止），CI 抽取双份段落拼接双语 Release body，`check-update.sh`/`update` 双语展示更新内容；新增/变更命令与工作流的英文触发词须同步写入两份 README 的命令/工作流表；安装（install.sh）、升级（skill-update.sh）分发清单必须同时包含两份 README 与两份 CHANGELOG
+6. **CHANGELOG 条目随发版生成（AI 职责，非脚本）**：`release.sh` 只校验目标版本段落齐备、不代写内容，段落按固定方法产出——
+   - 先读 `CHANGELOG.md` 顶部，确认目标版本段落是否已存在：已存在则在原文上增补校对，不存在则新建
+   - 取上个 tag 至今的提交记录（`git log <latest_tag>..HEAD`），并纳入尚未提交的工作区改动（`git status` / `git diff`）——变更区间以上个 tag 为界，不以是否已推送为界
+   - 结合两者提炼面向用户的功能点，按 新增/优化/修复 标注，不堆 commit；中英双语落库与发版校验按第 7 条执行
+7. **面向人类读者的文档中英双语同步**：`README.md`↔`README.en.md`、`CHANGELOG.md`↔`CHANGELOG.en.md` 同版本条目一一对应、同一提交内同步落库，禁止只改一种语言；发版前 `release.sh` 校验两份 CHANGELOG 均含目标 tag 段落（任一缺失即中止），CI 抽取双份段落拼接双语 Release body，`check-update.sh`/`update` 双语展示更新内容；新增/变更命令与工作流的英文触发词须同步写入两份 README 的命令/工作流表；安装（install.sh）、升级（skill-update.sh）分发清单必须同时包含两份 README 与两份 CHANGELOG
 
 ## POSIX sh 脚本规范
 

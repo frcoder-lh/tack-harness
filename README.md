@@ -1,4 +1,4 @@
-# [Tack Harness](https://github.com/frcoder-lh/tack-harness)
+# [Tack Harness](https://frcoder-lh.github.io/tack-harness/)
 
 **精简克制・人类可读・任意配置** — 专为软件研发打造的编程工作流框架
 
@@ -211,7 +211,7 @@ my-project/
 /tack commit        # 自动生成 Conventional Commits 提交信息后直接提交（无需二次确认）
 /tack push          # 推送，未关联远端时先引导关联
 /tack merge         # 委派 reviewer 审查（三视角并行），审查结论三选一：修复/记录后续/维持现状；优先平台发起 MR/PR，冲突时 /tack solve 逐文件引导解决
-/tack close         # 交付检查 → 输出交付摘要 → 提炼 wiki（含技术决策）→ 消费 guidance 自进化固化 → 移除 worktree → 状态置 completed
+/tack close         # 交付检查 → 输出交付摘要 → 提炼 wiki（含技术决策）→ 消费 guidance 自进化固化 → 移除 worktree、按登记簿清理分支 → 状态置 completed
 ```
 
 ### 4.6 经验沉淀与复用
@@ -312,7 +312,7 @@ flowchart LR
 | `run` | rn | 运行 / 执行 / 跑脚本 / execute / run script /run | 按需触发，非必经：无 `run/` 时初始化（`run.md` + `local/`），有 `run.md` 时按清单执行；敏感数据落 `run/local/`（gitignored） |
 | `code-review` | rv | 代码审查 / 审查报告 / code review / review report /code-review | 按需触发：以 plan/tech-design 为规范、目标分支三点 diff 为事实，逐函数分析改动、正确性与危害，评估影响接口与场景，产出 `$work/code-review.md` |
 | `release-check` | rc | 上线检查 / 发布检查 / release check / go-live check /release-check | 按需触发：识别数据库变更（含变更语句）、配置变更（含模板）、新增接口调用（权限申请）、新增中间件（申请配置），产出 `$work/release-check.md` |
-| `close` | cl | 关闭工作区 / close workspace / finish /close | 交付检查与摘要、提炼 wiki（含技术决策）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、状态收尾 |
+| `close` | cl | 关闭工作区 / close workspace / finish /close | 交付检查与摘要、提炼 wiki（含技术决策）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、按 `branches` 登记簿清理分支（tmp 直接删、main 先判合并状态，未合并需用户确认）、状态收尾 |
 
 ### 7.3 Git 命令（cmd/git/）
 
