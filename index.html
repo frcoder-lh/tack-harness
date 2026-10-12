@@ -14,9 +14,27 @@
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Tack Harness · Minimal & restrained programming workflow framework">
 <meta name="twitter:description" content="精简克制・人类可读・任意配置 — 专为软件研发打造的编程工作流框架。">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Tack Harness",
+  "operatingSystem": "All",
+  "applicationCategory": "DeveloperApplication",
+  "description": "Tack Harness — 精简克制・人类可读・任意配置 / Minimal & restrained · Human-readable · Fully configurable. A programming workflow framework built for software R&D.",
+  "url": "https://github.com/frcoder-lh/tack-harness",
+  "license": "https://opensource.org/licenses/MIT"
+}
+</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='1.5' y='1.5' width='21' height='21' rx='5.5' fill='%23b8862b'/%3E%3Crect x='11.3' y='14.3' width='1.4' height='6.7' rx='0.7' fill='%2314213d'/%3E%3Ccircle cx='12' cy='9.8' r='4.8' fill='%2314213d'/%3E%3Ccircle cx='13.7' cy='8.2' r='1.4' fill='%23c99a3f'/%3E%3C/svg%3E">
-<link rel="preconnect" href="https://miaoda.feishu.cn">
-<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Sans+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<!-- 开源可商用字体（SIL OFL）：Noto Sans SC / JetBrains Mono，经 Fontsource 走公开稳定 CDN（jsDelivr）；onerror 兜底触发淡入 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-sc@5.1.1/400.css" onerror="window.__fontFail&&window.__fontFail()">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-sc@5.1.1/500.css" onerror="window.__fontFail&&window.__fontFail()">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-sc@5.1.1/600.css" onerror="window.__fontFail&&window.__fontFail()">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.1.2/400.css" onerror="window.__fontFail&&window.__fontFail()">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.1.2/500.css" onerror="window.__fontFail&&window.__fontFail()">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.1.2/600.css" onerror="window.__fontFail&&window.__fontFail()">
 <script src="https://cdn.jsdelivr.net/gh/frcoder-lh/js/analytics/frcoder.js" async></script>
 <style>
 :root{
@@ -214,7 +232,6 @@ section{position:relative}
   border:1px solid rgba(184,134,43,.22);width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex:none}
 .inst .rec{font-family:var(--mono);font-size:10.5px;color:#14213d;background:var(--accent);padding:2px 7px;border-radius:5px;font-weight:600}
 .inst p{font-size:13.5px;color:var(--text-2);margin-bottom:16px;line-height:1.7}
-.inst p.hint{font-size:12.5px;color:var(--text-3);margin-top:12px;margin-bottom:0}
 .code-block{position:relative;border:1px solid var(--line);border-radius:10px;background:#ffffff;overflow:hidden;margin-top:auto;min-width:0}
 .code-block pre{margin:0;padding:16px 50px 16px 16px;font-family:var(--mono);font-size:12.8px;line-height:1.75;
   color:var(--text);overflow-x:auto;white-space:pre;min-width:0}
@@ -290,6 +307,7 @@ section[id]{scroll-margin-top:86px}
 /* ---------- 英文标题字号微调 ---------- */
 html:lang(en) .hero h1{font-size:clamp(26px,3.6vw,44px)}
 html:lang(en) .hero h1 br{display:none}
+html:lang(en) .hero-meta{gap:20px}
 html:lang(en) .h2{font-size:clamp(23px,3.1vw,31px)}
 html:lang(en) .cta h2{font-size:clamp(23px,3.1vw,30px)}
 
@@ -310,6 +328,9 @@ html:lang(en) .cta h2{font-size:clamp(23px,3.1vw,30px)}
   .nav-in{gap:14px}
   .nav-cta{gap:8px}
   .nav-links{display:none}
+  .nav-links.open{display:flex;flex-direction:column;position:absolute;top:66px;left:0;right:0;
+    background:rgba(250,250,247,.98);padding:14px 24px 18px;border-bottom:1px solid var(--line);
+    box-shadow:0 18px 40px rgba(20,33,61,.12);gap:16px}
   .menu-toggle{display:flex}
   .nav-cta .btn-ghost{display:none}
   .nav-cta .btn-accent{display:none}
@@ -331,7 +352,7 @@ html:lang(en) .cta h2{font-size:clamp(23px,3.1vw,30px)}
 }
 
 </style>
-<script>(function(){try{if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){document.documentElement.classList.add('fonts-loading');}}catch(e){document.documentElement.classList.add('fonts-loading');}})();</script>
+<script>window.__fontFail=function(){var h=document.documentElement;h.classList.remove('fonts-loading');h.classList.add('fonts-ready');};(function(){try{if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){document.documentElement.classList.add('fonts-loading');}}catch(e){document.documentElement.classList.add('fonts-loading');}})();</script>
 </head>
 <body>
 <div class="bg-tex"></div>
@@ -616,10 +637,10 @@ Install this skill: https://github.com/frcoder-lh/tack-harness</pre>
       <div class="inst reveal">
         <div class="h3"><span class="n">2</span><span data-i18n="i2.t">一键安装脚本</span></div>
         <p data-i18n="i2.d">通过 curl 管道直接执行安装脚本，适用于快速接入任意环境。</p>
-        <div class="code-block"><pre>curl -fsSL https://raw.githubusercontent.com/frcoder-lh/tack-harness/master/install.sh | sh -s</pre>
+        <div class="code-block"><pre><span class="c" data-i18n="i2.c"># Windows Git Bash 若报 CRYPT_E_NO_REVOCATION_CHECK，加 --ssl-no-revoke</span>
+curl -fsSL https://raw.githubusercontent.com/frcoder-lh/tack-harness/master/install.sh | sh -s</pre>
           <button class="copy-btn" data-copy="curl -fsSL https://raw.githubusercontent.com/frcoder-lh/tack-harness/master/install.sh | sh -s" aria-label="Copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
         </div>
-        <p class="hint" data-i18n="i2.hint">Windows Git Bash 下若报 CRYPT_E_NO_REVOCATION_CHECK，在 curl 后加 --ssl-no-revoke 即可。</p>
       </div>
       <div class="inst reveal">
         <div class="h3"><span class="n">3</span><span data-i18n="i3.t">克隆后安装</span></div>
@@ -793,13 +814,10 @@ var I18N = {
     "cmdnote.base":"// 空间命令：初始化、建仓、路由、自进化，围绕「工作区」组织。",
     "cmdnote.dev":"// 需求命令：分析 → 规划 → 设计 → 编码 → 审查 → 上线，构成开发主链路。",
     "cmdnote.git":"// Git 命令：遵循「Git 双层边界」，用户 Git 操作仅作用于工作区代码仓库。",
-    "cmdrows.base":"<tr><td class='cmd'>init</td><td class='short'>i</td><td class='what'>提炼项目信息写入 AGENTS.md，扫描软链或克隆仓库</td><td class='trig'>初始化 / 接入仓库 / initialize</td></tr><tr><td class='cmd'>work</td><td class='short'>w</td><td class='what'>新建/重命名/切换/列出工作区，自动推断服务、创建 worktree；承接分支合并/变基意图</td><td class='trig'>工作区 / workspace / work</td></tr><tr><td class='cmd'>help</td><td class='short'>h</td><td class='what'>扫描 harness，输出工作流与全部命令</td><td class='trig'>帮助 / 命令 / help</td></tr><tr><td class='cmd'>update</td><td class='short'>u</td><td class='what'>更新 harness 与空间根 .gitignore，保留自定义 cmd/rule 与 AGENTS.md</td><td class='trig'>更新 / 更新skill / update</td></tr><tr><td class='cmd'>create-repo</td><td class='short'>cr</td><td class='what'>新建并初始化本地代码仓库，纳入项目空间管理</td><td class='trig'>新建仓库 / 建仓 / create repo</td></tr><tr><td class='cmd'>record</td><td class='short'>r</td><td class='what'>优先融合已有条目；可落命令/工作流/规则/wiki，新建时仅需提供 command</td><td class='trig'>记录 / 记忆 / 沉淀 / record</td></tr><tr><td class='cmd'>evolution</td><td class='short'>evo</td><td class='what'>结构自检并审查指令，提炼 rule/reference/script 候选</td><td class='trig'>进化 / 进化harness / evolve</td></tr><tr><td class='cmd'>study</td><td class='short'>st</td><td class='what'>向外学习外部 skill 或仓库的设计并落盘到 harness</td><td class='trig'>学习 / 研习 / 借鉴 / study</td></tr>",
-    "cmdrows.dev":"<tr><td class='cmd'>ask</td><td class='short'>a</td><td class='what'>分析 worktree 代码，在 $work/wiki/ 产出分析文档或沉淀问答</td><td class='trig'>问 / 代码问答 / analyze code / ask</td></tr><tr><td class='cmd'>spec</td><td class='short'>sp</td><td class='what'>需求规划：story 拆分、系统/模块、边界、验收标准 → spec.md</td><td class='trig'>需求规划 / 整体设计 / spec</td></tr><tr><td class='cmd'>plan</td><td class='short'>p</td><td class='what'>开发计划：多方案对比选定 + 低耦合模块与任务清单</td><td class='trig'>详细设计 / 开发计划 / plan</td></tr><tr><td class='cmd'>tech-design</td><td class='short'>td</td><td class='what'>产出技术评审文档</td><td class='trig'>技术方案 / 技术评审 / tech-design</td></tr><tr><td class='cmd'>code</td><td class='short'>c</td><td class='what'>编码前判定仓库就绪，按 tasks 依赖连续/并行开发</td><td class='trig'>编码 / coding / write code</td></tr><tr><td class='cmd'>fix</td><td class='short'>fx</td><td class='what'>需求修正或代码修正，保持文档与代码一致</td><td class='trig'>修正 / 需求修正 / code fix / fix</td></tr><tr><td class='cmd'>testcode</td><td class='short'>tc</td><td class='what'>按需：单测驱动的需求-代码一致性审查，覆盖率 90% 为准出指标</td><td class='trig'>单测 / 单元测试 / unit test</td></tr><tr><td class='cmd'>test</td><td class='short'>t</td><td class='what'>按需：把测试描述转化为 $work/test.md 可落地方案</td><td class='trig'>测试 / 系统测试 / system test</td></tr><tr><td class='cmd'>run</td><td class='short'>rn</td><td class='what'>按需：按 run.md 清单执行脚本，敏感数据落 run/local/</td><td class='trig'>运行 / 执行 / 跑脚本 / run</td></tr><tr><td class='cmd'>code-review</td><td class='short'>rv</td><td class='what'>按需：以三点 diff 为事实逐函数审查，产出审查报告</td><td class='trig'>代码审查 / 审查报告 / code review</td></tr><tr><td class='cmd'>release-check</td><td class='short'>rc</td><td class='what'>按需：识别数据库/配置/接口/中间件变更，产出上线检查清单</td><td class='trig'>上线检查 / 发布检查 / release-check</td></tr><tr><td class='cmd'>close</td><td class='short'>cl</td><td class='what'>交付检查、提炼 wiki、消费 guidance 自进化固化、移除 worktree</td><td class='trig'>关闭工作区 / close workspace / finish</td></tr>",
-    "cmdrows.git":"<tr><td class='cmd'>fetch</td><td class='short'>f</td><td class='what'>拉取各仓库最新代码（仅 fetch，不 merge）</td><td class='trig'>拉取 / pull / pull code</td></tr><tr><td class='cmd'>worktree</td><td class='short'>wt</td><td class='what'>为指定仓库补建 worktree</td><td class='trig'>工作树 / worktree</td></tr><tr><td class='cmd'>commit</td><td class='short'>ci</td><td class='what'>本地提交，提交信息自动生成后直接提交，无需二次确认</td><td class='trig'>提交 / local commit</td></tr><tr><td class='cmd'>push</td><td class='short'>ps</td><td class='what'>推送远端，未关联时引导关联</td><td class='trig'>推送 / push remote</td></tr><tr><td class='cmd'>merge</td><td class='short'>m</td><td class='what'>委派 reviewer 审查并三选一分流，平台 MR/PR 或本地合并</td><td class='trig'>合并 / merge</td></tr><tr><td class='cmd'>solve</td><td class='short'>s</td><td class='what'>引导式逐文件解决冲突</td><td class='trig'>冲突 / 解决冲突 / resolve conflict</td></tr>",
     "install.eyebrow":"Installation","install.h2":"四种方式，一分钟上手",
     "install.lede":"推荐由 agent 自行安装。无论小规模项目还是大型项目，都能从规范化的研发链路中受益。",
     "i.rec":"推荐","i1.t":"由 agent 自行安装","i1.d":"在 TRAE 中输入一行指令，agent 会自动安装这个 skill 并完成环境准备。","i1.c":"# 在 TRAE 中输入",
-    "i2.t":"一键安装脚本","i2.d":"通过 curl 管道直接执行安装脚本，适用于快速接入任意环境。","i2.hint":"Windows Git Bash 下若报 CRYPT_E_NO_REVOCATION_CHECK，在 curl 后加 --ssl-no-revoke 即可。",
+    "i2.t":"一键安装脚本","i2.d":"通过 curl 管道直接执行安装脚本，适用于快速接入任意环境。","i2.c":"# Windows Git Bash 若报 CRYPT_E_NO_REVOCATION_CHECK，加 --ssl-no-revoke",
     "i3.t":"克隆后安装","i3.d":"克隆仓库后执行 install.sh，支持交互式安装与指定 agent 目标。","i3.c1":"# 交互式安装","i3.c2":"# 安装到 TRAE","i3.c3":"# 查看支持的所有 agent",
     "i4.t":"Releases 下载压缩包","i4.d":"无法使用 Git 克隆，或希望安装固定版本时，从 Releases 下载解压后执行安装脚本。",
     "security.eyebrow":"Security Model","security.h2":"安全可控，从机制上保证",
@@ -811,7 +829,6 @@ var I18N = {
     "s5.t":"凭据明文拦截","s5.d":"scan-secrets.sh 在空间文档提交前做高置信凭据扫描，命中即阻断自动提交；支持豁免标记与占位值过滤。",
     "s6.t":"落点证据链校验","s6.d":"check-guidance.sh 校验 guidance distilled 条目落点文件仍然存在，失效即阻断 close，防止固化证据链悬空。",
     "faq.eyebrow":"FAQ","faq.h2":"常见问题",
-    "faq.items":"<div class='faq-item reveal'><button class='faq-q'><span>如何添加自定义命令或工作流？</span><span class='pm'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 5v14M5 12h14'/></svg></span></button><div class='faq-a'><div class='faq-a-in'>复制 <code>harness/template/cmd.md</code>（命令）或 <code>workflow.md</code>（工作流）至对应目录，修改文件名并补充文件头，扫描器即时识别；亦可直接调用 <code>/tack record</code>，该命令会先尝试与已有命令融合，新建时仅需提供 command。</div></div></div><div class='faq-item reveal'><button class='faq-q'><span>update 会覆盖我的自定义内容吗？</span><span class='pm'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 5v14M5 12h14'/></svg></span></button><div class='faq-a'><div class='faq-a-in'>不会。update 仅刷新 script/、template/、reference/、workflow/；cmd/ 只增补、不覆盖同名文件；rule/ 与 AGENTS.md（含项目信息区块）完全保留。</div></div></div><div class='faq-item reveal'><button class='faq-q'><span>支持多仓库项目吗？</span><span class='pm'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 5v14M5 12h14'/></svg></span></button><div class='faq-a'><div class='faq-a-in'>支持。work 按目的推断涉及服务，每个仓库独立 worktree 至 <code>space/&lt;YYYYMMDD&gt;-&lt;branch&gt;/repo/&lt;repo-name&gt;</code>，Git 命令逐仓库执行。</div></div></div><div class='faq-item reveal'><button class='faq-q'><span>record / evolution / study 三个「进化」类命令如何分工？</span><span class='pm'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 5v14M5 12h14'/></svg></span></button><div class='faq-a'><div class='faq-a-in'>record 沉淀用户明确给出的内容（人给素材）；evolution 向内自审，从现有 cmd 中提炼 rule/reference/script；study 向外学习第三方 skill/仓库，借鉴其流程、命令、规则、脚本、模板与组织方式。</div></div></div><div class='faq-item reveal'><button class='faq-q'><span>Windows 上脚本能跑吗？</span><span class='pm'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 5v14M5 12h14'/></svg></span></button><div class='faq-a'><div class='faq-a-in'>脚本为 POSIX sh，Windows 统一经 run.ps1 启动器调用（自动定位 Git for Windows 的 bash.exe，未安装时首次运行自动通过 winget 安装）。Git Bash 中 curl 若报 CRYPT_E_NO_REVOCATION_CHECK，加 --ssl-no-revoke，或改用克隆方式安装。</div></div></div>",
     "cta.h2":"让每个 agent 都沿着稳定的研发链路走","cta.p":"无论小规模项目还是大型项目，Tack Harness 都能让 AI 开发流程更规范、更可复现、更省 token。","cta.top":"返回顶部",
     "footer.tagline":"精简克制・人类可读・任意配置 — 专为软件研发打造的编程工作流框架。",
     "foot.docs":"文档","foot.principles":"设计原则","foot.features":"核心特性","foot.workflow":"工作流","foot.commands":"命令参考",
@@ -857,13 +874,10 @@ var I18N = {
     "cmdnote.base":"// Space commands: init, create-repo, routing, self-evolution—organized around the workspace.",
     "cmdnote.dev":"// Dev commands: analyze → plan → design → code → review → ship, forming the main chain.",
     "cmdnote.git":"// Git commands: follow the \u201cGit dual boundary\u201d—user Git ops act only on workspace code repos.",
-    "cmdrows.base":"<tr><td class='cmd'>init</td><td class='short'>i</td><td class='what'>Extracts project info into AGENTS.md, scans and symlinks or clones repositories</td><td class='trig'>initialize / connect repo / organize docs</td></tr><tr><td class='cmd'>work</td><td class='short'>w</td><td class='what'>Creates / renames / switches / lists workspaces, auto-infers services, and creates worktrees; also routes branch merge/rebase intents</td><td class='trig'>workspace / new workspace / switch workspace</td></tr><tr><td class='cmd'>help</td><td class='short'>h</td><td class='what'>Scans the harness and prints workflows and all commands</td><td class='trig'>help / commands</td></tr><tr><td class='cmd'>update</td><td class='short'>u</td><td class='what'>Updates the harness and the space-root .gitignore, preserving custom cmd/rule and AGENTS.md</td><td class='trig'>update / update skill</td></tr><tr><td class='cmd'>create-repo</td><td class='short'>cr</td><td class='what'>Creates and initializes a local code repository under project-space management</td><td class='trig'>create repo / new repository</td></tr><tr><td class='cmd'>record</td><td class='short'>r</td><td class='what'>Prefers merging into existing entries; can land commands / workflows / rules / wiki; supply only command for new entries</td><td class='trig'>record / remember / distill</td></tr><tr><td class='cmd'>evolution</td><td class='short'>evo</td><td class='what'>Runs the structure self-check and reviews instructions, distilling rule/reference/script candidates</td><td class='trig'>evolve / evolve harness</td></tr><tr><td class='cmd'>study</td><td class='short'>st</td><td class='what'>Learns from the design of external skills or repositories and lands ideas into the harness</td><td class='trig'>study / learn / learn from</td></tr>",
-    "cmdrows.dev":"<tr><td class='cmd'>ask</td><td class='short'>a</td><td class='what'>Analyzes worktree code, producing analysis documents in $work/wiki/ or distilling Q&amp;A</td><td class='trig'>question / analyze code / code analysis</td></tr><tr><td class='cmd'>spec</td><td class='short'>sp</td><td class='what'>Requirement planning: story split, systems/modules, boundaries, acceptance criteria → spec.md</td><td class='trig'>requirement planning / overall design</td></tr><tr><td class='cmd'>plan</td><td class='short'>p</td><td class='what'>Development plan: compare/select options, then break down low-coupling modules and tasks</td><td class='trig'>detailed design / development plan / task breakdown</td></tr><tr><td class='cmd'>tech-design</td><td class='short'>td</td><td class='what'>Produces the technical review document</td><td class='trig'>technical design / tech doc / tech review</td></tr><tr><td class='cmd'>code</td><td class='short'>c</td><td class='what'>Verifies repository readiness, then develops continuously/in parallel per task dependencies</td><td class='trig'>coding / develop / write code</td></tr><tr><td class='cmd'>fix</td><td class='short'>fx</td><td class='what'>Requirement fixes (spec→plan→code) or code fixes (code→doc sync), keeping docs and code consistent</td><td class='trig'>requirement fix / code fix</td></tr><tr><td class='cmd'>testcode</td><td class='short'>tc</td><td class='what'>On demand: unit-test-driven requirement-code consistency review; 90% coverage is an exit criterion</td><td class='trig'>unit test / unit testing</td></tr><tr><td class='cmd'>test</td><td class='short'>t</td><td class='what'>On demand: turns test descriptions into an actionable plan in $work/test.md</td><td class='trig'>system test / integration test / e2e test</td></tr><tr><td class='cmd'>run</td><td class='short'>rn</td><td class='what'>On demand: executes scripts per run.md; sensitive data lands in run/local/ (gitignored)</td><td class='trig'>execute / run script</td></tr><tr><td class='cmd'>code-review</td><td class='short'>rv</td><td class='what'>On demand: reviews changes function by function against the three-dot diff, producing a report</td><td class='trig'>code review / review report</td></tr><tr><td class='cmd'>release-check</td><td class='short'>rc</td><td class='what'>On demand: identifies database/config/API/middleware changes, producing a go-live checklist</td><td class='trig'>release check / go-live check</td></tr><tr><td class='cmd'>close</td><td class='short'>cl</td><td class='what'>Delivery check and summary, distills wiki, consumes guidance for self-evolution, removes worktree</td><td class='trig'>close workspace / finish</td></tr>",
-    "cmdrows.git":"<tr><td class='cmd'>fetch</td><td class='short'>f</td><td class='what'>Pulls the latest code for each repository (fetch only, no merge)</td><td class='trig'>pull / pull code</td></tr><tr><td class='cmd'>worktree</td><td class='short'>wt</td><td class='what'>Creates the missing worktree for a specified repository</td><td class='trig'>worktree</td></tr><tr><td class='cmd'>commit</td><td class='short'>ci</td><td class='what'>Local commit; auto-generates the Conventional Commits message and commits directly</td><td class='trig'>commit / local commit</td></tr><tr><td class='cmd'>push</td><td class='short'>ps</td><td class='what'>Pushes to the remote; guides you to associate one if none is set</td><td class='trig'>push / push remote</td></tr><tr><td class='cmd'>merge</td><td class='short'>m</td><td class='what'>Delegates to a reviewer and routes to one of three outcomes; MR/PR or local merge</td><td class='trig'>merge</td></tr><tr><td class='cmd'>solve</td><td class='short'>s</td><td class='what'>Guided, file-by-file conflict resolution</td><td class='trig'>conflict / resolve conflict</td></tr>",
     "install.eyebrow":"Installation","install.h2":"Four ways, up and running in a minute",
     "install.lede":"Letting the agent install it is recommended. Both small and large projects benefit from the standardized R&amp;D chain.",
     "i.rec":"Recommended","i1.t":"Let the agent install","i1.d":"Enter one line in TRAE and the agent will install this skill and prepare the environment automatically.","i1.c":"# In TRAE, enter",
-    "i2.t":"One-line install script","i2.d":"Pipe the install script through curl for quick setup on any environment.","i2.hint":"On Windows Git Bash, if curl reports CRYPT_E_NO_REVOCATION_CHECK, add --ssl-no-revoke after curl.",
+    "i2.t":"One-line install script","i2.d":"Pipe the install script through curl for quick setup on any environment.","i2.c":"# On Windows Git Bash, add --ssl-no-revoke if curl reports CRYPT_E_NO_REVOCATION_CHECK",
     "i3.t":"Clone then install","i3.d":"Clone the repo and run install.sh, with interactive install and a target-agent option.","i3.c1":"# Interactive install","i3.c2":"# Install for TRAE","i3.c3":"# List all supported agents",
     "i4.t":"Download an archive from Releases","i4.d":"When Git clone is unavailable or you want a pinned version, download an archive from Releases, unzip, and run the install script.",
     "security.eyebrow":"Security Model","security.h2":"Safe and controllable, by design",
@@ -875,13 +889,103 @@ var I18N = {
     "s5.t":"Plaintext credential blocking","s5.d":"scan-secrets.sh scans space documents before commit and blocks the auto-commit on high-confidence hits; supports exemption markers and placeholder filtering.",
     "s6.t":"Landing-point verification","s6.d":"check-guidance.sh verifies that the landing files of distilled guidance entries still exist; failure blocks close, preventing dangling evidence chains.",
     "faq.eyebrow":"FAQ","faq.h2":"Frequently asked questions",
-    "faq.items":"<div class='faq-item reveal'><button class='faq-q'><span>How do I add a custom command or workflow?</span><span class='pm'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 5v14M5 12h14'/></svg></span></button><div class='faq-a'><div class='faq-a-in'>Copy <code>harness/template/cmd.md</code> (command) or <code>workflow.md</code> (workflow) into the corresponding directory, rename and fill in the front matter—the scanner recognizes it instantly. Or just call <code>/tack record</code>: it merges with existing commands first, and you only supply command for a new one.</div></div></div><div class='faq-item reveal'><button class='faq-q'><span>Will update overwrite my custom content?</span><span class='pm'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 5v14M5 12h14'/></svg></span></button><div class='faq-a'><div class='faq-a-in'>No. update only refreshes script/, template/, reference/, and workflow/; cmd/ is additive—same-named files are never overwritten; rule/ and AGENTS.md (including the project info block) are fully preserved.</div></div></div><div class='faq-item reveal'><button class='faq-q'><span>Are multi-repository projects supported?</span><span class='pm'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 5v14M5 12h14'/></svg></span></button><div class='faq-a'><div class='faq-a-in'>Yes. work infers the involved services; each repository gets its own worktree at <code>space/&lt;YYYYMMDD&gt;-&lt;branch&gt;/repo/&lt;repo-name&gt;</code>, and Git commands run per repository.</div></div></div><div class='faq-item reveal'><button class='faq-q'><span>How do record / evolution / study divide the \u201cevolution\u201d work?</span><span class='pm'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 5v14M5 12h14'/></svg></span></button><div class='faq-a'><div class='faq-a-in'>record crystallizes what you explicitly give (humans supply the material); evolution reviews inward, distilling rule/reference/script from existing cmds; study learns outward from third-party skills/repositories, borrowing their flows, commands, rules, scripts, templates, and organization.</div></div></div><div class='faq-item reveal'><button class='faq-q'><span>Do the scripts run on Windows?</span><span class='pm'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 5v14M5 12h14'/></svg></span></button><div class='faq-a'><div class='faq-a-in'>The scripts are POSIX sh; on Windows they run through the run.ps1 launcher (auto-locating Git for Windows' bash.exe and installing it via winget if missing). If curl reports CRYPT_E_NO_REVOCATION_CHECK in Git Bash, add --ssl-no-revoke or use the clone-and-install option.</div></div></div>",
     "cta.h2":"Let every agent run along a stable R&amp;D chain","cta.p":"For both small and large projects, Tack Harness makes AI development more standardized, more reproducible, and cheaper on tokens.","cta.top":"Back to top",
     "footer.tagline":"Minimal &amp; restrained · Human-readable · Fully configurable — a programming workflow framework built for software R&amp;D.",
     "foot.docs":"Docs","foot.principles":"Principles","foot.features":"Features","foot.workflow":"Workflows","foot.commands":"Commands",
     "foot.start":"Get started","foot.install":"Install","foot.security":"Security","foot.faq":"FAQ","foot.comm":"Community",
     "footer.copy":"© 2026 Tack Harness · Minimal &amp; restrained programming workflow framework"
   }
+};
+
+/* ============ 结构化数据（命令表 / FAQ） ============ */
+/* 替代 I18N 中冗长的 HTML 字符串：命令表行与 FAQ 列表改为纯对象/数组，渲染时拼装 */
+var CMD_ROWS = {
+  base: {
+    zh: [
+      {cmd:'init', short:'i', what:'提炼项目信息写入 AGENTS.md，扫描软链或克隆仓库', trig:'初始化 / 接入仓库 / initialize'},
+      {cmd:'work', short:'w', what:'新建/重命名/切换/列出工作区，自动推断服务、创建 worktree；承接分支合并/变基意图', trig:'工作区 / workspace / work'},
+      {cmd:'help', short:'h', what:'扫描 harness，输出工作流与全部命令', trig:'帮助 / 命令 / help'},
+      {cmd:'update', short:'u', what:'更新 harness 与空间根 .gitignore，保留自定义 cmd/rule 与 AGENTS.md', trig:'更新 / 更新skill / update'},
+      {cmd:'create-repo', short:'cr', what:'新建并初始化本地代码仓库，纳入项目空间管理', trig:'新建仓库 / 建仓 / create repo'},
+      {cmd:'record', short:'r', what:'优先融合已有条目；可落命令/工作流/规则/wiki，新建时仅需提供 command', trig:'记录 / 记忆 / 沉淀 / record'},
+      {cmd:'evolution', short:'evo', what:'结构自检并审查指令，提炼 rule/reference/script 候选', trig:'进化 / 进化harness / evolve'},
+      {cmd:'study', short:'st', what:'向外学习外部 skill 或仓库的设计并落盘到 harness', trig:'学习 / 研习 / 借鉴 / study'}
+    ],
+    en: [
+      {cmd:'init', short:'i', what:'Extracts project info into AGENTS.md, scans and symlinks or clones repositories', trig:'initialize / connect repo / organize docs'},
+      {cmd:'work', short:'w', what:'Creates / renames / switches / lists workspaces, auto-infers services, and creates worktrees; also routes branch merge/rebase intents', trig:'workspace / new workspace / switch workspace'},
+      {cmd:'help', short:'h', what:'Scans the harness and prints workflows and all commands', trig:'help / commands'},
+      {cmd:'update', short:'u', what:'Updates the harness and the space-root .gitignore, preserving custom cmd/rule and AGENTS.md', trig:'update / update skill'},
+      {cmd:'create-repo', short:'cr', what:'Creates and initializes a local code repository under project-space management', trig:'create repo / new repository'},
+      {cmd:'record', short:'r', what:'Prefers merging into existing entries; can land commands / workflows / rules / wiki; supply only command for new entries', trig:'record / remember / distill'},
+      {cmd:'evolution', short:'evo', what:'Runs the structure self-check and reviews instructions, distilling rule/reference/script candidates', trig:'evolve / evolve harness'},
+      {cmd:'study', short:'st', what:'Learns from the design of external skills or repositories and lands ideas into the harness', trig:'study / learn / learn from'}
+    ]
+  },
+  dev: {
+    zh: [
+      {cmd:'ask', short:'a', what:'分析 worktree 代码，在 $work/wiki/ 产出分析文档或沉淀问答', trig:'问 / 代码问答 / analyze code / ask'},
+      {cmd:'spec', short:'sp', what:'需求规划：story 拆分、系统/模块、边界、验收标准 → spec.md', trig:'需求规划 / 整体设计 / spec'},
+      {cmd:'plan', short:'p', what:'开发计划：多方案对比选定 + 低耦合模块与任务清单', trig:'详细设计 / 开发计划 / plan'},
+      {cmd:'tech-design', short:'td', what:'产出技术评审文档', trig:'技术方案 / 技术评审 / tech-design'},
+      {cmd:'code', short:'c', what:'编码前判定仓库就绪，按 tasks 依赖连续/并行开发', trig:'编码 / coding / write code'},
+      {cmd:'fix', short:'fx', what:'需求修正或代码修正，保持文档与代码一致', trig:'修正 / 需求修正 / code fix / fix'},
+      {cmd:'testcode', short:'tc', what:'按需：单测驱动的需求-代码一致性审查，覆盖率 90% 为准出指标', trig:'单测 / 单元测试 / unit test'},
+      {cmd:'test', short:'t', what:'按需：把测试描述转化为 $work/test.md 可落地方案', trig:'测试 / 系统测试 / system test'},
+      {cmd:'run', short:'rn', what:'按需：按 run.md 清单执行脚本，敏感数据落 run/local/', trig:'运行 / 执行 / 跑脚本 / run'},
+      {cmd:'code-review', short:'rv', what:'按需：以三点 diff 为事实逐函数审查，产出审查报告', trig:'代码审查 / 审查报告 / code review'},
+      {cmd:'release-check', short:'rc', what:'按需：识别数据库/配置/接口/中间件变更，产出上线检查清单', trig:'上线检查 / 发布检查 / release-check'},
+      {cmd:'close', short:'cl', what:'交付检查、提炼 wiki、消费 guidance 自进化固化、移除 worktree', trig:'关闭工作区 / close workspace / finish'}
+    ],
+    en: [
+      {cmd:'ask', short:'a', what:'Analyzes worktree code, producing analysis documents in $work/wiki/ or distilling Q&A', trig:'question / analyze code / code analysis'},
+      {cmd:'spec', short:'sp', what:'Requirement planning: story split, systems/modules, boundaries, acceptance criteria → spec.md', trig:'requirement planning / overall design'},
+      {cmd:'plan', short:'p', what:'Development plan: compare/select options, then break down low-coupling modules and tasks', trig:'detailed design / development plan / task breakdown'},
+      {cmd:'tech-design', short:'td', what:'Produces the technical review document', trig:'technical design / tech doc / tech review'},
+      {cmd:'code', short:'c', what:'Verifies repository readiness, then develops continuously/in parallel per task dependencies', trig:'coding / develop / write code'},
+      {cmd:'fix', short:'fx', what:'Requirement fixes (spec→plan→code) or code fixes (code→doc sync), keeping docs and code consistent', trig:'requirement fix / code fix'},
+      {cmd:'testcode', short:'tc', what:'On demand: unit-test-driven requirement-code consistency review; 90% coverage is an exit criterion', trig:'unit test / unit testing'},
+      {cmd:'test', short:'t', what:'On demand: turns test descriptions into an actionable plan in $work/test.md', trig:'system test / integration test / e2e test'},
+      {cmd:'run', short:'rn', what:'On demand: executes scripts per run.md; sensitive data lands in run/local/ (gitignored)', trig:'execute / run script'},
+      {cmd:'code-review', short:'rv', what:'On demand: reviews changes function by function against the three-dot diff, producing a report', trig:'code review / review report'},
+      {cmd:'release-check', short:'rc', what:'On demand: identifies database/config/API/middleware changes, producing a go-live checklist', trig:'release check / go-live check'},
+      {cmd:'close', short:'cl', what:'Delivery check and summary, distills wiki, consumes guidance for self-evolution, removes worktree', trig:'close workspace / finish'}
+    ]
+  },
+  git: {
+    zh: [
+      {cmd:'fetch', short:'f', what:'拉取各仓库最新代码（仅 fetch，不 merge）', trig:'拉取 / pull / pull code'},
+      {cmd:'worktree', short:'wt', what:'为指定仓库补建 worktree', trig:'工作树 / worktree'},
+      {cmd:'commit', short:'ci', what:'本地提交，提交信息自动生成后直接提交，无需二次确认', trig:'提交 / local commit'},
+      {cmd:'push', short:'ps', what:'推送远端，未关联时引导关联', trig:'推送 / push remote'},
+      {cmd:'merge', short:'m', what:'委派 reviewer 审查并三选一分流，平台 MR/PR 或本地合并', trig:'合并 / merge'},
+      {cmd:'solve', short:'s', what:'引导式逐文件解决冲突', trig:'冲突 / 解决冲突 / resolve conflict'}
+    ],
+    en: [
+      {cmd:'fetch', short:'f', what:'Pulls the latest code for each repository (fetch only, no merge)', trig:'pull / pull code'},
+      {cmd:'worktree', short:'wt', what:'Creates the missing worktree for a specified repository', trig:'worktree'},
+      {cmd:'commit', short:'ci', what:'Local commit; auto-generates the Conventional Commits message and commits directly', trig:'commit / local commit'},
+      {cmd:'push', short:'ps', what:'Pushes to the remote; guides you to associate one if none is set', trig:'push / push remote'},
+      {cmd:'merge', short:'m', what:'Delegates to a reviewer and routes to one of three outcomes; MR/PR or local merge', trig:'merge'},
+      {cmd:'solve', short:'s', what:'Guided, file-by-file conflict resolution', trig:'conflict / resolve conflict'}
+    ]
+  }
+};
+var FAQ_ITEMS = {
+  zh: [
+    {q:'如何添加自定义命令或工作流？', a:'复制 <code>harness/template/cmd.md</code>（命令）或 <code>workflow.md</code>（工作流）至对应目录，修改文件名并补充文件头，扫描器即时识别；亦可直接调用 <code>/tack record</code>，该命令会先尝试与已有命令融合，新建时仅需提供 command。'},
+    {q:'update 会覆盖我的自定义内容吗？', a:'不会。update 仅刷新 script/、template/、reference/、workflow/；cmd/ 只增补、不覆盖同名文件；rule/ 与 AGENTS.md（含项目信息区块）完全保留。'},
+    {q:'支持多仓库项目吗？', a:'支持。work 按目的推断涉及服务，每个仓库独立 worktree 至 <code>space/&lt;YYYYMMDD&gt;-&lt;branch&gt;/repo/&lt;repo-name&gt;</code>，Git 命令逐仓库执行。'},
+    {q:'record / evolution / study 三个「进化」类命令如何分工？', a:'record 沉淀用户明确给出的内容（人给素材）；evolution 向内自审，从现有 cmd 中提炼 rule/reference/script；study 向外学习第三方 skill/仓库，借鉴其流程、命令、规则、脚本、模板与组织方式。'},
+    {q:'Windows 上脚本能跑吗？', a:'脚本为 POSIX sh，Windows 统一经 run.ps1 启动器调用（自动定位 Git for Windows 的 bash.exe，未安装时首次运行自动通过 winget 安装）。Git Bash 中 curl 若报 CRYPT_E_NO_REVOCATION_CHECK，加 --ssl-no-revoke，或改用克隆方式安装。'}
+  ],
+  en: [
+    {q:'How do I add a custom command or workflow?', a:'Copy <code>harness/template/cmd.md</code> (command) or <code>workflow.md</code> (workflow) into the corresponding directory, rename and fill in the front matter—the scanner recognizes it instantly. Or just call <code>/tack record</code>: it merges with existing commands first, and you only supply command for a new one.'},
+    {q:'Will update overwrite my custom content?', a:'No. update only refreshes script/, template/, reference/, and workflow/; cmd/ is additive—same-named files are never overwritten; rule/ and AGENTS.md (including the project info block) are fully preserved.'},
+    {q:'Are multi-repository projects supported?', a:'Yes. work infers the involved services; each repository gets its own worktree at <code>space/&lt;YYYYMMDD&gt;-&lt;branch&gt;/repo/&lt;repo-name&gt;</code>, and Git commands run per repository.'},
+    {q:'How do record / evolution / study divide the \u201cevolution\u201d work?', a:'record crystallizes what you explicitly give (humans supply the material); evolution reviews inward, distilling rule/reference/script from existing cmds; study learns outward from third-party skills/repositories, borrowing their flows, commands, rules, scripts, templates, and organization.'},
+    {q:'Do the scripts run on Windows?', a:'The scripts are POSIX sh; on Windows they run through the run.ps1 launcher (auto-locating Git for Windows\' bash.exe and installing it via winget if missing). If curl reports CRYPT_E_NO_REVOCATION_CHECK in Git Bash, add --ssl-no-revoke or use the clone-and-install option.'}
+  ]
 };
 
 /* ============ 脚本 ============ */
@@ -892,6 +996,27 @@ var I18N = {
   /* ---------- 语言切换 ---------- */
   var langBtns = document.querySelectorAll('.lang-switch .lb');
   var currentLang = 'zh';
+
+  /* ---------- 命令表 / FAQ 结构化渲染（数据在 CMD_ROWS / FAQ_ITEMS） ---------- */
+  function renderCmdRows(lang){
+    document.querySelectorAll('[data-i18n-h^="cmdrows."]').forEach(function(tbody){
+      var key = tbody.getAttribute('data-i18n-h').slice('cmdrows.'.length);
+      var group = CMD_ROWS[key];
+      var rows = group ? (group[lang] || group.zh || []) : [];
+      tbody.innerHTML = rows.map(function(r){
+        return '<tr><td class="cmd">' + r.cmd + '</td><td class="short">' + r.short + '</td><td class="what">' + r.what + '</td><td class="trig">' + r.trig + '</td></tr>';
+      }).join('');
+    });
+  }
+  function renderFaq(lang){
+    var el = document.querySelector('[data-i18n-h="faq.items"]');
+    if(!el) return;
+    var items = FAQ_ITEMS[lang] || FAQ_ITEMS.zh;
+    el.innerHTML = items.map(function(f){
+      return "<div class='faq-item reveal'><button class='faq-q'><span>" + f.q + "</span><span class='pm'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 5v14M5 12h14'/></svg></span></button><div class='faq-a'><div class='faq-a-in'>" + f.a + "</div></div></div>";
+    }).join('');
+  }
+
   function applyLang(lang){
     currentLang = lang;
     document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
@@ -903,10 +1028,9 @@ var I18N = {
       var k = el.getAttribute('data-i18n');
       if(dict[k] !== undefined) el.innerHTML = dict[k];
     });
-    document.querySelectorAll('[data-i18n-h]').forEach(function(el){
-      var k = el.getAttribute('data-i18n-h');
-      if(dict[k] !== undefined) el.innerHTML = dict[k];
-    });
+    /* cmdrows.* 与 faq.items 由结构化数据渲染；其余 data-i18n-h 走字典 */
+    renderCmdRows(lang);
+    renderFaq(lang);
     langBtns.forEach(function(b){ var act = b.getAttribute('data-lang') === lang; b.classList.toggle('active', act); b.setAttribute('aria-pressed', act ? 'true' : 'false'); });
     /* 重新绑定 FAQ（innerHTML 重建后事件丢失） */
     bindFaq();
@@ -1004,26 +1128,13 @@ var I18N = {
   }
   bindFaq();
 
-  /* ---------- 移动端菜单 ---------- */
+  /* ---------- 移动端菜单（CSS 类控制；跨 640px 断点时重置） ---------- */
   var navLinks = document.getElementById('navLinks');
   var menuToggle = document.getElementById('menuToggle');
   var menuOpen = false;
-  var MENU_INLINE = ['display','flexDirection','position','top','left','right','background','padding','borderBottom','boxShadow','gap'];
   function setMenu(open){
     menuOpen = open;
-    if(open){
-      navLinks.style.display = 'flex';
-      navLinks.style.flexDirection = 'column';
-      navLinks.style.position = 'absolute';
-      navLinks.style.top = '66px'; navLinks.style.left = '0'; navLinks.style.right = '0';
-      navLinks.style.background = 'rgba(250,250,247,.98)';
-      navLinks.style.padding = '14px 24px 18px';
-      navLinks.style.borderBottom = '1px solid var(--line)';
-      navLinks.style.boxShadow = '0 18px 40px rgba(20,33,61,.12)';
-      navLinks.style.gap = '16px';
-    } else {
-      MENU_INLINE.forEach(function(k){ navLinks.style[k] = ''; });
-    }
+    navLinks.classList.toggle('open', open);
     menuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
   }
   menuToggle.addEventListener('click', function(){
@@ -1032,6 +1143,11 @@ var I18N = {
   navLinks.querySelectorAll('a').forEach(function(a){
     a.addEventListener('click', function(){ if(menuOpen) setMenu(false); });
   });
+  /* 跨越 640px 断点时重置移动菜单状态，避免桌面端残留展开样式 */
+  var mqMobile = window.matchMedia('(max-width: 640px)');
+  function resetMenu(){ setMenu(false); }
+  if(mqMobile.addEventListener){ mqMobile.addEventListener('change', resetMenu); }
+  else if(mqMobile.addListener){ mqMobile.addListener(resetMenu); }
 
   /* ---------- Hero 终端签名（双语） ---------- */
   var term = document.getElementById('term'), termBody = document.getElementById('termBody');
