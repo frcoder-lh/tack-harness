@@ -3,7 +3,7 @@ command: close
 short: cl
 triggers: 关闭工作区, 结束, close, close workspace, finish
 params: 无
-summary: 工作区收尾——状态判定与关闭确认、交付检查、输出交付摘要、提炼内容入 wiki（含技术决策）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、更新状态
+summary: 工作区收尾——状态判定与关闭确认、交付检查、输出交付摘要、提炼内容入 wiki（含技术决策）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、删除工作区目录并移除 AGENTS.md work 条目
 ---
 
 # close 关闭工作区
@@ -15,14 +15,14 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
 ## 指令内容
 
 1. **状态判定与关闭确认**
-   - 动作: 读取 `$work/status.yaml` 的 `status`、`progress`、`tasks`
+   - 动作: 读取 `$work/status.yaml` 的 `status`、`progress`、`tasks`（status.yaml 已不存在时按下方中断续跑处理）
    - **完成态**（`status` 为 merged/completed，或 `progress.merged: true`，MR 已合并或用户已确认交付）：视为已到完成态，**不再追问，直接进入后续收尾流程**
    - **非完成态**（initialized/planning/developing/reviewing，或存在未完成 tasks、未推送提交、未合并 MR）：列出未完成项并说明风险，**请用户确认是否仍要关闭**
      - 输入: 用户确认 → 继续；用户不确认 → 中止关闭，引导回到对应环节（如 `merge`、`code`）
-   - 已是 completed 但 worktree 仍存在（上次收尾中断）：直接续跑剩余收尾步骤
+   - work 条目仍在即表示关闭未完成；若 worktree 已移除（上次收尾在删除目录前中断），直接续跑剩余收尾步骤；若工作区目录已删除而 work 条目残留（purge 与移除条目之间中断），直接执行第 7 步的 `work-remove` 后跳到收尾提交
 
 2. **交付检查**
-   - 动作: 逐仓库检查：无未提交改动（或用户确认保留）、本地提交均已推送、MR 已合并或用户确认跳过；检查 `$work/status.yaml` 的 mr_url、tech_doc_url 是否需要补全；未推送提交需逐一告知用户并确认处理方式；检查 `deploy` 区块——存在 `deploying/deployed` 状态的泳道时提醒用户到部署平台回收（回收后置 `recycled`），未回收不阻塞关闭但处理方式须经用户确认；检查 `$work/run/local/`——若存在含密钥/账号的敏感文件，提醒用户该目录已被 .gitignore 忽略不会入库，确认是否需要本地清理（不阻塞关闭）
+   - 动作: 逐仓库检查：无未提交改动（或用户确认保留）、本地提交均已推送、MR 已合并或用户确认跳过；检查 `$work/status.yaml` 的 mr_url、tech_doc_url 是否需要补全；未推送提交需逐一告知用户并确认处理方式；检查 `deploy` 区块——存在 `deploying/deployed` 状态的泳道时提醒用户到部署平台回收（回收后置 `recycled`），未回收不阻塞关闭但处理方式须经用户确认；检查 `$work/run/local/`——该目录被 .gitignore 忽略，仅本地存在、含密钥/账号或临时数据；工作区目录将在第 7 步整体删除，提醒用户其中若有需要保留的文件请先取走（不阻塞关闭）
 
 3. **输出交付摘要**
    - 时机: worktree 移除前（仍可取到提交与文件清单），wiki 提炼前
@@ -63,48 +63,50 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
 6. **移除 worktree 并清理分支**
    - **branch-op 工作流**：从 status.yaml 的 `branch_op.repos` 逐仓库读取临时分支名，执行
      `sh $root/harness/script/branch-op.sh cleanup $root space/<workspace> <repo> <source_tmp> <target_tmp>`（`<workspace>` 取 `basename "$work"`）
-     一次性移除工作 worktree 并删除 `A-ts`、`B-ts` 两个临时分支；worktree 存在未提交改动时脚本停止，报告事实并经用户确认后追加 `force` 参数；成功后在 `branch_op` 区块置 `cleaned: true`，并对 branches 列表中两条 tmp 条目执行 `sh $root/harness/script/work-status.sh $work/status.yaml branch mark <repo> <tmp分支名> cleaned`
+     一次性移除工作 worktree 并删除 `A-ts`、`B-ts` 两个临时分支；worktree 存在未提交改动时脚本停止，报告事实并经用户确认后追加 `force` 参数
    - **其他工作流**：先执行 `sh $root/harness/script/git-worktree-helper.sh remove $root <workspace>`（`<workspace>` 取 `basename "$work"`），移除各仓库在 `$work/repo/` 下的 worktree；随后遍历 status.yaml 的 branches 列表逐条清理已登记分支：
-     - 读取: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml branch list` 输出每条 `repo|name|role|source|cleaned`，仅处理 `cleaned=false` 的条目
+     - 读取: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml branch list` 输出每条 `repo|name|role|source|cleaned`
      - **role=tmp**（临时分支，已废弃）：执行 `sh $root/harness/script/git-worktree-helper.sh branch-remove $root <repo> <name> force` 直接删除
      - **role=main**（工作区主分支）：
        - 判定合并状态: 执行 `sh $root/harness/script/git-worktree-helper.sh branch-merged $root <repo> <name> <主干>`（主干默认 master/main，按仓库实际确认），或 status.yaml 的 `progress.merged` 为 true 视为已合并
        - 已合并: 执行 `sh $root/harness/script/git-worktree-helper.sh branch-remove $root <repo> <name>`（用 -d 仅删已合并分支，安全）；删除失败（远端有独有提交）按未合并处理
-       - 未合并: 列出告知用户未合并的主分支，询问删除/保留；用户确认删除则追加 `force` 参数重试，保留则跳过（不删分支、不置 cleaned）
-     - 删除成功后执行 `sh $root/harness/script/work-status.sh $work/status.yaml branch mark <repo> <name> cleaned`
-   - 边界: 只清理 branches 列表登记的分支；用户在工作区期间手动 `checkout -b` 创建的分支未登记，框架不自动删除（可提示用户检查 worktree 是否有未登记分支）
+       - 未合并: 列出告知用户未合并的主分支，询问删除/保留；用户确认删除则追加 `force` 参数重试，保留则跳过该分支
+   - 幂等: 分支删除幂等安全（已不存在的分支脚本自动跳过），收尾中断后重跑本步无需依赖 status.yaml 的 cleaned 标记——工作区目录将在第 7 步删除，清理状态不回写 status.yaml
+   - 边界: 只清理 branches 列表登记的分支；用户在工作区期间手动 `checkout -b` 创建的分支未登记，框架不自动删除（可提示用户检查工作区是否有未登记分支）
 
-7. **归档工作区**
-   - 动作: 执行
-     `sh $root/harness/script/work-status.sh $work/status.yaml set status completed`（自动刷新 updated_at；branch-op 不传 progress.merged，该工作流不使用此开关；其他工作流可同时 `progress.merged true`），并执行
-     `sh $root/harness/script/project.sh work-set $root <work_id> completed`
-     更新 AGENTS.md 项目信息区块中的 work 条目；询问用户保留 `$work` 文档（spec.md、plan.md、tech-design.md、status.yaml）还是一并归档清理
+7. **删除工作区并移除登记**
+   - 前置: 第 4 步 wiki 提炼、第 5 步 guidance 固化均已落盘（跨工作区知识已分别进入 `$root/wiki/` 与 `harness/`），交付摘要已在第 3 步当场呈现；工作区目录内的 spec/plan/status/run 等过程产物不再保留
+   - 动作: 取 `<workspace>` = `basename "$work"`、`<work_id>` = status.yaml 的 `work_id`，先执行
+     `sh $root/harness/script/work.sh purge $root <workspace>`
+     删除整个 `$work` 目录（脚本内置三道安全门禁：workspace 为单层目录名、物理路径位于 `$root/space/` 内、`repo/` 下无残留 worktree；含 `run/local/` 在内的全部工作区文件一并删除）；再执行
+     `sh $root/harness/script/project.sh work-remove $root <work_id> --no-commit`
+     移除 AGENTS.md 项目信息区块中的 work 条目（目录删除由收尾的框架自动提交统一记录）
+   - 边界: purge 报告残留 worktree 时回到第 6 步清理，不得绕过脚本手工删目录；`work-remove` 报条目不存在（中断续跑场景）视为成功继续
 
 8. **清理上下文**
-   - 动作: 清空 `$work` 上下文变量，输出当前剩余工作区列表（读 AGENTS.md 项目信息区块）
+   - 动作: 清空 `$work` 上下文变量，输出当前剩余工作区列表（直接读 AGENTS.md 项目信息区块的 work 条目，不扫描磁盘）
 
 9. **版本检查（更新提醒挂载点）**
    - 动作: 按 `harness/rule/update-check.md` 执行 `sh $root/harness/script/check-update.sh $root`；有新版本时在下一步建议中原样转述，并告知「说『更新』即可升级」
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 上述收尾完成后，执行 `sh $root/harness/script/space.sh commit $root "chore(tack): close workspace <branch>"`，把 wiki 沉淀、第 5 步自进化对 harness（workflow/cmd/rule/script）的固化改动、status.yaml（含 guidance 回写）、AGENTS.md work 条目及文档保留/清理的结果自动提交到 tack 空间根仓库；无变更自动跳过
-- 边界: 遵守 `harness/rule/git-boundary.md`；移除 worktree 由框架脚本 `git-worktree-helper.sh` 完成（属框架管理，不需用户操作）；代码仓库的提交/推送状态在第 2 步交付检查中确认，本步骤不代为操作
+- 动作: 上述收尾完成后，执行 `sh $root/harness/script/space.sh commit $root "chore(tack): close workspace <branch>"`，把 wiki 沉淀、第 5 步自进化对 harness（workflow/cmd/rule/script）的固化改动、AGENTS.md work 条目移除与 `space/<workspace>/` 目录删除自动提交到 tack 空间根仓库；无变更自动跳过
+- 边界: 遵守 `harness/rule/git-boundary.md`；移除 worktree 与删除工作区目录均由框架脚本（`git-worktree-helper.sh` / `branch-op.sh` / `work.sh purge`）完成（属框架管理，不需用户操作）；代码仓库的提交/推送状态在第 2 步交付检查中确认，本步骤不代为操作
 
 ## 后置完成检验
 
 - [ ] 非完成态关闭已有用户明确确认；完成态未做多余追问
 - [ ] 已按四段结构（构建内容/关键决策/改动文件/建议后续步骤）输出交付摘要，内容均有工作区产物或 git 事实来源
 - [ ] `git worktree list` 中不再有该工作区的 worktree
-- [ ] branch-op：`A-ts`、`B-ts` 两个临时分支均已删除，status.yaml 的 `branch_op.cleaned` 为 true，branches 列表中两条 tmp 条目 cleaned 均为 true
-- [ ] 其他工作流：branches 列表中已合并的 main 分支已删除并置 cleaned；未合并的 main 分支经用户确认（删除追加 force 或保留跳过）；所有 tmp 条目已删除并置 cleaned
-- [ ] 工作区 status.yaml 与 AGENTS.md work 条目状态均为 completed
+- [ ] branch-op：`A-ts`、`B-ts` 两个临时分支均已删除
+- [ ] 其他工作流：branches 列表中已合并的 main 分支已删除；未合并的 main 分支经用户确认（删除追加 force 或保留跳过）；所有 tmp 条目已删除
+- [ ] `$root/space/<workspace>/` 目录已删除（`work.sh purge` 成功），AGENTS.md 项目信息区块中已无该 work 条目
 - [ ] 记入 wiki 的内容符合边界（无易变代码逻辑、均有来源、无凭据明文）、四类分工归类正确且经人工审阅；用户放弃时未强行写入
 - [ ] guidance 的 raw 条目已逐条处理：固化项经用户确认落盘并置 distilled（按 `落点: <相对 $root 路径>` 注明），不固化项置 dismissed；未确认落盘的条目保留 raw 且不阻塞关闭
 - [ ] `check-guidance.sh` 校验通过：本工作区 distilled 条目无失效落点
 - [ ] `deploy` 区块无未回收泳道（deploying/deployed），或用户已确认处理方式
-- [ ] `run/local/` 敏感数据已提醒用户（已被 .gitignore 忽略，不会入库；用户确认是否本地清理）
-- [ ] 文档保留/清理符合用户选择
+- [ ] `run/local/` 中需保留的本地文件删除前已提醒用户取走；该目录随工作区一并删除
 - [ ] 版本检查已执行；有新版本时已原样转述提醒与更新内容，并建议执行 `update`
 
 ## 下一步建议

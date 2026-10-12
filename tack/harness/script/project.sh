@@ -18,6 +18,9 @@
 #                                                                                   # 追加一条 project.service_repo_mapping（repo_git 可传空串）
 #   sh project.sh work-add      <root> <id> <description> <work_path> <branch> <svc1,svc2> [triggers]
 #   sh project.sh work-set      <root> <id> <status>                                # 更新某工作条目状态
+#   sh project.sh work-remove   <root> <id>                                         # 移除某工作条目（close 时工作区目录删除后同步清理登记）
+#   sh project.sh work-path     <root> <id> <work_path>                             # 修正某工作条目的 work_path（reconcile 发现重命名残留时校准）
+#   sh project.sh work-reconcile <root>                                             # 对账 work 条目与 space/ 实际目录，只报告差异不改写
 #   sh project.sh work-services <root> <id> <svc1,svc2,...> [status.yaml] [--no-commit]
 #                                                                                   # 覆盖写某工作条目 services；给 status.yaml 时同步其顶层 services
 #   sh project.sh work-trigger  <root> <id> <kw1,kw2,...> [--no-commit]            # 追加触发词到 work 条目（去重、跳过等于 work_id/branch 的词）
@@ -36,7 +39,7 @@ START_MARK='<!-- tack:info:start -->'
 END_MARK='<!-- tack:info:end -->'
 
 if [ -z "${ACTION}" ] || [ -z "${ROOT}" ]; then
-    echo "Usage: sh project.sh <ensure|set|skill-version|keywords|service-repo|work-add|work-set|work-services|work-trigger> <root> [args...]" >&2
+    echo "Usage: sh project.sh <ensure|set|skill-version|keywords|service-repo|work-add|work-set|work-remove|work-path|work-reconcile|work-services|work-trigger> <root> [args...]" >&2
     exit 1
 fi
 if [ ! -f "${AGENTS}" ]; then
@@ -313,6 +316,211 @@ cmd_work_set() {
     echo "已更新工作状态: ${ID} -> ${STATUS}"
 }
 
+# work-remove: 移除某工作条目（close 删除工作区目录后同步清理 AGENTS.md 登记）
+cmd_work_remove() {
+    ID="$3"
+    [ -n "${ID}" ] || { echo "Usage: project.sh work-remove <root> <id>" >&2; exit 1; }
+    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+
+    tmp_body="${AGENTS}.body.$$"
+    extract_body "${tmp_body}"
+    tmp_new="${AGENTS}.new.$$"
+    awk -v want="$(esc "${ID}")" '
+        BEGIN { inwork=0; cur=""; skip=0; removed=0 }
+        /^work:/ { inwork=1; print; next }
+        inwork==1 && /^[^[:space:]]/ { inwork=0; skip=0 }
+        inwork==1 && $0 ~ /^[[:space:]]*-[[:space:]]*work_id:/ {
+            line=$0; sub(/.*work_id:[[:space:]]*/,"",line)
+            gsub(/"/,"",line); gsub(/^[[:space:]]+|[[:space:]]+$/,"",line)
+            cur=line
+            if (cur==want) { skip=1; removed=1; next }
+            skip=0
+        }
+        inwork==1 && skip==1 { next }
+        { print }
+        END { if (removed==0) exit 3 }
+    ' "${tmp_body}" > "${tmp_new}" || {
+        echo "Error: 未找到 work_id '${ID}' 的条目" >&2
+        rm -f "${tmp_body}" "${tmp_new}"; exit 1
+    }
+    # work 区块删空后回写为 work: []，避免无效 YAML
+    if ! grep -qE '^[[:space:]]*-[[:space:]]*work_id:' "${tmp_new}"; then
+        awk '/^work:/ { print "work: []"; next } { print }' "${tmp_new}" > "${tmp_new}.2" && mv "${tmp_new}.2" "${tmp_new}"
+    fi
+    rewrite_block "${tmp_new}"
+    rm -f "${tmp_body}" "${tmp_new}"
+    echo "已移除工作条目: ${ID}"
+}
+
+# work-path: 修正某工作条目的 work_path（reconcile 发现重命名中断残留时校准）
+cmd_work_path() {
+    ID="$3"; WPATH="$4"
+    [ -n "${ID}" ] && [ -n "${WPATH}" ] || { echo "Usage: project.sh work-path <root> <id> <work_path>" >&2; exit 1; }
+    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+
+    tmp_body="${AGENTS}.body.$$"
+    extract_body "${tmp_body}"
+    tmp_new="${AGENTS}.new.$$"
+    awk -v want="$(esc "${ID}")" -v wp="$(esc "${WPATH}")" '
+        BEGIN { inwork=0; cur=""; updated=0 }
+        /^work:/ { inwork=1; print; next }
+        inwork==1 && /^[^[:space:]]/ { inwork=0 }
+        inwork==1 && $0 ~ /^[[:space:]]*-[[:space:]]*work_id:/ {
+            line=$0; sub(/.*work_id:[[:space:]]*/,"",line)
+            gsub(/"/,"",line); gsub(/^[[:space:]]+|[[:space:]]+$/,"",line)
+            cur=line
+            print; next
+        }
+        inwork==1 && cur==want && $0 ~ /^[[:space:]]+work_path:/ {
+            print "    work_path: \"" wp "\""
+            updated=1
+            next
+        }
+        { print }
+        END { if (updated==0) exit 3 }
+    ' "${tmp_body}" > "${tmp_new}" || {
+        echo "Error: 未找到 work_id '${ID}' 的条目" >&2
+        rm -f "${tmp_body}" "${tmp_new}"; exit 1
+    }
+    rewrite_block "${tmp_new}"
+    rm -f "${tmp_body}" "${tmp_new}"
+    echo "已修正工作路径: ${ID} -> ${WPATH}"
+}
+
+# 从单个 status.yaml 提取概要行：work_id<TAB>branch<TAB>status<TAB>svc1,svc2
+# 文件不存在或字段缺失以 - 占位
+status_summary() {
+    f="$1"
+    if [ ! -f "${f}" ]; then
+        printf -- '-\t-\t-\t-\n'
+        return
+    fi
+    awk '
+        function val(line,   v) {
+            v=line; sub(/^[^:]*:/,"",v)
+            gsub(/^[[:space:]]+|[[:space:]]+$/,"",v)
+            sub(/[[:space:]]*#.*$/, "", v)
+            gsub(/^"|"$/,"",v)
+            return v
+        }
+        BEGIN { id="-"; br="-"; st="-"; svc=""; insvc=0 }
+        /^[A-Za-z_]/ { insvc=0 }
+        /^work_id:/ { id=val($0) }
+        /^branch:/  { br=val($0) }
+        /^status:/  { st=val($0) }
+        /^services:[[:space:]]*$/ { insvc=1; next }
+        /^services:/ {
+            line=$0; sub(/.*\[/,"",line); sub(/\].*/,"",line)
+            n=split(line, arr, ",")
+            for (i=1;i<=n;i++) {
+                v=arr[i]; gsub(/^[[:space:]]+|[[:space:]]+$/,"",v); gsub(/^"|"$/,"",v)
+                if (v!="") svc=(svc==""?v:svc","v)
+            }
+            next
+        }
+        insvc==1 && /^[[:space:]]+-[[:space:]]/ {
+            v=$0; sub(/^[[:space:]]+-[[:space:]]*/,"",v)
+            gsub(/^[[:space:]]+|[[:space:]]+$/,"",v); gsub(/^"|"$/,"",v)
+            if (v!="") svc=(svc==""?v:svc","v)
+        }
+        END { printf "%s\t%s\t%s\t%s\n", id, br, st, svc }
+    ' "${f}"
+}
+
+# work-reconcile: 对账 AGENTS.md work 条目与 space/ 实际目录，只报告差异不改写
+# 输出（TAB 分隔；无差异时仅 SUMMARY 行；退出码恒 0）：
+#   MISSING_DIR    <id> <登记目录名>        <status>                 条目在、目录缺失
+#   STALE_COMPLETED <id> <目录名>            <status>                 条目已 completed 但目录仍在（旧归档残留）
+#   PATH_MISMATCH  <id> <登记目录名>         <实际目录名>              work_path 与 status.yaml work_id 指向不符（重命名中断）
+#   UNREGISTERED   <目录名> <work_id|-> <branch|-> <status|-> <svc,svc|-| 目录在、无条目
+cmd_work_reconcile() {
+    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+
+    tmp_body="${AGENTS}.body.$$"
+    tmp_entries="${AGENTS}.entries.$$"
+    tmp_seen="${AGENTS}.seen.$$"
+    extract_body "${tmp_body}"
+    : > "${tmp_seen}"
+
+    # 提取条目：id<TAB>work_path 末段<TAB>status
+    awk '
+        function clean(v) { gsub(/"/,"",v); gsub(/^[[:space:]]+|[[:space:]]+$/,"",v); return v }
+        function flush() { if (cur!="") print cur "\t" wp "\t" st; cur=""; wp=""; st="" }
+        BEGIN { inwork=0; cur=""; wp=""; st="" }
+        /^work:/ { inwork=1; next }
+        inwork==1 && /^[^[:space:]]/ { flush(); inwork=0 }
+        inwork==1 && $0 ~ /^[[:space:]]*-[[:space:]]*work_id:/ {
+            flush()
+            line=$0; sub(/.*work_id:[[:space:]]*/,"",line); cur=clean(line)
+            next
+        }
+        inwork==1 && cur!="" && $0 ~ /^[[:space:]]+work_path:/ {
+            line=$0; sub(/.*work_path:[[:space:]]*/,"",line); line=clean(line)
+            gsub(/\\/,"/",line)
+            n=split(line, parts, "/"); wp=parts[n]
+            next
+        }
+        inwork==1 && cur!="" && $0 ~ /^[[:space:]]+status:/ {
+            line=$0; sub(/.*status:[[:space:]]*/,"",line); st=clean(line)
+        }
+        END { flush() }
+    ' "${tmp_body}" > "${tmp_entries}"
+
+    issues=0
+    matched=0
+
+    # 逐条核对磁盘
+    while IFS="$(printf '\t')" read -r id dirname status; do
+        [ -n "${id}" ] || continue
+        if [ -d "${ROOT}/space/${dirname}" ]; then
+            matched=$((matched+1))
+            printf '%s\n' "${dirname}" >> "${tmp_seen}"
+            if [ "${status}" = "completed" ]; then
+                printf 'STALE_COMPLETED\t%s\t%s\t%s\n' "${id}" "${dirname}" "${status}"
+                issues=$((issues+1))
+            fi
+            continue
+        fi
+        # 登记目录缺失：在其余工作区的 status.yaml 中按 work_id 找实际目录
+        actual=""
+        if [ -d "${ROOT}/space" ]; then
+            for sf in "${ROOT}/space"/*/status.yaml; do
+                [ -f "${sf}" ] || continue
+                sid=$(awk '/^work_id:/ { v=$0; sub(/^[^:]*:/,"",v); gsub(/"/,"",v); gsub(/^[[:space:]]+|[[:space:]]+$/,"",v); print v; exit }' "${sf}")
+                if [ "${sid}" = "${id}" ]; then
+                    actual=$(basename "$(dirname "${sf}")")
+                    break
+                fi
+            done
+        fi
+        if [ -n "${actual}" ]; then
+            printf 'PATH_MISMATCH\t%s\t%s\t%s\n' "${id}" "${dirname}" "${actual}"
+            # 实际目录已由本条 PATH_MISMATCH 覆盖，不再计为 UNREGISTERED
+            printf '%s\n' "${actual}" >> "${tmp_seen}"
+        else
+            printf 'MISSING_DIR\t%s\t%s\t%s\n' "${id}" "${dirname}" "${status}"
+        fi
+        issues=$((issues+1))
+    done < "${tmp_entries}"
+
+    # 逐目录核对登记（UNREGISTERED）
+    if [ -d "${ROOT}/space" ]; then
+        for d in "${ROOT}/space"/*/; do
+            [ -d "${d}" ] || continue
+            dn=$(basename "${d}")
+            if grep -qxF "${dn}" "${tmp_seen}"; then
+                continue
+            fi
+            summary=$(status_summary "${d}status.yaml")
+            printf 'UNREGISTERED\t%s\t%s\n' "${dn}" "${summary}"
+            issues=$((issues+1))
+        done
+    fi
+
+    printf 'SUMMARY\tmatched=%s\tissues=%s\n' "${matched}" "${issues}"
+    rm -f "${tmp_body}" "${tmp_entries}" "${tmp_seen}"
+}
+
 # keywords: 覆盖写 project.keywords（逗号分隔；空值写空序列）
 cmd_keywords() {
     KW="$3"
@@ -536,9 +744,12 @@ case "${ACTION}" in
     service-repo)  cmd_service_repo "$@" ;;
     work-add)      cmd_work_add "$@" ;;
     work-set)      cmd_work_set "$@" ;;
+    work-remove)   cmd_work_remove "$@" ;;
+    work-path)     cmd_work_path "$@" ;;
+    work-reconcile) NO_COMMIT=1; cmd_work_reconcile "$@" ;;
     work-services) cmd_work_services "$@" ;;
     work-trigger)  cmd_work_trigger "$@" ;;
-    *) echo "Error: 未知动作 '${ACTION}'（支持 ensure / set / skill-version / keywords / service-repo / work-add / work-set / work-services / work-trigger）" >&2; exit 1 ;;
+    *) echo "Error: 未知动作 '${ACTION}'（支持 ensure / set / skill-version / keywords / service-repo / work-add / work-set / work-remove / work-path / work-reconcile / work-services / work-trigger）" >&2; exit 1 ;;
 esac
 
 # AGENTS.md 项目信息区块变更后，框架自动提交空间仓库（无变更时 space.sh 内部跳过）；

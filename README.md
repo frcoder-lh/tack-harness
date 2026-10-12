@@ -211,7 +211,7 @@ my-project/
 /tack commit        # 自动生成 Conventional Commits 提交信息后直接提交（无需二次确认）
 /tack push          # 推送，未关联远端时先引导关联
 /tack merge         # 委派 reviewer 审查（三视角并行），审查结论三选一：修复/记录后续/维持现状；优先平台发起 MR/PR，冲突时 /tack solve 逐文件引导解决
-/tack close         # 交付检查 → 输出交付摘要 → 提炼 wiki（含技术决策）→ 消费 guidance 自进化固化 → 移除 worktree、按登记簿清理分支 → 状态置 completed
+/tack close         # 交付检查 → 输出交付摘要 → 提炼 wiki（含技术决策）→ 消费 guidance 自进化固化 → 移除 worktree、按登记簿清理分支 → 删除工作区目录、移除 AGENTS.md 工作区登记
 ```
 
 ### 4.6 经验沉淀与复用
@@ -231,7 +231,7 @@ my-project/
 
 | 工作流 | 触发词 | 状态流转 |
 | --- | --- | --- |
-| development | 开发工作流 / 需求开发 / 功能开发 / development workflow / requirement development / feature development /dev | `initialized → planning → developing → reviewing → merged → completed` |
+| development | 开发工作流 / 需求开发 / 功能开发 / development workflow / requirement development / feature development /dev | `initialized → planning → developing → reviewing → merged`，close 后工作区注销（目录与登记移除） |
 | testing | 测试工作流 / 补测试 / 测试任务 / testing workflow / add tests / testing task /tst | `initialized → test-planning → testing → verifying → completed` |
 | bugfix | 修bug / 修缺陷 / 排障 / fix bug / fix defect / troubleshoot /bug | `initialized → reproducing → diagnosing → fixing → verifying → completed` |
 | merge-conflict | 合并冲突 / 冲突工作流 / merge conflict / conflict workflow /mc | `initialized → fetching → merging → resolving → verifying → pushing → completed` |
@@ -294,7 +294,7 @@ flowchart LR
 | `update` | u | 更新 / 更新skill / update / update skill /update | 更新 harness 与空间根 .gitignore（.tack/ 强制兜底），保留自定义 cmd/rule 与 AGENTS.md |
 | `create-repo` | cr | 新建仓库 / 建仓 / create repo / new repository /createrepo /create-repo | 新建并初始化本地代码仓库，纳入项目空间管理 |
 | `record` | r | 记录 / 记忆 / 沉淀 / record / remember / distill /record | 优先融合已有条目；可落命令 / 工作流 / 规则 / wiki / AGENTS.md 常驻约定，新建时仅需提供 command |
-| `evolution` | evo | 进化 / 进化harness / evolve / evolve harness /evolution | 结构自检（lint-harness）并审查指令，提炼 rule/reference/script 候选、清理过时事实与非必要反向描述（cleanup 候选）；sh 脚本不符合 shell 编码规范的当场修正，其余人工确认后落盘 |
+| `evolution` | evo | 进化 / 进化harness / evolve / evolve harness /evolution | 校准 AGENTS.md 工作区登记与 `space/` 实际目录（清理孤儿条目、补登记缺失、purge 旧归档）；结构自检（lint-harness）并审查指令，提炼 rule/reference/script 候选、清理过时事实与非必要反向描述（cleanup 候选）；sh 脚本不符合 shell 编码规范的当场修正，其余人工确认后落盘 |
 | `study` | st | 学习 / 研习 / 借鉴 / study / learn / learn from /study | 向外学习外部 skill 或仓库的设计，提炼可借鉴点并落盘到 harness 对应位置，统一预览确认后提交，随后自动执行一次 evolution |
 
 ### 7.2 需求开发命令（cmd/dev/）
@@ -312,7 +312,7 @@ flowchart LR
 | `run` | rn | 运行 / 执行 / 跑脚本 / execute / run script /run | 按需触发，非必经：无 `run/` 时初始化（`run.md` + `local/`），有 `run.md` 时按清单执行；敏感数据落 `run/local/`（gitignored） |
 | `code-review` | rv | 代码审查 / 审查报告 / code review / review report /code-review | 按需触发：以 plan/tech-design 为规范、目标分支三点 diff 为事实，逐函数分析改动、正确性与危害，评估影响接口与场景，产出 `$work/code-review.md` |
 | `release-check` | rc | 上线检查 / 发布检查 / release check / go-live check /release-check | 按需触发：识别数据库变更（含变更语句）、配置变更（含模板）、新增接口调用（权限申请）、新增中间件（申请配置），产出 `$work/release-check.md` |
-| `close` | cl | 关闭工作区 / close workspace / finish /close | 交付检查与摘要、提炼 wiki（含技术决策）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、按 `branches` 登记簿清理分支（tmp 直接删、main 先判合并状态，未合并需用户确认）、状态收尾 |
+| `close` | cl | 关闭工作区 / close workspace / finish /close | 交付检查与摘要、提炼 wiki（含技术决策）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、按 `branches` 登记簿清理分支（tmp 直接删、main 先判合并状态，未合并需用户确认）、删除工作区目录并移除 AGENTS.md 工作区登记 |
 
 ### 7.3 Git 命令（cmd/git/）
 
@@ -382,6 +382,7 @@ sh harness/script/lint-harness.sh          harness   # 结构自检：frontmatte
 | **凭据明文拦截** | `scan-secrets.sh` 在空间文档（wiki/、space/）提交前做高置信凭据扫描，命中即阻断自动提交；支持 `tack:allow-secret` 豁免标记与占位值过滤 |
 | **落点证据链校验** | `check-guidance.sh` 校验 guidance distilled 条目的落点文件仍然存在，失效即阻断 close，防止固化证据链悬空 |
 | **Hook 边界观察层** | `PreToolUse` Hook 观察 Git 双层边界、`--force`/`--no-verify` 等破坏性操作；默认仅记录不拦截，调用与命中详情随 `TACK_HOOK_LOG=1` 统一写入 `$root/.tack/log/hook.log`（三个 Hook 事件共用）；`TACK_HOOK_ENFORCE=1` 预留 deny 路径，启用前须先用日志校准误判 |
+| **工作区删除门禁** | close 经 `work.sh purge` 删除工作区目录前三道校验：仅接受单层目录名（拒绝分隔符、空白与 `.`/`..`）、物理路径经 `pwd -P` 确认位于 `space/` 内（防 symlink 逃逸）、`repo/` 下无残留 worktree；任一不满足即拒绝删除 |
 
 
 ## 10. 常见问题

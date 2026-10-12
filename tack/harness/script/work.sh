@@ -7,6 +7,13 @@
 #     --no-worktree：只建目录骨架与模板文件，不创建任何 worktree
 #       （branch-op 工作流使用，临时分支 worktree 由 branch-op.sh prepare 另行创建）
 #
+#   sh work.sh purge <root> <workspace>
+#     删除已关闭工作区目录 space/<workspace>（close 收尾用）。
+#     安全门禁：workspace 必须是单层目录名；目标物理路径必须位于 <root>/space/ 内；
+#     目录内 repo/ 下不得残留有效 git worktree（须先经 close 第 6 步 / branch-op cleanup 移除）。
+#     本动作只删目录，AGENTS.md 工作条目的移除由 project.sh work-remove 负责；不自动提交
+#     （由 close 收尾的 space.sh commit 统一记录删除）。
+#
 # 目录命名：工作区目录名 = 创建日期(YYYYMMDD) + '-' + 安全化分支名，如 20261001-user-login。
 #   日期前缀使 space/ 下「按目录名排序」即「按创建时间排序」；git 分支名本身不带日期，
 #   目录（空间管理概念）与分支名由此解耦。
@@ -25,6 +32,61 @@
 #       在 AGENTS.md 项目信息区块登记工作条目由 project.sh work-add 完成（见 work 命令）。
 
 set -e
+
+# ---------- purge：删除已关闭工作区目录（close 收尾） ----------
+if [ "${1:-}" = "purge" ]; then
+    ROOT="$2"
+    WORKSPACE="$3"
+    if [ -z "${ROOT}" ] || [ -z "${WORKSPACE}" ]; then
+        echo "Usage: sh work.sh purge <root> <workspace>" >&2
+        exit 1
+    fi
+    # 门禁 1：workspace 必须是单层目录名，拒绝分隔符、空白与父目录跳转
+    case "${WORKSPACE}" in
+        */*|*'\'*|*" "*|.|..)
+            echo "Error: 非法 workspace 名称: ${WORKSPACE}" >&2
+            exit 1
+            ;;
+    esac
+    if [ ! -d "${ROOT}" ]; then
+        echo "Error: tack 空间根不存在: ${ROOT}" >&2
+        exit 1
+    fi
+    if [ ! -d "${ROOT}/space" ]; then
+        echo "Error: ${ROOT}/space 不存在，不是有效的 tack 空间" >&2
+        exit 1
+    fi
+    TARGET="${ROOT}/space/${WORKSPACE}"
+    if [ ! -d "${TARGET}" ]; then
+        echo "Error: 工作区目录不存在: ${TARGET}" >&2
+        exit 1
+    fi
+    # 门禁 2：目标物理父目录必须等于 space/ 的物理路径（防 symlink 逃逸）
+    SPACE_REAL=$(cd "${ROOT}/space" && pwd -P)
+    PARENT_REAL=$(cd "${TARGET}/.." && pwd -P)
+    if [ "${PARENT_REAL}" != "${SPACE_REAL}" ]; then
+        echo "Error: 目标物理路径不在 space/ 内，拒绝删除: ${TARGET}" >&2
+        exit 1
+    fi
+    # 门禁 3：repo/ 下不得残留有效 git worktree（须先经 close 第 6 步移除）
+    if [ -d "${TARGET}/repo" ]; then
+        for wt in "${TARGET}/repo"/*; do
+            [ -d "${wt}" ] || continue
+            if git -C "${wt}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+                echo "Error: 检测到残留 worktree，拒绝删除: ${wt}" >&2
+                echo "请先移除 worktree（git-worktree-helper.sh remove / branch-op.sh cleanup）" >&2
+                exit 1
+            fi
+        done
+    fi
+
+    # 离开目标目录后删除（Windows 上 cwd 在目标内会导致删除失败；脚本此前未 cd，此处置保险）
+    cd "${ROOT}"
+    rm -rf "${TARGET}"
+    echo "已删除工作区目录: space/${WORKSPACE}"
+    echo "PURGED=${WORKSPACE}"
+    exit 0
+fi
 
 NO_WORKTREE=0
 case "${1:-}" in

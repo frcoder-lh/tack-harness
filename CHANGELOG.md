@@ -6,6 +6,13 @@
 - 中英两份文件同版本条目一一对应、同步维护；`release.sh` 发版时校验目标 tag 在两份文件中均有对应段落，任一缺失即中止
 - CI 创建 GitHub Release 时分别抽取两份文件的对应段落拼接为双语 Release body；`check-update.sh` 检查提醒与 `update` 命令展示「本次更新内容」均同时以两份文件为来源
 
+## V0.0.17 (2026-10-12)
+
+- 新增: close 收尾彻底注销工作区——移除 worktree、按 branches 登记簿清理分支后，经 `work.sh purge` 删除整个 `space/<workspace>/` 目录并经 `project.sh work-remove` 移除 AGENTS.md 项目信息区块的 work 条目（过程文档不保留，跨工作区知识已先行沉淀至 wiki/harness）；purge 设三道安全门禁：仅接受单层目录名（拒绝分隔符、空白与 `.`/`..`）、目标物理路径经 `pwd -P` 确认位于 `space/` 内（防 symlink 逃逸）、`repo/` 下不得残留有效 worktree，任一不满足即拒绝删除；收尾中断支持断点续跑（worktree 已移除、目录已删而条目残留两类断点自动接续）
+- 新增: evolution 新增「工作区登记校准」步骤（第 3 步）——`project.sh` 新增 `work-reconcile` / `work-remove` / `work-path` 三个子命令：reconcile 对账 AGENTS.md work 条目与 `space/` 实际目录（只报告、零写入），输出 MISSING_DIR（条目在、目录缺失 → 移除孤儿条目）、UNREGISTERED（目录在、无条目 → 按 status.yaml 概要补登记）、STALE_COMPLETED（旧版 close 归档残留 → 确认后 purge 并移除）、PATH_MISMATCH（登记路径与磁盘不符 → 以实际目录为准经 work-path 校准）四类差异，逐类经用户确认后由脚本落盘；work 列表与切换改为只以 AGENTS.md 登记为事实源，不扫描磁盘
+- 优化: development 工作流终态由「置 completed」改为「close 注销」——状态流转止于 merged，close 后工作区目录与登记一并移除；close 不再写无消费者的 cleaned 状态、不再询问过程文档是否保留，删除由收尾统一提交
+- 优化: 执行效率纪律沉淀——tack/AGENTS.md 核心约束新增第 14 条「省往返、省上下文」（信息收集先 grep/glob 定位、只读命中片段，独立检索同轮并行，list/扫描类输出先在 shell 侧裁剪，同文件关联改动先列映射再整块编辑，删除/归档/重命名类需求先确认关联面）；源仓库 AGENTS.md 新增开发时「执行效率纪律」节（连带语义先问清、E2E 用例最小化、Windows 下直接用 Git for Windows sh.exe 绝对路径等六条）
+
 ## V0.0.16 (2026-10-11)
 
 - 新增: 工作区分支登记簿与关闭时统一清理——`status.yaml` 新增 `branches` 列表（repo/name/role[main|tmp]/source/cleaned），work 新建工作区、worktree 补建、branch-op prepare 产生的分支全部自动登记（`work.sh` 新增 `NEW_BRANCHES` 结果行、`git-worktree-helper.sh create` 输出 `BRANCH_CREATED`，登记经 `work-status.sh branch register` 脚本化）；close 移除 worktree 后遍历登记簿清理：tmp 分支直接删除，main 分支先经 `branch-merged` 实时判定合并状态（不落字段），已合并用 `-d` 安全删除、未合并列出由用户选择 force 删除或保留，每条删除后 `branch mark ... cleaned`；用户手工创建、未登记的分支不自动删除

@@ -211,7 +211,7 @@ Code changes are allowed only inside the worktree at `space/20261001-user-login/
 /tack commit        # Auto-generates a Conventional Commits message and commits directly (no second confirmation)
 /tack push          # Pushes; if no remote is associated, guides you to associate one first
 /tack merge         # Delegates to a reviewer (three perspectives in parallel); the conclusion is one of three: fix / record as follow-up / keep as-is; prefers raising an MR/PR on the platform; on conflicts, /tack solve guides file-by-file resolution
-/tack close         # Delivery check → delivery summary → distill wiki (incl. technical decisions) → consume guidance for self-evolution → remove worktree and clean up registered branches → mark completed
+/tack close         # Delivery check → delivery summary → distill wiki (incl. technical decisions) → consume guidance for self-evolution → remove worktree and clean up registered branches → delete the workspace directory and remove its AGENTS.md registration
 ```
 
 ### 4.6 Experience distillation and reuse
@@ -231,7 +231,7 @@ A workflow consists of a "state machine + command orchestration". After receivin
 
 | Workflow | Triggers | State transitions |
 | --- | --- | --- |
-| development | development workflow / requirement development / feature development /dev | `initialized → planning → developing → reviewing → merged → completed` |
+| development | development workflow / requirement development / feature development /dev | `initialized → planning → developing → reviewing → merged`; close deregisters the workspace (directory and registration removed) |
 | testing | testing workflow / add tests / testing task /tst | `initialized → test-planning → testing → verifying → completed` |
 | bugfix | fix bug / fix defect / troubleshoot /bug | `initialized → reproducing → diagnosing → fixing → verifying → completed` |
 | merge-conflict | merge conflict / conflict workflow /mc | `initialized → fetching → merging → resolving → verifying → pushing → completed` |
@@ -294,7 +294,7 @@ All commands support Chinese and English triggers plus short forms, in the forma
 | `update` | u | update / update skill /update | Updates the harness and the space-root .gitignore (`.tack/` enforced as a fallback), preserving custom cmd/rule and AGENTS.md |
 | `create-repo` | cr | create repo / new repository /createrepo /create-repo | Creates and initializes a local code repository and brings it under project-space management |
 | `record` | r | record / remember / distill /record | Prefers merging into existing entries; can land commands / workflows / rules / wiki / AGENTS.md resident agreements; for new entries you only need to supply command |
-| `evolution` | evo | evolve / evolve harness /evolution | Runs the structure self-check (lint-harness) and reviews instructions, distilling rule/reference/script candidates and cleaning up stale facts or needless negative descriptions (cleanup candidates); shell scripts violating the shell coding standard are fixed on the spot, everything else lands after human confirmation |
+| `evolution` | evo | evolve / evolve harness /evolution | Reconciles AGENTS.md workspace registrations with the actual `space/` directories (drops orphan entries, registers missing ones, purges stale archives); runs the structure self-check (lint-harness) and reviews instructions, distilling rule/reference/script candidates and cleaning up stale facts or needless negative descriptions (cleanup candidates); shell scripts violating the shell coding standard are fixed on the spot, everything else lands after human confirmation |
 | `study` | st | study / learn / learn from /study | Learns from the design of external skills or repositories, distills borrowable ideas into the corresponding harness locations, commits after a unified preview confirmation, then automatically runs one evolution |
 
 ### 7.2 Requirement development commands (cmd/dev/)
@@ -312,7 +312,7 @@ All commands support Chinese and English triggers plus short forms, in the forma
 | `run` | rn | execute / run script /run | On demand, not mandatory: initializes when `run/` is absent (`run.md` + `local/`), executes per checklist when `run.md` exists; sensitive data lands in `run/local/` (gitignored) |
 | `code-review` | rv | code review / review report /code-review | On demand: using plan/tech-design as the spec and the target-branch three-dot diff as facts, analyzes changes function by function for correctness and hazards, assesses affected interfaces and scenarios, and produces `$work/code-review.md` |
 | `release-check` | rc | release check / go-live check /release-check | On demand: identifies database changes (with migration statements), config changes (with templates), new API calls (permission requests), and new middleware (resource requests), producing `$work/release-check.md` |
-| `close` | cl | close workspace / finish /close | Delivery check and summary, distills wiki (incl. technical decisions), consumes guidance to crystallize the harness and verifies landing points, removes worktrees and cleans up branches per the `branches` register (tmp deleted directly; main branches checked for merged status first, unmerged ones need user confirmation), and finalizes status |
+| `close` | cl | close workspace / finish /close | Delivery check and summary, distills wiki (incl. technical decisions), consumes guidance to crystallize the harness and verifies landing points, removes worktrees and cleans up branches per the `branches` register (tmp deleted directly; main branches checked for merged status first, unmerged ones need user confirmation), then deletes the workspace directory and removes its AGENTS.md registration |
 
 ### 7.3 Git commands (cmd/git/)
 
@@ -382,6 +382,7 @@ Fallback: deleting the `.trae/` and `.claude/` directories under the space root 
 | **Plaintext credential blocking** | `scan-secrets.sh` runs a high-confidence credential scan before space documents (wiki/, space/) are committed, blocking the auto-commit on hits; supports the `tack:allow-secret` exemption marker and placeholder-value filtering |
 | **Landing-point evidence-chain verification** | `check-guidance.sh` verifies that the landing files of distilled guidance entries still exist; failure blocks close, preventing dangling crystallized evidence chains |
 | **Hook boundary observation layer** | The PreToolUse Hook observes the Git dual boundary and destructive operations such as `--force`/`--no-verify`; by default it only logs and never intercepts, and invocation/hit details are written together to `$root/.tack/log/hook.log` when `TACK_HOOK_LOG=1` (shared by the three Hook events); `TACK_HOOK_ENFORCE=1` reserves the deny path—calibrate false positives with the logs before enabling |
+| **Workspace deletion gates** | Before close deletes a workspace directory via `work.sh purge`, three checks must pass: a single-segment directory name only (no separators, whitespace, or `.`/`..`), the physical path confirmed via `pwd -P` to reside inside `space/` (symlink-escape protection), and no leftover valid worktree under `repo/`; deletion is rejected if any check fails |
 
 
 ## 10. FAQ
