@@ -8,6 +8,13 @@ This file is the single source of truth for tack harness release notes:
 - `release.sh` verifies before releasing that the target tag has corresponding sections in both `CHANGELOG.md` (Chinese) and `CHANGELOG.en.md` (English); release aborts if either is missing
 - CI extracts the corresponding sections from both changelogs and concatenates them as the bilingual GitHub Release body; the `check-update.sh` reminder and the `update` command's "What's new" view are sourced from both files
 
+## V0.0.18 (2026-10-20)
+
+- Added: `lint-shell-portability.sh`, a three-platform portability lint—scans every script under `harness/script/`, detects bare `mktemp`, GNU-only tool options, bashisms, and sed block commands missing a trailing semicolon, and is wired into `lint-harness` and `evolution` as a hard gate
+- Added: `evolution` gains a source-repository mode—when run inside the tack-harness source repo (`tack/harness`) it skips workspace reconciliation and version checks while keeping the full review; it also adds a document-vs-script call-signature (interface) candidate to prevent parameter-order drift
+- Improved: All harness scripts converge on the Linux (GNU), macOS (BSD), and Windows (Git for Windows) baseline—bare `mktemp` calls now always use templates, `--ssl-no-revoke` is used only as a Windows fallback, and `repo.sh link` uses a directory junction on Windows; `coding-standards-shell.md` codifies the three-platform baseline
+- Fixed: A missing semicolon at the end of sed blocks in `project.sh` that broke BSD sed on macOS; stale descriptions and a typo in `init-tack.sh` and `update.md` are cleaned up as well
+
 ## V0.0.17 (2026-10-12)
 
 - Added: close now fully deregisters a workspace at finalization—after removing worktrees and cleaning branches per the branches register, `work.sh purge` deletes the whole `space/<workspace>/` directory and `project.sh work-remove` removes the work entry from the AGENTS.md project-info block (process documents are not kept; cross-workspace knowledge has already been distilled into wiki/harness). purge enforces three safety gates: a single-segment directory name only (no separators, whitespace, or `.`/`..`), the physical target path confirmed via `pwd -P` to reside inside `space/` (symlink-escape protection), and no valid worktree left under `repo/`; deletion is rejected if any gate fails. Interrupted finalization resumes from breakpoints (worktree already removed, or directory gone while the entry remains)

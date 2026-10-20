@@ -6,6 +6,13 @@
 - 中英两份文件同版本条目一一对应、同步维护；`release.sh` 发版时校验目标 tag 在两份文件中均有对应段落，任一缺失即中止
 - CI 创建 GitHub Release 时分别抽取两份文件的对应段落拼接为双语 Release body；`check-update.sh` 检查提醒与 `update` 命令展示「本次更新内容」均同时以两份文件为来源
 
+## V0.0.18 (2026-10-20)
+
+- 新增: `lint-shell-portability.sh` 三平台可移植性机检——扫描 `harness/script/` 下全部脚本，检出裸 `mktemp`、GNU 专有工具选项、bashism、sed 块末命令缺少分号等问题，并接入 `lint-harness` 与 `evolution` 作为硬门禁
+- 新增: `evolution` 支持源仓库模式——在 tack-harness 源仓库（`tack/harness`）内运行时自动跳过工作区校准与版本检查，审查仍完整执行；同时新增文档-脚本调用签名一致性（interface）候选，防止文档参数顺序与脚本实现漂移
+- 优化: 全部 harness 脚本按 Linux（GNU）、macOS（BSD）、Windows（Git for Windows）三平台基线收敛——裸 `mktemp` 全部改为带模板、`--ssl-no-revoke` 仅在 Windows 回退、`repo.sh link` 在 Windows 改用目录 junction；`coding-standards-shell.md` 固化三平台兼容基线
+- 修复: `project.sh` 的 sed 块末命令补分号，修复 macOS BSD sed 下的语法错误；`init-tack.sh`、`update.md` 等处的过时描述与笔误一并清理
+
 ## V0.0.17 (2026-10-12)
 
 - 新增: close 收尾彻底注销工作区——移除 worktree、按 branches 登记簿清理分支后，经 `work.sh purge` 删除整个 `space/<workspace>/` 目录并经 `project.sh work-remove` 移除 AGENTS.md 项目信息区块的 work 条目（过程文档不保留，跨工作区知识已先行沉淀至 wiki/harness）；purge 设三道安全门禁：仅接受单层目录名（拒绝分隔符、空白与 `.`/`..`）、目标物理路径经 `pwd -P` 确认位于 `space/` 内（防 symlink 逃逸）、`repo/` 下不得残留有效 worktree，任一不满足即拒绝删除；收尾中断支持断点续跑（worktree 已移除、目录已删而条目残留两类断点自动接续）

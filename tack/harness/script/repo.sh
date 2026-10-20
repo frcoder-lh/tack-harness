@@ -24,6 +24,19 @@ get_repo_name() {
     echo "${name}"
 }
 
+# link_dir <src> <target> — 目录链接：Windows 用 junction（Git Bash 的 ln -s
+# 在未开启 winsymlinks 时会退化为复制），其余平台用符号链接
+link_dir() {
+    case "$(uname -s 2>/dev/null)" in
+        MINGW*|MSYS*|CYGWIN*)
+            cmd //c mklink //J "$(cygpath -w "$2")" "$(cygpath -w "$1")" >/dev/null 2>&1
+            ;;
+        *)
+            ln -s "$1" "$2"
+            ;;
+    esac
+}
+
 case "${ACTION}" in
 
     scan)
@@ -54,7 +67,12 @@ case "${ACTION}" in
                 echo "已存在，跳过: repo/${name}"
                 continue
             fi
-            ln -s "${abs}" "${target}" && echo "已软链: repo/${name} -> ${abs}"
+            if link_dir "${abs}" "${target}"; then
+                echo "已软链: repo/${name} -> ${abs}"
+            else
+                echo "Error: 创建目录链接失败: repo/${name} -> ${abs}" >&2
+                exit 1
+            fi
         done
         ;;
 

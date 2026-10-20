@@ -13,7 +13,7 @@
 #      通过 winget 自动安装，bash 环境内 Git 必然随附）。
 #   2. 将目标目录初始化为 Git 仓库并自动完成首次提交（.git 已存在时跳过；
 #      空间仓库的 Git 操作全部由框架经 space.sh 自动完成，用户不直接操作）。
-# 注意：项目信息存放在 AGENTS.md 的项目信息区块中，骨架不再包含 status.yaml。
+# 注意：项目信息存放在 AGENTS.md 的项目信息区块中；status.yaml 属于工作区产物（space/<workspace>/status.yaml）。
 
 set -e
 

@@ -674,8 +674,8 @@ cmd_work_trigger() {
 
     # 提取目标条目的现有 trigger_words 与 branch（用 sed 范围匹配，兼容有无 trigger_words 字段的条目）
     WANT_ID="$(esc "${ID}")"
-    EXISTING=$(sed -n '/work_id: "'"${WANT_ID}"'"/,/work_id: *"/{ /trigger_words:/!d; s/.*trigger_words: *\[//; s/\].*//; s/"//g; p }' "${tmp_body}")
-    BR=$(sed -n '/work_id: "'"${WANT_ID}"'"/,/work_id: *"/{ /branch:/!d; s/.*branch: *"//; s/".*//; p }' "${tmp_body}")
+    EXISTING=$(sed -n '/work_id: "'"${WANT_ID}"'"/,/work_id: *"/{ /trigger_words:/!d; s/.*trigger_words: *\[//; s/\].*//; s/"//g; p; }' "${tmp_body}")
+    BR=$(sed -n '/work_id: "'"${WANT_ID}"'"/,/work_id: *"/{ /branch:/!d; s/.*branch: *"//; s/".*//; p; }' "${tmp_body}")
 
     # 验证 work_id 存在（EXISTING 和 BR 同时为空且无匹配 → 报错）
     if [ -z "${BR}" ]; then

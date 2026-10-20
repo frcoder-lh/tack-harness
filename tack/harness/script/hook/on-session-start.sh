@@ -19,7 +19,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "${SCRIPT_DIR}/hook-common.sh"
 
-PAYLOAD="$(mktemp 2>/dev/null)" || exit 0
+PAYLOAD="$(mktemp "${TMPDIR:-/tmp}/tack-payload.XXXXXX" 2>/dev/null)" || exit 0
 cat > "${PAYLOAD}" 2>/dev/null || true
 
 CWD="$(hook_json_get cwd "${PAYLOAD}")"

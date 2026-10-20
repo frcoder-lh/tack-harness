@@ -162,7 +162,7 @@ fi
 
 # —— 3. 准备提交信息 ——
 [ -n "${MSG}" ] || MSG="release: ${TAG}"
-msg_file=$(mktemp)
+msg_file=$(mktemp "${TMPDIR:-/tmp}/tack-release-msg.XXXXXX")
 trap 'rm -f "${msg_file}"' EXIT INT TERM
 {
     printf '%s\n' "${MSG}"
@@ -216,7 +216,7 @@ if [ "${current_version}" = "${TAG}" ]; then
     version_changed=0
 else
     echo ">> 同步 ${SKILL_FILE} 版本号：${current_version} → ${TAG}"
-    version_tmp=$(mktemp)
+    version_tmp=$(mktemp "${TMPDIR:-/tmp}/tack-release-version.XXXXXX")
     if ! sed "2,/^---\$/ s|^version:.*|version: \"${TAG}\"|" "${SKILL_FILE}" > "${version_tmp}"; then
         rm -f "${version_tmp}"
         echo "错误：更新 ${SKILL_FILE} 失败" >&2

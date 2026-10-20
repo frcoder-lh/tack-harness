@@ -76,8 +76,8 @@ if [ -n "${TMP_DIR}" ]; then
     PAIRS="${TMP_DIR}/work-status.$$.pairs"
     TMP="${TMP_DIR}/work-status.$$.out"
 else
-    PAIRS="$(mktemp)"
-    TMP="$(mktemp)"
+    PAIRS="$(mktemp "${TMPDIR:-/tmp}/tack-ws-pairs.XXXXXX")"
+    TMP="$(mktemp "${TMPDIR:-/tmp}/tack-ws-out.XXXXXX")"
 fi
 trap 'rm -f "${PAIRS}" "${TMP}"; rmdir "${TMP_DIR}" 2>/dev/null || true' EXIT HUP INT TERM
 

@@ -39,6 +39,7 @@ Tack Harness 是一套专为软件研发打造的编程工作流框架：
 | **审查与上线门禁** | `code-review` 以 plan/技术方案为规范、目标分支三点 diff 为事实逐函数审查改动正确性与危害、评估影响接口与场景，产出独立审查报告；`release-check` 产出上线检查清单——数据库变更语句、配置变更模板、接口权限申请、中间件资源申请，逐项打勾后发布 |
 | **命令自创造** | `record` 为 "生成指令的指令"。首先扫描已有命令尝试融合修正；若无合适命令，仅需提供 `command`，其余内容自动生成 |
 | **自进化** | guidance 闭环：任务各环节自动把用户的引导、纠偏、补充约定以原始事实追加到 `status.yaml` 的 `guidance` 列表（raw）；`close` 收尾时自动审查并固化到 workflow/cmd/rule（distilled），落点经 `check-guidance` 校验，形成「采集 → 固化 → 校验」的自进化回路 |
+| **三平台 shell 门禁** | 全部 harness 脚本按 POSIX sh 与 Linux/macOS/Windows 共有工具选项编写；`lint-shell-portability` 随 `lint-harness` 运行，检出裸 `mktemp`、GNU 专有选项、bashism 与 sed 方言问题，`evolution` 审查时即修 |
 | **自动更新检查** | `close`/`evolution`/`record`/`help` 命令收尾时静默检查新版本（7 天 + 同版本双节流，不在会话开始时抢占任务）；发现新版本时展示本机版本到最新版本之间的全部更新内容，用户确认后说「更新」即可升级 |
 | **角色委派** | `harness/agents/` 内置可委派角色（code-explorer / code-architect / code-reviewer），被 `ask`/`plan`/`tech-design`/`code-review`/`merge` 等命令引用后经 Task 子代理在独立上下文并行执行；只供发现与委派，不参与命令路由 |
 | **Hook 加速层** | `harness/script/hook/` 提供 IDE Hooks 可选加速（SessionStart 预载路由、UserPromptSubmit 零往返路由解析、PreToolUse 边界观察）；仅搬运确定性事实，AGENTS.md + `scan-routes.sh` 仍是唯一事实源，默认不启用、不拦截 |
@@ -155,7 +156,7 @@ my-project/
 │   ├── cmd/             #   命令：发现、路由、准入准出
 │   ├── agents/          #   可委派角色：独立上下文并行执行（explorer/architect/reviewer）
 │   ├── workflow/        #   工作流：状态机与命令编排
-│   ├── script/          #   固定流程脚本（init-tack 初始化 / scan-routes 路由扫描 / lint-harness 结构自检 / scan-secrets 凭据扫描 / check-guidance 落点校验 / work-status 状态回写 / space 空间自动提交 / project 项目信息 / repo 仓库 / work 工作区 / git-worktree-helper / git-fetch-helper 远端同步与上游修复 / git-bug-trace 缺陷溯源 / git-diff-context 三点 diff 导出 / branch-op 分支操作 / check-update 更新检查 / skill-update 本机 skill 升级；Windows 统一经 run.ps1 启动器调用）
+│   ├── script/          #   固定流程脚本（init-tack 初始化 / scan-routes 路由扫描 / lint-harness 结构自检 / lint-shell-portability 三平台可移植性 / scan-secrets 凭据扫描 / check-guidance 落点校验 / work-status 状态回写 / space 空间自动提交 / project 项目信息 / repo 仓库 / work 工作区 / git-worktree-helper / git-fetch-helper 远端同步与上游修复 / git-bug-trace 缺陷溯源 / git-diff-context 三点 diff 导出 / branch-op 分支操作 / check-update 更新检查 / skill-update 本机 skill 升级；Windows 统一经 run.ps1 启动器调用）
 │   │   └── hook/        #   IDE Hook 可选加速层（SessionStart/UserPromptSubmit/PreToolUse，默认不启用、不拦截）
 │   ├── rule/            #   业务、代码与安全规则（coding-standards、security、git-boundary 双层边界、context-loading 上下文加载、windows-env、record-* 沉淀规则；不参与路由，按需加载）
 │   ├── template/        #   命令、工作流、文档、工作区模板
@@ -294,7 +295,7 @@ flowchart LR
 | `update` | u | 更新 / 更新skill / update / update skill /update | 更新 harness 与空间根 .gitignore（.tack/ 强制兜底），保留自定义 cmd/rule 与 AGENTS.md |
 | `create-repo` | cr | 新建仓库 / 建仓 / create repo / new repository /createrepo /create-repo | 新建并初始化本地代码仓库，纳入项目空间管理 |
 | `record` | r | 记录 / 记忆 / 沉淀 / record / remember / distill /record | 优先融合已有条目；可落命令 / 工作流 / 规则 / wiki / AGENTS.md 常驻约定，新建时仅需提供 command |
-| `evolution` | evo | 进化 / 进化harness / evolve / evolve harness /evolution | 校准 AGENTS.md 工作区登记与 `space/` 实际目录（清理孤儿条目、补登记缺失、purge 旧归档）；结构自检（lint-harness）并审查指令，提炼 rule/reference/script 候选、清理过时事实与非必要反向描述（cleanup 候选）；sh 脚本不符合 shell 编码规范的当场修正，其余人工确认后落盘 |
+| `evolution` | evo | 进化 / 进化harness / evolve / evolve harness /evolution | 校准 AGENTS.md 工作区登记与 `space/` 实际目录（清理孤儿条目、补登记缺失、purge 旧归档）；结构自检（lint-harness + lint-shell-portability）并审查指令，提炼 rule/reference/script 候选、清理过时事实与非必要反向描述（cleanup 候选）；支持 tack 空间与源仓库两种运行模式；sh 脚本三平台兼容不符合项当场修正，其余人工确认后落盘 |
 | `study` | st | 学习 / 研习 / 借鉴 / study / learn / learn from /study | 向外学习外部 skill 或仓库的设计，提炼可借鉴点并落盘到 harness 对应位置，统一预览确认后提交，随后自动执行一次 evolution |
 
 ### 7.2 需求开发命令（cmd/dev/）
@@ -348,6 +349,7 @@ sh harness/script/scan-routes.sh commands  harness   # 仅命令
 sh harness/script/scan-routes.sh agents    harness   # 仅可委派角色（agents/ 不参与 resolve）
 sh harness/script/scan-routes.sh resolve   harness 需求规划
 sh harness/script/lint-harness.sh          harness   # 结构自检：frontmatter/四段/路由冲突/reference 孤儿
+sh harness/script/lint-shell-portability.sh harness   # 三平台可移植性机检：裸 mktemp/GNU 专有选项/bashism/sed 块分号
 ```
 
 扩展规则：

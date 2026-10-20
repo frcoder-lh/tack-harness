@@ -24,6 +24,12 @@
 
 set -e
 
+# --ssl-no-revoke 是 Git for Windows（schannel）专有回退，仅 Windows 使用
+IS_WINDOWS=0
+case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*) IS_WINDOWS=1 ;;
+esac
+
 SKILL_NAME="tack"
 SKILL_FILES="SKILL.md README.md README.en.md CHANGELOG.md CHANGELOG.en.md install.sh tack"
 
@@ -130,13 +136,13 @@ trap 'exit 143' TERM
 if [ ! -f "${SCRIPT_DIR}/SKILL.md" ]; then
     # 经 curl | sh 等方式运行时脚本脱离仓库，本地没有源码，自动下载压缩包到临时目录
     echo "==> 未检测到本地源码，正在下载 tack-harness ..."
-    TMP_SRC="$(mktemp -d)"
+    TMP_SRC="$(mktemp -d "${TMPDIR:-/tmp}/tack-install.XXXXXX")"
     ARCHIVE="${TMP_SRC}/src.tar.gz"
     DOWNLOAD_OK=0
     if command -v curl >/dev/null 2>&1; then
         if curl -fsSL "${REPO_ARCHIVE_URL}" -o "${ARCHIVE}"; then
             DOWNLOAD_OK=1
-        elif curl -fsSL --ssl-no-revoke "${REPO_ARCHIVE_URL}" -o "${ARCHIVE}"; then
+        elif [ "${IS_WINDOWS}" -eq 1 ] && curl -fsSL --ssl-no-revoke "${REPO_ARCHIVE_URL}" -o "${ARCHIVE}"; then
             # Windows Git Bash 的 schannel 后端在受限网络下需关闭证书吊销检查
             DOWNLOAD_OK=1
         fi

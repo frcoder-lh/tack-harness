@@ -25,7 +25,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "${SCRIPT_DIR}/hook-common.sh"
 
-PAYLOAD="$(mktemp 2>/dev/null)" || exit 0
+PAYLOAD="$(mktemp "${TMPDIR:-/tmp}/tack-payload.XXXXXX" 2>/dev/null)" || exit 0
 # 先注册基础清理：非命令类工具在 hook_log_setup 之前就会早退，不能依赖增强 trap
 trap 'rm -f "${PAYLOAD}" 2>/dev/null' EXIT HUP INT TERM
 cat > "${PAYLOAD}" 2>/dev/null || true

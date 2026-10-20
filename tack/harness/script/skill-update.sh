@@ -23,9 +23,15 @@
 # 退出码: 0 成功；非 0 失败（本机 skill 未被改动，可安全重试）
 #
 # 注意: 下载源码压缩包为 <update-url>/archive/refs/tags/<tag>.tar.gz，
-#       下载兼容性处理与 install.sh 一致（curl 失败回退 --ssl-no-revoke，再回退 wget）。
+#       下载兼容性处理与 install.sh 一致（Windows 上 curl 失败回退 --ssl-no-revoke，再回退 wget）。
 
 set -eu
+
+# --ssl-no-revoke 是 Git for Windows（schannel）专有回退，仅 Windows 使用
+IS_WINDOWS=0
+case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*) IS_WINDOWS=1 ;;
+esac
 
 UPDATE_URL=""
 TAG=""
@@ -113,7 +119,7 @@ if [ -n "${TACK_ROOT_ARG}" ]; then
     mkdir -p "${TMP_PARENT}"
     TMP_SRC="$(mktemp -d "${TMP_PARENT}/skill-update.$$.XXXXXX")"
 else
-    TMP_SRC="$(mktemp -d)"
+    TMP_SRC="$(mktemp -d "${TMPDIR:-/tmp}/tack-skill-update.XXXXXX")"
 fi
 cleanup_src() { rm -rf "${TMP_SRC}"; }
 trap cleanup_src EXIT
@@ -126,7 +132,7 @@ DOWNLOAD_OK=0
 if command -v curl >/dev/null 2>&1; then
     if curl -fsSL "${ARCHIVE_URL}" -o "${ARCHIVE}"; then
         DOWNLOAD_OK=1
-    elif curl -fsSL --ssl-no-revoke "${ARCHIVE_URL}" -o "${ARCHIVE}"; then
+    elif [ "${IS_WINDOWS}" -eq 1 ] && curl -fsSL --ssl-no-revoke "${ARCHIVE_URL}" -o "${ARCHIVE}"; then
         # Windows Git Bash 的 schannel 后端在受限网络下需关闭证书吊销检查
         DOWNLOAD_OK=1
     fi

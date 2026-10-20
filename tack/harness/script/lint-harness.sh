@@ -11,6 +11,7 @@
 #     2. 名称字段与文件名不一致（如文件 foo.md 但 command: bar）
 #     3. cmd 四段正文缺失：前置准入条件 / 指令内容 / 后置完成检验 / 下一步建议
 #     4. 名称、short、triggers 词条在 workflow+cmd 之间冲突（scan-routes 会多命中）
+#     5. shell 脚本三平台可移植性（script/lint-shell-portability.sh 存在时执行，其 ERROR 计入退出码）
 #   W（WARN，仅提示，不改变退出码）
 #     1. short 缺失（可选但建议有）
 #     2. reference/*.md 未被任何 cmd/workflow/agents/rule 文件引用（孤儿）
@@ -181,3 +182,10 @@ END {
     exit 0
 }
 ' $FILES
+awk_exit=$?
+[ "${awk_exit}" -eq 0 ] || exit "${awk_exit}"
+
+# 脚本三平台可移植性（sed 块分号、裸 mktemp、GNU 专有选项、bashism）
+if [ -f "${HARNESS_DIR}/script/lint-shell-portability.sh" ]; then
+    sh "${HARNESS_DIR}/script/lint-shell-portability.sh" "${HARNESS_DIR}" || exit 1
+fi

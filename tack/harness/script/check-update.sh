@@ -32,6 +32,12 @@
 
 set -eu
 
+# --ssl-no-revoke 是 Git for Windows（schannel）专有回退，仅 Windows 使用
+IS_WINDOWS=0
+case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*) IS_WINDOWS=1 ;;
+esac
+
 CHECK_INTERVAL=604800   # 节流间隔：7 天（秒）
 DEFAULT_UPDATE_URL="https://github.com/frcoder-lh/tack-harness"
 
@@ -133,7 +139,7 @@ latest_tag() {
     _loc=""
     if command -v curl >/dev/null 2>&1; then
         _loc="$(curl -fsSI -o /dev/null -w '%{redirect_url}' "${UPDATE_URL}/releases/latest" 2>/dev/null || true)"
-        if [ -z "${_loc}" ]; then
+        if [ -z "${_loc}" ] && [ "${IS_WINDOWS}" -eq 1 ]; then
             _loc="$(curl -fsSI --ssl-no-revoke -o /dev/null -w '%{redirect_url}' "${UPDATE_URL}/releases/latest" 2>/dev/null || true)"
         fi
     fi
@@ -153,9 +159,13 @@ latest_tag() {
 # fetch_url <url> <outfile> — 三下载器回退：curl → curl --ssl-no-revoke（Git Bash
 # schannel 受限网络）→ wget；全部失败返回非零
 fetch_url() {
-    curl -fsSL "$1" -o "$2" 2>/dev/null \
-        || curl -fsSL --ssl-no-revoke "$1" -o "$2" 2>/dev/null \
-        || wget -q -O "$2" "$1" 2>/dev/null
+    if curl -fsSL "$1" -o "$2" 2>/dev/null; then
+        return 0
+    fi
+    if [ "${IS_WINDOWS}" -eq 1 ] && curl -fsSL --ssl-no-revoke "$1" -o "$2" 2>/dev/null; then
+        return 0
+    fi
+    wget -q -O "$2" "$1" 2>/dev/null
 }
 
 # cl_section <file> <new-tag> <old-tag> — 抽取「## <new-tag>」至「## <old-tag>」（不含）

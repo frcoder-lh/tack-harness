@@ -290,8 +290,8 @@ hook_log_setup() {
     _HL_PAYLOAD="$2"
     _HL_EXTRA="${3:-}"
     if hook_log_enabled; then
-        _HOOKLOG="$(mktemp 2>/dev/null)" || _HOOKLOG=""
-        _HL_OUT="$(mktemp 2>/dev/null)" || _HL_OUT=""
+        _HOOKLOG="$(mktemp "${TMPDIR:-/tmp}/tack-hooklog.XXXXXX" 2>/dev/null)" || _HOOKLOG=""
+        _HL_OUT="$(mktemp "${TMPDIR:-/tmp}/tack-hookout.XXXXXX" 2>/dev/null)" || _HL_OUT=""
         _HL_T0="$(date '+%s' 2>/dev/null)" || _HL_T0=""
         if [ -n "${_HOOKLOG}" ]; then
             {

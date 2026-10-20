@@ -87,7 +87,7 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
 ## 后置完成检验
 
 - [ ] scan-routes.sh list 正常输出工作流与全部命令
-- [ ] 本机 skill 的 SKILL.md version 已更新为最新版本号（第 2 步执行过时）
+- [ ] 本机 skill 的 SKILL.md version 已更新为最新版本号（第 2 步已执行）
 - [ ] 所有"本地已修改"文件均已按用户确认的方案处理，无遗漏
 - [ ] 融合文件通过 `sh -n` 校验，融合结果经用户确认
 - [ ] 用户自定义的 cmd、rule 未被改动；AGENTS.md 项目信息仅 skill_version 经 project.sh 更新，其余字段不变
