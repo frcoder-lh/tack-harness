@@ -26,10 +26,11 @@ summary: 合并前独立深度审查——以 plan.md/tech-design.md 为规范�
 
 2. **确定审查范围并导出 diff 事实**
    - 输入: 目标分支参数（默认主干 master/main，由脚本自动探测）
-   - 动作: 汇总本需求涉及的仓库（status.yaml tasks 的 `repo` 字段 + plan.md 模块划分「所属仓库」列，去重），逐仓库执行：
-     `sh $root/harness/script/git-diff-context.sh $work/repo/<repo-name> $root/.tack/tmp/review [目标分支]`
-     解析输出行：`target_ref`、`merge_base`、`head`、`empty`、`files_changed`、`diff_file`、`stat_file`
-   - `empty: true` 的仓库向用户说明后跳过；全部为空时中止并提示「与目标分支无差异，无需审查」
+   - 动作: 仓库清单取 `sh $root/harness/script/work-status.sh $work/status.yaml tasks repos`（可按需与 plan.md 模块划分「所属仓库」列合并），执行批量导出：
+     `sh $root/harness/script/git-diff-context.sh batch $work $root/.tack/tmp/review [目标分支]`
+     解析每仓库输出行 `target_ref`、`merge_base`、`head`、`empty`、`files_changed`、`diff_file`、`stat_file` 与汇总行 `summary_*`
+   - 退出码: 0 至少一个仓库有差异；3 全部无差异（中止并提示「与目标分支无差异，无需审查」）；1 部分仓库失败；11 目标分支不存在
+   - `empty: true` 的仓库向用户说明后跳过
    - 边界: 脚本只搬运确定性事实（ref 解析、merge-base、diff 导出），逐函数语义分析由本命令完成
 
 3. **加载规范与标准来源**

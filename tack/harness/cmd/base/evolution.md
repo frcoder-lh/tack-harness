@@ -39,7 +39,7 @@ summary: 进化 harness——校准 AGENTS.md 工作区登记与 space/ 实际�
 4. **枚举全部指令并收集 guidance 素材**
    - 动作: 执行 `sh $HARNESS_DIR/script/scan-routes.sh commands $HARNESS_DIR`，取得 base/dev/git 全量命令清单与文件路径；逐个重新读取正文（不相信上下文旧内容）
    - AGENTS.md: 重新读取 `$root/AGENTS.md` 全文（核心约束编号条目、环境变量、项目信息等章节）；`<!-- tack:info:start/end -->` 项目信息区块由 project.sh 维护，只读不改（第 3 步校准除外）；源仓库模式无项目信息区块，跳过该区块说明
-   - guidance: 读取当前工作区 `$work/status.yaml` 的 `guidance`（存在 `$work` 时优先），并扫描 `$root/space/*/status.yaml` 中其余 `status: raw` 条目；汇总去重（同一引导在多个工作区重复出现视为高优先级信号）；源仓库模式无 `space/`，跳过
+   - guidance: 执行 `sh $HARNESS_DIR/script/check-guidance.sh list $root raw` 统一列举全部工作区的 raw 条目（TAB 分隔：workspace / id / status / stage / candidate / summary）；脚本在 stderr 输出 `DUPLICATE` 行，同一引导跨工作区重复出现视为高优先级信号；源仓库模式无 `space/`，跳过
    - sh 脚本: 枚举 `$HARNESS_DIR/script/` 下全部 `.sh`，逐个重新读取正文（不相信上下文旧内容）；这些脚本须在 Windows（Git for Windows）、macOS（BSD 工具）、Linux（GNU 工具）三平台均可运行
 
 5. **逐个审查每个指令文件及 `$root/AGENTS.md`**，按以下机会识别候选：

@@ -32,13 +32,14 @@ summary: 后续环节发现需求不明确或实现不正确时进行修正—�
 
 ### 路径 A：需求修正（文档先行，spec → plan → 代码）
 
-1. **回写状态**：执行 `sh $root/harness/script/work-status.sh $work/status.yaml set stage fix task 需求修正 next "修正 spec.md"`（自动刷新 updated_at）；受影响任务必要时在 tasks 中置 `blocked`（任务级状态直接编辑 YAML）
+1. **回写状态**：执行 `sh $root/harness/script/work-status.sh $work/status.yaml set stage fix task 需求修正 next "修正 spec.md"`（自动刷新 updated_at）；受影响任务执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks set <任务ID> blocked`
 2. **修正 spec.md**：按用户修正内容更新需求规划（边界、story、验收标准等相关章节）；只改受影响部分，保留修订说明（修正点、原因、日期）
 3. **修正 plan.md**：
    - 更新受影响的设计章节与「决策记录」
    - 调整模块划分与任务清单：新增/删除/修改任务，重算 deps 与并行关系
-4. **同步 status.yaml 的 tasks**：直接编辑 YAML，使任务列表与 plan.md 一致；
-   - 新增任务 `pending`；已 done 但受影响的任务回退为 `pending`（或新增修正任务），并在任务备注中记录原因
+4. **同步 status.yaml 的 tasks**：按 plan.md 的最终任务清单生成规范化 TSV（列：id / title / module / repo / deps-csv / status），落 `$root/.tack/tmp/tasks.tsv`（目录不存在先 `mkdir -p`），执行
+   `sh $root/harness/script/work-status.sh $work/status.yaml tasks replace $root/.tack/tmp/tasks.tsv`，再执行 `tasks validate`（退出码 4 时修复后重试）；
+   - 新增任务 `pending`；已 done 但受影响的任务执行 `tasks set <任务ID> pending` 回退（或新增修正任务），原因写入 `current.next`
 5. **修正代码**：对受影响的任务重新执行 code 的实现纪律（复用优先、按依赖顺序、grep 定位），使代码与修正后的文档一致
 6. 用户审阅确认后恢复原环节状态
 

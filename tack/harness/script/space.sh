@@ -47,10 +47,10 @@ commit)
         git config user.email "tack-harness@local"
     fi
 
-    # 凭据硬门禁：wiki/space 文档命中凭据明文时阻断本次提交（set -e 生效）。
+    # 凭据硬门禁：本次全部 Git 变更文件（含 cmd/script/rule/run 等）命中凭据明文时阻断提交（set -e 生效）。
     # 误报处理与 TACK_SECRET_SCAN=off 紧急开关见 scan-secrets.sh 头部说明。
     SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-    sh "${SCRIPT_DIR}/scan-secrets.sh" "${ROOT}"
+    sh "${SCRIPT_DIR}/scan-secrets.sh" "${ROOT}" --changed
 
     git add -A
     if git diff --cached --quiet; then

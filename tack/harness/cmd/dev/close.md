@@ -15,14 +15,14 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
 ## 指令内容
 
 1. **状态判定与关闭确认**
-   - 动作: 读取 `$work/status.yaml` 的 `status`、`progress`、`tasks`（status.yaml 已不存在时按下方中断续跑处理）
+   - 动作: 读取 `$work/status.yaml` 的 `status`、`progress`、`tasks`，并执行 `sh $root/harness/script/work-status.sh $work/status.yaml deploy list` 检查是否存在 `deploying` / `deployed` 未回收泳道（status.yaml 已不存在时按下方中断续跑处理）
    - **完成态**（`status` 为 merged/completed，或 `progress.merged: true`，MR 已合并或用户已确认交付）：视为已到完成态，**不再追问，直接进入后续收尾流程**
    - **非完成态**（initialized/planning/developing/reviewing，或存在未完成 tasks、未推送提交、未合并 MR）：列出未完成项并说明风险，**请用户确认是否仍要关闭**
      - 输入: 用户确认 → 继续；用户不确认 → 中止关闭，引导回到对应环节（如 `merge`、`code`）
    - work 条目仍在即表示关闭未完成；若 worktree 已移除（上次收尾在删除目录前中断），直接续跑剩余收尾步骤；若工作区目录已删除而 work 条目残留（purge 与移除条目之间中断），直接执行第 7 步的 `work-remove` 后跳到收尾提交
 
 2. **交付检查**
-   - 动作: 逐仓库检查：无未提交改动（或用户确认保留）、本地提交均已推送、MR 已合并或用户确认跳过；检查 `$work/status.yaml` 的 mr_url、tech_doc_url 是否需要补全；未推送提交需逐一告知用户并确认处理方式；检查 `deploy` 区块——存在 `deploying/deployed` 状态的泳道时提醒用户到部署平台回收（回收后置 `recycled`），未回收不阻塞关闭但处理方式须经用户确认；检查 `$work/run/local/`——该目录被 .gitignore 忽略，仅本地存在、含密钥/账号或临时数据；工作区目录将在第 7 步整体删除，提醒用户其中若有需要保留的文件请先取走（不阻塞关闭）
+   - 动作: 逐仓库检查：无未提交改动（或用户确认保留）、本地提交均已推送、MR 已合并或用户确认跳过；检查 `$work/status.yaml` 的 mr_url、tech_doc_url 是否需要补全；未推送提交需逐一告知用户并确认处理方式；执行 `work-status.sh $work/status.yaml deploy list`——存在 `deploying/deployed` 状态的泳道时提醒用户到部署平台回收（回收后执行 `deploy mark <repo> <env> <lane> recycled`），未回收不阻塞关闭但处理方式须经用户确认；检查 `$work/run/local/`——该目录被 .gitignore 忽略，仅本地存在、含密钥/账号或临时数据；工作区目录将在第 7 步整体删除，提醒用户其中若有需要保留的文件请先取走（不阻塞关闭）
 
 3. **输出交付摘要**
    - 时机: worktree 移除前（仍可取到提交与文件清单），wiki 提炼前
@@ -48,7 +48,7 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
    - 落盘: 被采纳条目按 `harness/rule/record-wiki.md` 写入 `$root/wiki/<project>/` 对应文件——文件已存在则融合去重（不重复追加），不存在时按 `harness/template/wiki-*.md` 模板创建（decisions.md 首条采纳时才创建）；每条带来源（`space/<workspace>/<文件>`，`<workspace>` 即当前工作区目录名），与旧条目矛盾时按「矛盾与演变」规则保留轨迹；**必须经人工审阅确认后才生效**；用户放弃则跳过
 
 5. **自进化：消费 guidance，固化操作习惯到 harness**
-   - 输入: 读取 `$work/status.yaml` 的 `guidance` 列表中所有 `status: raw` 条目（无 raw 条目则向用户一句话说明并跳过本步）
+   - 输入: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml guidance list raw` 取得本工作区全部 raw 条目（无 raw 条目则向用户一句话说明并跳过本步）
    - 动作: 逐条按 `harness/rule/record-classification.md` 判据评估——筛出**跨工作区可复用的操作习惯/流程修正**（应固化为 workflow/cmd/rule 的内容），一次性过程信息标记为不固化；汇总为候选清单：来源条目 id | 场景与用户引导 | 建议落点（workflow/cmd/rule 及具体文件）| 融合或新建
    - 询问: 向用户展示候选清单，可全部采纳、挑选部分或放弃（**落盘必须经用户确认**，本步不擅自改 harness）
    - 落盘: 采纳项走 `record` 流程——先扫描对应 workflow/cmd/rule，**能融合则融合**，确无合适条目才新建；同时遵守核心约束第 10 条，发现确定性固定步骤一并提议固化为 script

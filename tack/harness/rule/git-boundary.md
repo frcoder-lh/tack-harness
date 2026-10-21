@@ -4,13 +4,13 @@
 
 - 空间根仓库 `$root` 的提交由框架脚本 `harness/script/space.sh commit` 自动完成。
 - **禁止**直接对 `$root` 执行 `git add / commit / push / merge` 等操作。
-- 自动提交前会经过 `scan-secrets.sh` 门禁扫描。
+- 自动提交前会经 `scan-secrets.sh --changed` 对本次全部变更文件做凭据扫描。
 
 ## 代码仓库（业务代码）
 
 - 代码仓库的操作**只允许**在 `$work/repo/<repo-name>/` 的 git worktree 内进行。
 - worktree 的创建与移除只能经 `harness/script/git-worktree-helper.sh` 完成。
-- 代码仓库的提交统一由 `commit` 命令执行（自动生成提交信息后直接提交，无需二次确认）；框架自动提交只处理空间根仓库，不代为提交代码，两类提交不合并为一次。
+- 代码仓库的提交统一由 `commit` 命令经 `git-commit-helper.sh` 执行（自动生成提交信息后直接提交，无需二次确认）；推送统一由 `push` 命令经 `git-push-helper.sh` 执行（脚本拒绝任何 force 参数）；框架自动提交只处理空间根仓库，不代为提交代码，两类提交不合并为一次。
 
 ## 安全禁令
 

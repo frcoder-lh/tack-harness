@@ -92,9 +92,9 @@ initialized → planning → developing → reviewing → merged ──close─�
 ## 状态回写要求
 
 - 每个命令开始前经 `harness/script/work-status.sh` 回写 `$work/status.yaml`：`current.stage`（spec/plan/code/fix/...）、`current.task`、`current.next`（updated_at 由脚本自动刷新）
-- 任务级状态通过 `tasks[].status` 流转（pending / in_progress / done / blocked），由 code/testcode/fix 维护
+- 任务级状态通过 `work-status.sh <status.yaml> tasks set <任务ID> <状态>` 流转（pending / in_progress / done / blocked），由 code/testcode/fix 维护；`tasks replace` 用于整表同步，`tasks validate` 阻断悬空/自依赖/循环依赖与非法状态
 - **用户引导采集（自进化素材）**：每个任务/环节结束时，凡用户对 AI 的做法有过引导、纠偏、补充约定，自动向 `guidance` 列表追加一条 raw 记录（字段见 `harness/template/work-status.yaml`）；只记事实，不直接改 harness
 - 命令完成并经人工确认后：置 `progress` 对应开关为 true，并按上表推进 `status`
-- 受阻时置 `status: blocked`，在 `current.next` 写明阻塞原因与等待项；解除后回到受阻前状态
+- 受阻时执行 `work-status.sh <status.yaml> tasks set <任务ID> blocked`，在 `current.next` 写明阻塞原因与等待项；解除后用 `tasks set <任务ID> pending|in_progress` 回到受阻前状态
 - `guidance` 的 raw 条目在 `close` 时自动固化（或随时手动 `evolution`/`record` 提前固化），固化后置 distilled 并按 `落点: <相对 $root 路径>` 注明落点（格式见 `harness/template/work-status.yaml`），由 `check-guidance.sh` 校验落点有效
 - `close` 后工作区目录与 AGENTS.md work 条目均已移除（工作区列表只以 AGENTS.md 登记为准）

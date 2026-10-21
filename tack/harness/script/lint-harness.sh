@@ -189,3 +189,31 @@ awk_exit=$?
 if [ -f "${HARNESS_DIR}/script/lint-shell-portability.sh" ]; then
     sh "${HARNESS_DIR}/script/lint-shell-portability.sh" "${HARNESS_DIR}" || exit 1
 fi
+
+# 悬空的明确路径引用（WARN）：只匹配 harness/rule|reference|script|template/ 下
+# 带真实扩展名的路径；含 < > * $ {} 的占位/通配写法不匹配，避免误报
+ROOT_DIR="$(cd "${HARNESS_DIR}/.." && pwd)"
+REF_WARN=0
+for f in $FILES "${ROOT_DIR}/AGENTS.md"; do
+    [ -f "${f}" ] || continue
+    hits="$(grep -oE 'harness/(rule|reference|script|template)/[A-Za-z0-9._/-]+\.(md|sh|ps1|yaml|yml|tmpl|json)' "${f}" 2>/dev/null | sort -u || true)"
+    [ -n "${hits}" ] || continue
+    while IFS= read -r p; do
+        [ -n "${p}" ] || continue
+        case "${p}" in
+            *xxx*|*example*|*sample*) continue ;;
+        esac
+        if [ ! -f "${ROOT_DIR}/${p}" ]; then
+            rel="${f#${HARNESS_DIR}/}"
+            [ "${rel}" = "${f}" ] && rel="${f#${ROOT_DIR}/}"
+            printf 'WARN  [%s] 悬空路径引用: %s\n' "${rel}" "${p}"
+            REF_WARN=$((REF_WARN + 1))
+        fi
+    done <<EOF
+${hits}
+EOF
+done
+if [ "${REF_WARN}" -gt 0 ]; then
+    echo "lint-harness: path-ref warning(s): ${REF_WARN}"
+fi
+exit 0

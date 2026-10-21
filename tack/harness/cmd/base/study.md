@@ -62,7 +62,7 @@ summary: 学习外部 skill 或仓库的设计，提炼可借鉴点并直接优�
    - 新增命令/工作流先做重名检查：候选名过 `scan-routes resolve` 不得命中现有命令，命名不带前导连字符、意图明确（禁止模糊命名）
 
 4. **备份并直接落盘（中途不找用户确认）**
-   - 备份: 落盘前将 `$root/harness` 复制到 `$root/.tack/backup/study-<timestamp>/`（`.tack/` 已被 gitignore 忽略）；如改动涉及 AGENTS.md 一并复制原件进备份目录
+   - 备份: 落盘前执行 `sh $root/harness/script/harness-backup.sh backup $root study`（备份 `harness/`、`AGENTS.md`、`.gitignore` 到 `$root/.tack/backup/study-<时间戳>/`；`.tack/` 已被 gitignore 忽略）；记录输出的 `BACKUP_DIR`，回滚时用 `harness-backup.sh restore` + `verify`
    - 落盘原则:
      - **以新增、融合、优化为主，不删除既有内容**：不删除、不弱化任何现有命令、规则、脚本、模板与约定
      - 最小化修改：只动与借鉴点相关的段落，不重写无关内容；融合时保留原文有效表述
@@ -92,7 +92,7 @@ summary: 学习外部 skill 或仓库的设计，提炼可借鉴点并直接优�
 
 7. **确认后提交（无需用户操作 git）**
    - 动作: 用户确认全部变更后，执行 `sh $root/harness/script/space.sh commit $root "chore(tack): study from <来源标识>"` 自动提交到 tack 空间根仓库；无变更自动跳过
-   - 用户整体否决: 从 `.tack/backup/study-<timestamp>/` 恢复全部文件，不提交，并保留分析结论供用户参考
+   - 用户整体否决: 执行 `sh $root/harness/script/harness-backup.sh restore $root <BACKUP_DIR>`，随后 `verify` 确认逐文件一致；不提交，并保留分析结论供用户参考
    - 收尾: 删除本次临时克隆目录（`$root/.tack/tmp/study-clone-<时间戳>`，仅删本次创建的目录）；`.tack/backup/study-<timestamp>/` 是回滚备份、保留不删；本地素材目录不删不动
    - 边界: 遵守 `harness/rule/git-boundary.md`
 
@@ -114,6 +114,7 @@ summary: 学习外部 skill 或仓库的设计，提炼可借鉴点并直接优�
 - [ ] 既有命令、规则、脚本、模板与约定无一被删除；替换性内容仅作为「待裁决建议」列出并经用户选择
 - [ ] scan-routes 路由表完整、无重名；新增触发词唯一命中；脚本通过 `sh -n` 与最小用例；引用路径全部存在
 - [ ] 变更仅在统一预览并经用户确认后提交；提交信息含来源标识；`.tack/tmp/` 下本次临时克隆目录已清理（回滚备份 `backup/study-<timestamp>/` 保留）
+- [ ] 落盘前已执行 `harness-backup.sh backup`；发生回退时已 `restore` 且 `verify` 通过
 - [ ] 提交后已自动执行一次 evolution，其候选已经用户确认或按 evolution 规则保留 raw
 
 ## 下一步建议

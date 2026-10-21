@@ -9,6 +9,10 @@
 #
 # Usage:
 #   sh git-fetch-helper.sh sync <repo-path>
+#
+# 结果行（stdout 末尾）：FETCH_RESULT=ok|conflict|detached|no-remote|no-upstream|failed
+# 退出码: 0 成功；1 普通失败；2 用法错误；10 pull 冲突（需 solve）；
+#         11 detached / 无 remote / 远端无同名分支（需人工介入）
 
 set -e
 
@@ -35,14 +39,26 @@ fi
 BRANCH=$(git -C "${REPO_PATH}" symbolic-ref --short HEAD 2>/dev/null || true)
 if [ -z "${BRANCH}" ]; then
     echo "Error: detached HEAD in ${REPO_PATH}, skip sync." >&2
-    exit 1
+    echo "FETCH_RESULT=detached"
+    exit 11
+fi
+
+# 无 remote 时无法同步
+if [ -z "$(git -C "${REPO_PATH}" remote 2>/dev/null)" ]; then
+    echo "Error: no remote configured in ${REPO_PATH}" >&2
+    echo "FETCH_RESULT=no-remote"
+    exit 11
 fi
 
 echo "=== ${REPO_PATH} (branch: ${BRANCH}) ==="
 
 # 1) 拉取远端
 echo "[1/4] git fetch --all --prune"
-git -C "${REPO_PATH}" fetch --all --prune
+if ! git -C "${REPO_PATH}" fetch --all --prune; then
+    echo "  git fetch failed" >&2
+    echo "FETCH_RESULT=failed"
+    exit 1
+fi
 
 # 2) 检查并修复上游跟踪（目标固定为 origin/<当前分支名>）
 #    rev-parse 在无上游时退出非零且无 stdout 输出；用 || true 兜底为空字符串
@@ -71,16 +87,25 @@ else
     git -C "${REPO_PATH}" branch -r 2>/dev/null | head -n 20 >&2 || true
     echo "  Push first: git push -u origin ${BRANCH}  —  or set upstream manually:" >&2
     echo "  git -C ${REPO_PATH} branch --set-upstream-to=origin/<branch>" >&2
-    exit 1
+    echo "FETCH_RESULT=no-upstream"
+    exit 11
 fi
 
 # 3) 拉取并合并
 echo "[3/4] git pull"
 if ! git -C "${REPO_PATH}" pull; then
-    echo "  git pull failed (likely merge conflict). Resolve via /tack solve" >&2
+    if [ -n "$(git -C "${REPO_PATH}" diff --name-only --diff-filter=U 2>/dev/null)" ] \
+        || [ -f "$(git -C "${REPO_PATH}" rev-parse --absolute-git-dir 2>/dev/null)/MERGE_HEAD" ]; then
+        echo "  git pull stopped with merge conflict. Resolve via /tack solve" >&2
+        echo "FETCH_RESULT=conflict"
+        exit 10
+    fi
+    echo "  git pull failed" >&2
+    echo "FETCH_RESULT=failed"
     exit 1
 fi
 
 # 4) 汇报状态
 echo "[4/4] status:"
 git -C "${REPO_PATH}" status -sb
+echo "FETCH_RESULT=ok"

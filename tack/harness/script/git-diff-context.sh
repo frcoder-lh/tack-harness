@@ -11,6 +11,10 @@
 #   - repo-path:     代码仓库路径（$work/repo/<repo-name>）
 #   - out-dir:       diff/stat 输出目录（不存在自动创建；建议 $root/.tack/tmp/review/，不入库）
 #   - target-branch: 目标分支（可选，默认自动探测 master/main）
+#   sh git-diff-context.sh batch <work-dir> <out-dir> [target-branch] [repo-list]
+#   - work-dir:      工作区目录（含 status.yaml 与 repo/）
+#   - repo-list:     逗号或空格分隔的仓库名；省略时取 work-status.sh tasks repos
+#   - 逐仓库导出并汇总：summary_repos / summary_with_diff / summary_empty / summary_failed
 #
 # 输出（label: value 格式，便于 AI 解析）：
 #   repo:           仓库名（路径 basename）
@@ -24,13 +28,90 @@
 #   diff_file:      完整 diff 文件路径
 #   stat_file:      diff --stat 文件路径
 #
-# 退出码: 0 成功；1 仓库/目标 ref 不存在或无 merge-base；2 用法错误
+# 退出码（单仓库）: 0 成功；1 仓库无效或无 merge-base；2 用法错误；11 目标分支/默认主干不存在
+# 退出码（batch）  : 0 至少一个仓库有差异；1 部分仓库失败；2 用法错误；
+#                    3 全部无差异或无仓库；11 目标分支在所有仓库均不存在
 
 set -eu
 
 if [ $# -lt 2 ]; then
     echo "Usage: $0 <repo-path> <out-dir> [target-branch]" >&2
+    echo "       $0 batch <work-dir> <out-dir> [target-branch] [repo-list]" >&2
     exit 2
+fi
+
+SELF="$0"
+
+if [ "${1:-}" = "batch" ]; then
+    WORK_DIR="${2:-}"
+    OUT_DIR="${3:-}"
+    TARGET_BRANCH="${4:-}"
+    REPO_LIST="${5:-}"
+    if [ -z "${WORK_DIR}" ] || [ -z "${OUT_DIR}" ]; then
+        echo "Usage: $0 batch <work-dir> <out-dir> [target-branch] [repo-list]" >&2
+        exit 2
+    fi
+    if [ ! -d "${WORK_DIR}" ]; then
+        echo "Error: work dir not found: ${WORK_DIR}" >&2
+        exit 1
+    fi
+    if [ -z "${REPO_LIST}" ]; then
+        SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+        STATUS_FILE="${WORK_DIR}/status.yaml"
+        if [ ! -f "${STATUS_FILE}" ]; then
+            echo "Error: status.yaml not found: ${STATUS_FILE}（无法推导仓库列表）" >&2
+            exit 1
+        fi
+        REPO_LIST="$(sh "${SCRIPT_DIR}/work-status.sh" "${STATUS_FILE}" tasks repos 2>/dev/null || true)"
+    fi
+    REPO_LIST="$(printf '%s' "${REPO_LIST}" | tr ',' ' ')"
+    mkdir -p "${OUT_DIR}" 2>/dev/null || true
+
+    total=0; with_diff=0; empty_n=0; failed=0; target_missing=0
+    TMP_REPO_OUT="$(mktemp "${TMPDIR:-/tmp}/tack-diff-batch.XXXXXX")"
+    trap 'rm -f "${TMP_REPO_OUT}"' EXIT HUP INT TERM
+    for name in ${REPO_LIST}; do
+        [ -n "${name}" ] || continue
+        total=$((total + 1))
+        repo_path="${WORK_DIR}/repo/${name}"
+        : > "${TMP_REPO_OUT}"
+        rc=0
+        sh "${SELF}" "${repo_path}" "${OUT_DIR}" "${TARGET_BRANCH}" > "${TMP_REPO_OUT}" 2>/dev/null || rc=$?
+        if [ "${rc}" -eq 11 ]; then
+            target_missing=$((target_missing + 1))
+            failed=$((failed + 1))
+            echo "repo: ${name}"
+            echo "error: target branch or default branch not found"
+            continue
+        elif [ "${rc}" -ne 0 ]; then
+            failed=$((failed + 1))
+            echo "repo: ${name}"
+            echo "error: failed to export diff (rc=${rc})"
+            continue
+        fi
+        cat "${TMP_REPO_OUT}"
+        if grep -q '^empty: true$' "${TMP_REPO_OUT}"; then
+            empty_n=$((empty_n + 1))
+        else
+            with_diff=$((with_diff + 1))
+        fi
+    done
+
+    echo "summary_repos: ${total}"
+    echo "summary_with_diff: ${with_diff}"
+    echo "summary_empty: ${empty_n}"
+    echo "summary_failed: ${failed}"
+
+    if [ "${target_missing}" -gt 0 ]; then
+        exit 11
+    fi
+    if [ "${failed}" -gt 0 ]; then
+        exit 1
+    fi
+    if [ "${total}" -eq 0 ] || [ "${with_diff}" -eq 0 ]; then
+        exit 3
+    fi
+    exit 0
 fi
 
 REPO="$1"
@@ -71,7 +152,7 @@ resolve_ref() {
 if [ -n "${TARGET_BRANCH}" ]; then
     if ! TARGET_REF="$(resolve_ref "${TARGET_BRANCH}")"; then
         echo "Error: target branch not found: ${TARGET_BRANCH} (neither local nor origin/)" >&2
-        exit 1
+        exit 11
     fi
 else
     TARGET_REF=""
@@ -83,7 +164,7 @@ else
     done
     if [ -z "${TARGET_REF}" ]; then
         echo "Error: cannot auto-detect target branch (tried master/main); please specify explicitly" >&2
-        exit 1
+        exit 11
     fi
 fi
 

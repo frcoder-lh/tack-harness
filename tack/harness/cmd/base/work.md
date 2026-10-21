@@ -124,9 +124,13 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 ### 重命名工作区
 
 1. 输入新的目的描述；描述宽泛时按「新建工作区」第 2 步先澄清意图，再生成并确认新分支名
-2. 重命名工作区目录：`space/<原日期>-<old>/` 改为 `space/<原日期>-<new>/`——**保留原创建日期前缀**（排序位置与创建事实不变），只替换分支名部分
-3. 遍历该工作区每个仓库，在 worktree 内执行 `git branch -m <old> <new>`
-4. 直接编辑 AGENTS.md 项目信息区块中该条目（work_id / work_path / branch）与 `$work/status.yaml`（work_id / work_dir / branch）；若重命名的是当前工作区，更新 `$work`；若 status.yaml 的 branches 列表中存在 `name: <old>` 的 main 条目，一并把 name 改为 `<new>`（重命名不增删条目，只更新 name）
+2. **dry-run 展示完整变更计划**：
+   `sh $root/harness/script/work.sh rename $root <old-work-id> <new-work-id> [new-branch] --dry-run`
+   计划含目录（保留原创建日期前缀）、work_id、分支、各仓库 worktree 分支、status.yaml、AGENTS.md 工作条目与 branches[]；新 ID/目录/分支冲突由脚本以退出码 4 拦截
+3. **用户确认后 apply**：
+   `sh $root/harness/script/work.sh rename $root <old-work-id> <new-work-id> [new-branch] --apply`
+   脚本按「分支 → worktree 目录 → 工作区文件 → status.yaml → AGENTS.md → branches[]」顺序执行；中途失败自动回滚并输出 `ROLLBACK=complete|incomplete`，完整回滚可重试，不完整时按脚本列出的残留项人工处理
+4. 成功后脚本输出 `RENAME_RESULT=applied`、`RECONCILE=ok` 并自动提交空间仓库；若重命名的是当前工作区，把 `$work` 更新为计划中的新目录
 
 ### 切换工作区
 
@@ -149,8 +153,8 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 新建路径的提交已由 work.sh、project.sh 自动完成；重命名等直接编辑过 AGENTS.md / status.yaml 的路径，结束前执行 `sh $root/harness/script/space.sh commit $root "chore(tack): workspace <branch>"` 兜底（无变更自动跳过）
-- 边界: 遵守 `harness/rule/git-boundary.md`；工作区内的分支重命名（`git branch -m`）作用于代码仓库，属用户仓库操作
+- 动作: 新建与重命名的提交均由 work.sh / project.sh 自动完成；其余直接编辑过 AGENTS.md / status.yaml 的路径，结束前执行 `sh $root/harness/script/space.sh commit $root "chore(tack): workspace <branch>"` 兜底（无变更自动跳过）
+- 边界: 遵守 `harness/rule/git-boundary.md`；重命名同时作用于工作区目录与各代码仓库的分支，目录与 worktree 迁移由 work.sh 事务完成
 
 ## 后置完成检验
 
@@ -160,6 +164,7 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 - [ ] 常规建区：已输出开场知识清单（roster）——wiki 页面与相关分析文档（含新鲜度），冷仓库已建议 ask；未向上下文塞入 wiki 全文
 - [ ] 常规建区：NEW_BRANCHES 中的仓库已登记到 status.yaml 的 branches 列表（role=main, source=work）
 - [ ] branch-op：op/A/B 已解析且仓库经用户确认；prepare 成功，status.yaml 已置 `workflow: branch-op`、`status: preparing` 并写入 `branch_op` 区块（临时分支名齐全），两个临时分支已登记到 branches 列表（role=tmp, source=branch-op）
+- [ ] 重命名：dry-run 计划经用户确认；apply 输出 `RENAME_RESULT=applied` 且 `RECONCILE=ok`（失败时 `ROLLBACK=complete|incomplete` 已如实汇报）
 
 ## 下一步建议
 

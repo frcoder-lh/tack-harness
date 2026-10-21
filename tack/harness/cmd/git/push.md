@@ -17,11 +17,12 @@ summary: 推送工作区提交到远端；未关联远端时先引导关联
 ## 指令内容
 
 1. **检查远端关联**
-   - 动作: 逐仓库执行 `git remote -v`；若仓库未关联任何远端，**停止推送**并提示用户先创建远端仓库后执行 `git remote add origin <url>`，关联后再重新执行本命令
+   - 动作: 逐仓库执行 `sh $root/harness/script/git-push-helper.sh inspect "$work/repo/<repo-name>"`，读取 `remote` / `upstream` / `can_push` / `first_push`；`can_push=false`（无 remote 或 detached）时**停止推送**并提示用户先创建远端仓库后执行 `git remote add origin <url>`
 2. **推送**
-   - 动作: 当前分支无上游时使用 `git push -u origin <branch>`（首次推送）；已有上游直接 `git push`；多仓库逐个推送
+   - 动作: 逐仓库执行 `sh $root/harness/script/git-push-helper.sh push "$work/repo/<repo-name>"`；脚本自行处理首次推送（`-u`）、补 upstream 与普通推送，并拒绝任何 force 参数
+   - 结果处理: `PUSH_RESULT=ok|first-push` 视为成功；退出码 12（non-fast-forward）先转 `fetch`/`solve` 再重试；10（冲突）转 `solve`；11（无 remote/upstream/detached）按第 1 步指引处理
 3. **回填协作信息**
-   - 动作: 若平台返回创建 MR/PR 的链接，记录到 `$work/status.yaml` 的 `mr_url`
+   - 动作: 若平台返回创建 MR/PR 的链接，执行 `sh $root/harness/script/work-status.sh $work/status.yaml set mr_url "<url>"` 回填
 
 ## 后置完成检验
 

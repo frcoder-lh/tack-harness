@@ -32,7 +32,7 @@ summary: 结合技术模板与 spec/plan 产出技术评审文档 tech-design.md
 
 4. **审阅与外链**
    - 输入: 用户审阅意见
-   - 动作: 按意见修订并经用户确认；若团队用飞书等承载技术文档，将外链回填 `$work/status.yaml` 的 `tech_doc_url`
+   - 动作: 按意见修订并经用户确认；若团队用飞书等承载技术文档，执行 `sh $root/harness/script/work-status.sh $work/status.yaml set tech_doc_url "<url>"` 回填外链
 
 5. **回写完成状态**
    - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml set progress.tech-design true next "执行 code 开始逐任务开发"`

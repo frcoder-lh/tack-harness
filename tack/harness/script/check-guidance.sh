@@ -17,8 +17,51 @@
 #     不传 workspace：扫描 $root/space/*/status.yaml（evolution 全局审查用）
 #     传 workspace  ：只扫 $root/space/<workspace>/status.yaml（close 单工作区用；
 #                     workspace 为工作区目录名 <YYYYMMDD>-<branch>，即 basename "${work}"）
+#   sh check-guidance.sh list <root> [raw|all]
+#     统一列举全部工作区的 guidance 条目（委托 work-status.sh guidance list），
+#     输出 TAB 分隔：workspace / id / status / stage / candidate / summary
+#     重复条目（stage + summary 相同）以 DUPLICATE<TAB>count<TAB>stage<TAB>summary 打到 stderr
 # Windows: powershell -ExecutionPolicy Bypass -File run.ps1 check-guidance <root> [workspace]
 # 退出码: 0 无失效落点（WARN 不改变退出码）/ 1 存在规范失效落点 / 2 用法错误
+
+if [ "${1:-}" = list ]; then
+    ROOT="$2"
+    FILTER="${3:-raw}"
+    case "${FILTER}" in
+        raw|all) ;;
+        *) echo "Usage: sh check-guidance.sh list <root> [raw|all]" >&2; exit 2 ;;
+    esac
+    if [ -z "${ROOT}" ] || [ ! -d "${ROOT}" ]; then
+        echo "Error: tack space root not found: ${ROOT}" >&2
+        echo "Usage: sh check-guidance.sh list <root> [raw|all]" >&2
+        exit 2
+    fi
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    TMP_DIR="${ROOT}/.tack/tmp"
+    mkdir -p "${TMP_DIR}"
+    TMP_LIST="${TMP_DIR}/check-guidance-list.$$.txt"
+    trap 'rm -f "${TMP_LIST}"; rmdir "${TMP_DIR}" 2>/dev/null || true' EXIT INT TERM
+    : > "${TMP_LIST}"
+    for f in "${ROOT}/space"/*/status.yaml; do
+        [ -f "${f}" ] || continue
+        sh "${SCRIPT_DIR}/work-status.sh" "${f}" guidance list "${FILTER}" >> "${TMP_LIST}"
+    done
+    cat "${TMP_LIST}"
+    awk -F"$(printf '\t')" '
+        function norm(s) { gsub(/[[:space:]]+/, " ", s); return s }
+        {
+            key = norm($4) "|" norm($6)
+            cnt[key]++
+            stage[key] = $4
+            summary[key] = norm($6)
+        }
+        END {
+            for (k in cnt) if (cnt[k] > 1)
+                printf "DUPLICATE\t%d\t%s\t%s\n", cnt[k], stage[k], summary[k]
+        }
+    ' "${TMP_LIST}" >&2
+    exit 0
+fi
 
 ROOT="$1"
 WORKSPACE="$2"

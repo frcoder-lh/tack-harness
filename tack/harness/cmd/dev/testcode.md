@@ -33,7 +33,7 @@ summary: 按需命令（非开发必经环节，用户需要时触发）——�
 
 1. **确定范围并回写状态**
    - 输入: 任务 ID（未指定则取最近完成、尚未补测试的任务）
-   - 动作: 从 status.yaml 的 `tasks` 与代码 diff 圈定本任务新增/修改逻辑；执行 `sh $root/harness/script/work-status.sh $work/status.yaml set stage testcode task "<任务ID>" next "需求-代码一致性审查 + 缺陷发现 + 覆盖率达标"`
+   - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks list` 取得任务清单，结合代码 diff 圈定本任务新增/修改逻辑；执行 `sh $root/harness/script/work-status.sh $work/status.yaml set stage testcode task "<任务ID>" next "需求-代码一致性审查 + 缺陷发现 + 覆盖率达标"`
 
 2. **需求-代码一致性审查**（核心，先于写测试）
    - 输入: spec 的业务规则/验收标准 + plan 的测试策略 + 被测代码
@@ -66,7 +66,7 @@ summary: 按需命令（非开发必经环节，用户需要时触发）——�
 
 6. **部署验证登记（按需）**
    - 输入: 用户是否需要部署到环境泳道做联调/验证（部署动作在外部平台执行，本命令不代为部署，只登记事实）
-   - 动作: 部署完成后把泳道事实登记到 `$work/status.yaml` 的 `deploy` 区块（结构见 `harness/template/work-status.yaml`）：repo / env / lane（建议从 work_id 派生）/ route / build / url / status；环境拓扑与泳道申请方式不明时查 `$root/wiki/<project>/manifest.md`「部署环境与泳道」，缺失则提示用户补充并经 `record` 沉淀
+   - 动作: 部署完成后执行 `sh $root/harness/script/work-status.sh $work/status.yaml deploy upsert <repo> <env> <lane> <route> <build> <url> <status>` 登记泳道事实（lane 建议从 work_id 派生）；状态变化用 `deploy mark <repo> <env> <lane> <status>`，查询用 `deploy list`；环境拓扑与泳道申请方式不明时查 `$root/wiki/<project>/manifest.md`「部署环境与泳道」，缺失则提示用户补充并经 `record` 沉淀
    - 边界: 只登记事实与链接，不臆造环境信息；`deploying/deployed` 状态的泳道在 `close` 时会检查回收
 
 ## 框架自动提交（无需用户操作）

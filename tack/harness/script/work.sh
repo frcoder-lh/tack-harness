@@ -8,6 +8,11 @@
 #     --no-worktree：只建目录骨架与模板文件，不创建任何 worktree
 #       （branch-op 工作流使用，临时分支 worktree 由 branch-op.sh prepare 另行创建）
 #
+#   sh work.sh rename <root> <old-work-id> <new-work-id> [new-branch] --dry-run|--apply
+#     工作区重命名事务：目录（保留日期前缀）、各仓库分支、status.yaml（work_id/work_dir/branch）、
+#     AGENTS.md 工作条目、branches[] 一并更新；中途失败自动回滚并输出 ROLLBACK=complete|incomplete。
+#     dry-run 只输出变更计划；apply 成功后输出 RENAME_RESULT=applied 与 RECONCILE=ok。
+#
 #   sh work.sh purge <root> <workspace>
 #     删除已关闭工作区目录 space/<workspace>（close 收尾用）。
 #     安全门禁：workspace 必须是单层目录名；目标物理路径必须位于 <root>/space/ 内；
@@ -86,6 +91,261 @@ if [ "${1:-}" = "purge" ]; then
     rm -rf "${TARGET}"
     echo "已删除工作区目录: space/${WORKSPACE}"
     echo "PURGED=${WORKSPACE}"
+    exit 0
+fi
+
+# ---------- rename：工作区重命名事务（目录 + 分支 + status.yaml + AGENTS.md + branches） ----------
+if [ "${1:-}" = "rename" ]; then
+    shift
+    ROOT="$1"
+    OLD_ID="$2"
+    NEW_ID="$3"
+    if [ -z "${ROOT}" ] || [ -z "${OLD_ID}" ] || [ -z "${NEW_ID}" ]; then
+        echo "Usage: sh work.sh rename <root> <old-work-id> <new-work-id> [new-branch] --dry-run|--apply" >&2
+        exit 2
+    fi
+    shift 3
+    MODE=""
+    NEW_BRANCH=""
+    for a in "$@"; do
+        case "${a}" in
+            --dry-run|--apply)
+                [ -z "${MODE}" ] || { echo "Error: 只能指定一次 --dry-run 或 --apply" >&2; exit 2; }
+                MODE="${a}"
+                ;;
+            --*)
+                echo "Error: 未知参数: ${a}" >&2
+                exit 2
+                ;;
+            *)
+                [ -z "${NEW_BRANCH}" ] || { echo "Error: 多余的参数: ${a}" >&2; exit 2; }
+                NEW_BRANCH="${a}"
+                ;;
+        esac
+    done
+    [ -n "${MODE}" ] || { echo "Usage: sh work.sh rename <root> <old-work-id> <new-work-id> [new-branch] --dry-run|--apply" >&2; exit 2; }
+    [ -n "${NEW_BRANCH}" ] || NEW_BRANCH="${NEW_ID}"
+    case "${NEW_ID}${NEW_BRANCH}" in
+        *" "*|*'\'*)
+            echo "Error: new-work-id / new-branch 不能包含空白或反斜杠" >&2
+            exit 2
+            ;;
+    esac
+    case "${NEW_BRANCH}" in
+        *[!A-Za-z0-9._/-]*)
+            echo "Error: 非法分支名: ${NEW_BRANCH}" >&2
+            exit 2
+            ;;
+    esac
+    if [ ! -d "${ROOT}" ] || [ ! -d "${ROOT}/space" ]; then
+        echo "Error: tack 空间根无效: ${ROOT}" >&2
+        exit 1
+    fi
+
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    OLD_DIR=""
+    OLD_BRANCH=""
+    for sf in "${ROOT}/space"/*/status.yaml; do
+        [ -f "${sf}" ] || continue
+        id="$(awk '
+            function v(line,   x) { x=line; sub(/^[^:]*:/,"",x); gsub(/^[[:space:]]+|[[:space:]]+$/,"",x); sub(/[[:space:]]*#.*$/,"",x); gsub(/^"|"$/,"",x); return x }
+            /^work_id[[:space:]]*:/ { print v($0); exit }
+        ' "${sf}")"
+        if [ "${id}" = "${OLD_ID}" ]; then
+            d="$(basename "$(dirname "${sf}")")"
+            if [ -n "${OLD_DIR}" ] && [ "${OLD_DIR}" != "${d}" ]; then
+                echo "Error: 多个工作区使用 work_id '${OLD_ID}': ${OLD_DIR} / ${d}" >&2
+                exit 4
+            fi
+            OLD_DIR="${d}"
+        fi
+    done
+    if [ -z "${OLD_DIR}" ]; then
+        echo "Error: 工作区不存在（未找到 work_id '${OLD_ID}'）" >&2
+        exit 3
+    fi
+
+    OLD_PATH="${ROOT}/space/${OLD_DIR}"
+    STATUS="${OLD_PATH}/status.yaml"
+    OLD_BRANCH="$(awk '
+        function v(line,   x) { x=line; sub(/^[^:]*:/,"",x); gsub(/^[[:space:]]+|[[:space:]]+$/,"",x); sub(/[[:space:]]*#.*$/,"",x); gsub(/^"|"$/,"",x); return x }
+        /^branch[[:space:]]*:/ { print v($0); exit }
+    ' "${STATUS}")"
+    [ -n "${OLD_BRANCH}" ] || OLD_BRANCH="${OLD_ID}"
+
+    DATE_PREFIX="$(printf '%s' "${OLD_DIR}" | cut -c1-8)"
+    case "${DATE_PREFIX}" in
+        [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]) ;;
+        *) DATE_PREFIX="$(date +%Y%m%d)" ;;
+    esac
+    SAFE_NEW_BRANCH="$(printf '%s' "${NEW_BRANCH}" | sed 's/[^a-zA-Z0-9/_-]/_/g')"
+    NEW_DIR="${DATE_PREFIX}-${SAFE_NEW_BRANCH}"
+    NEW_PATH="${ROOT}/space/${NEW_DIR}"
+
+    # 冲突检查：新 ID、新目录、新分支
+    if [ "${NEW_ID}" != "${OLD_ID}" ] \
+        && grep -q "work_id: \"${NEW_ID}\"" "${ROOT}/AGENTS.md" 2>/dev/null; then
+        echo "Error: 新 work_id 已被登记: ${NEW_ID}" >&2
+        exit 4
+    fi
+    if [ "${NEW_DIR}" != "${OLD_DIR}" ] && [ -e "${NEW_PATH}" ]; then
+        echo "Error: 目标工作区目录已存在: space/${NEW_DIR}" >&2
+        exit 4
+    fi
+    REPOS=""
+    for d in "${OLD_PATH}/repo"/*/; do
+        [ -d "${d}" ] || continue
+        [ -e "${d}/.git" ] || continue
+        if git -C "${d}" rev-parse --git-dir >/dev/null 2>&1; then
+            REPOS="${REPOS} $(basename "${d%/}")"
+        fi
+    done
+    if [ "${SAFE_NEW_BRANCH}" != "${OLD_BRANCH}" ]; then
+        for r in ${REPOS}; do
+            if git -C "${OLD_PATH}/repo/${r}" rev-parse --verify --quiet "refs/heads/${SAFE_NEW_BRANCH}" >/dev/null 2>&1; then
+                echo "Error: 仓库 ${r} 已存在分支 ${SAFE_NEW_BRANCH}" >&2
+                exit 4
+            fi
+        done
+    fi
+
+    echo "RENAME PLAN"
+    if [ "${NEW_DIR}" = "${OLD_DIR}" ]; then
+        echo "  dir:     space/${OLD_DIR} (unchanged)"
+    else
+        echo "  dir:     space/${OLD_DIR} -> space/${NEW_DIR}"
+    fi
+    echo "  work_id: ${OLD_ID} -> ${NEW_ID}"
+    echo "  branch:  ${OLD_BRANCH} -> ${SAFE_NEW_BRANCH}"
+    for r in ${REPOS}; do
+        echo "  repo/${r}: branch ${OLD_BRANCH} -> ${SAFE_NEW_BRANCH}"
+    done
+    echo "  status.yaml: work_id / branch / work_dir"
+    echo "  AGENTS.md:   work entry work_id / branch / work_path"
+    echo "  branches[]:  ${OLD_BRANCH} -> ${SAFE_NEW_BRANCH}"
+
+    if [ "${MODE}" = "--dry-run" ]; then
+        echo "RENAME_RESULT=dry-run"
+        exit 0
+    fi
+
+    # ---------- apply：逐步执行，失败即回滚 ----------
+    TXN="${ROOT}/.tack/tmp/rename.$$"
+    mkdir -p "${TXN}" || { echo "Error: 无法创建事务目录: ${TXN}" >&2; exit 1; }
+    cp "${STATUS}" "${TXN}/status.yaml" || exit 1
+    cp "${ROOT}/AGENTS.md" "${TXN}/AGENTS.md" || exit 1
+    : > "${TXN}/br.log"
+    : > "${TXN}/wt.log"
+    ROLLBACK_OK=1
+
+    rollback() {
+        reason="$1"
+        echo "Error: ${reason}" >&2
+        cp "${TXN}/status.yaml" "${STATUS}" 2>/dev/null || ROLLBACK_OK=0
+        cp "${TXN}/AGENTS.md" "${ROOT}/AGENTS.md" 2>/dev/null || ROLLBACK_OK=0
+        if [ "${NEW_DIR}" != "${OLD_DIR}" ] && [ -d "${NEW_PATH}" ] && [ -d "${OLD_PATH}" ]; then
+            for entry in "${NEW_PATH}"/*; do
+                [ -e "${entry}" ] || continue
+                b="$(basename "${entry}")"
+                [ "${b}" = "repo" ] && continue
+                mv "${entry}" "${OLD_PATH}/" 2>/dev/null || ROLLBACK_OK=0
+            done
+        fi
+        for r in $(cat "${TXN}/wt.log" 2>/dev/null); do
+            if [ -d "${NEW_PATH}/repo/${r}" ] && [ ! -d "${OLD_PATH}/repo/${r}" ]; then
+                git -C "${ROOT}/repo/${r}" worktree move "${NEW_PATH}/repo/${r}" "${OLD_PATH}/repo/${r}" 2>/dev/null || ROLLBACK_OK=0
+            fi
+        done
+        for r in $(cat "${TXN}/br.log" 2>/dev/null); do
+            wt="${OLD_PATH}/repo/${r}"
+            if [ -d "${wt}" ]; then
+                cur="$(git -C "${wt}" symbolic-ref --short HEAD 2>/dev/null || true)"
+                if [ "${cur}" = "${SAFE_NEW_BRANCH}" ]; then
+                    git -C "${wt}" branch -m "${OLD_BRANCH}" 2>/dev/null || ROLLBACK_OK=0
+                elif git -C "${wt}" rev-parse --verify --quiet "refs/heads/${SAFE_NEW_BRANCH}" >/dev/null 2>&1; then
+                    git -C "${wt}" branch -m "${SAFE_NEW_BRANCH}" "${OLD_BRANCH}" 2>/dev/null || ROLLBACK_OK=0
+                fi
+            fi
+        done
+        if [ "${NEW_DIR}" != "${OLD_DIR}" ]; then
+            rmdir "${NEW_PATH}/repo" 2>/dev/null || true
+            rmdir "${NEW_PATH}" 2>/dev/null || true
+        fi
+        if [ "${ROLLBACK_OK}" -eq 1 ]; then
+            echo "ROLLBACK=complete"
+        else
+            echo "ROLLBACK=incomplete"
+        fi
+        rm -rf "${TXN}"
+        exit 1
+    }
+
+    if [ "${SAFE_NEW_BRANCH}" != "${OLD_BRANCH}" ]; then
+        for r in ${REPOS}; do
+            wt="${OLD_PATH}/repo/${r}"
+            cur="$(git -C "${wt}" symbolic-ref --short HEAD 2>/dev/null || true)"
+            if [ "${cur}" = "${OLD_BRANCH}" ]; then
+                git -C "${wt}" branch -m "${SAFE_NEW_BRANCH}" || rollback "重命名仓库 ${r} 的当前分支失败"
+                echo "${r}" >> "${TXN}/br.log"
+            elif git -C "${wt}" rev-parse --verify --quiet "refs/heads/${OLD_BRANCH}" >/dev/null 2>&1; then
+                git -C "${wt}" branch -m "${OLD_BRANCH}" "${SAFE_NEW_BRANCH}" || rollback "重命名仓库 ${r} 的分支失败"
+                echo "${r}" >> "${TXN}/br.log"
+            fi
+        done
+    fi
+
+    if [ "${NEW_DIR}" != "${OLD_DIR}" ]; then
+        mkdir -p "${NEW_PATH}/repo" || rollback "创建目标工作区目录失败"
+        for r in ${REPOS}; do
+            if git -C "${ROOT}/repo/${r}" rev-parse --git-dir >/dev/null 2>&1; then
+                git -C "${ROOT}/repo/${r}" worktree move "${OLD_PATH}/repo/${r}" "${NEW_PATH}/repo/${r}" \
+                    || rollback "迁移 worktree ${r} 失败"
+            else
+                mv "${OLD_PATH}/repo/${r}" "${NEW_PATH}/repo/${r}" || rollback "迁移仓库目录 ${r} 失败"
+            fi
+            echo "${r}" >> "${TXN}/wt.log"
+        done
+        for entry in "${OLD_PATH}"/*; do
+            [ -e "${entry}" ] || continue
+            b="$(basename "${entry}")"
+            [ "${b}" = "repo" ] && continue
+            mv "${entry}" "${NEW_PATH}/" || rollback "迁移工作区文件 ${b} 失败"
+        done
+    fi
+
+    sh "${SCRIPT_DIR}/work-status.sh" "${NEW_PATH}/status.yaml" set \
+        work_id "${NEW_ID}" branch "${SAFE_NEW_BRANCH}" work_dir "${NEW_DIR}" \
+        || rollback "更新 status.yaml 失败"
+
+    if grep -q "work_id: \"${OLD_ID}\"" "${ROOT}/AGENTS.md" 2>/dev/null; then
+        sh "${SCRIPT_DIR}/project.sh" work-rename "${ROOT}" "${OLD_ID}" "${NEW_ID}" "${SAFE_NEW_BRANCH}" "${NEW_PATH}" --no-commit \
+            || rollback "更新 AGENTS.md 工作条目失败"
+    else
+        echo "WARN: AGENTS.md 未登记 work_id '${OLD_ID}'，跳过工作条目更新" >&2
+    fi
+
+    sh "${SCRIPT_DIR}/work-status.sh" "${NEW_PATH}/status.yaml" branch rename "${OLD_BRANCH}" "${SAFE_NEW_BRANCH}" \
+        >/dev/null || rollback "更新 branches[] 失败"
+
+    if [ "${NEW_DIR}" != "${OLD_DIR}" ]; then
+        rmdir "${OLD_PATH}/repo" 2>/dev/null || true
+        rmdir "${OLD_PATH}" 2>/dev/null || rollback "移除旧工作区目录失败"
+    fi
+
+    rm -rf "${TXN}"
+
+    RECON="$(sh "${SCRIPT_DIR}/project.sh" work-reconcile "${ROOT}" 2>/dev/null || true)"
+    printf '%s\n' "${RECON}"
+    ISSUES="$(printf '%s\n' "${RECON}" | awk -F"$(printf '\t')" '/^SUMMARY/ { for (i=1;i<=NF;i++) if ($i ~ /^issues=/) { sub(/^issues=/,"",$i); print $i } }')"
+    echo "RENAME_RESULT=applied"
+    if [ "${ISSUES:-}" = "0" ]; then
+        echo "RECONCILE=ok"
+    else
+        echo "RECONCILE=issues=${ISSUES:-unknown}"
+    fi
+
+    sh "${SCRIPT_DIR}/space.sh" commit "${ROOT}" "chore(tack): rename workspace ${OLD_ID} -> ${NEW_ID}" \
+        || echo "WARN: 空间仓库自动提交失败，请检查工作区后重试" >&2
     exit 0
 fi
 

@@ -29,16 +29,19 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
    - 版本一致时跳过本步
 
 3. **检测本地改动**
-   - 动作: 对比 skill 安装目录的 `tack/harness/`（已更新到最新版，作为新版来源）与 `$root/harness/`，对待更新的目录（`script/`、`template/`、`reference/`、`workflow/`、`cmd/`）逐个文件分类：
-     - **新增**: 远端有、本地无 → 直接列入新增清单
-     - **本地已修改**: 同名文件内容不一致 → 列入融合候选清单（可能是用户本地改动，也可能是远端新版本变更，需结合版本号与 diff 判断）
-     - **一致**: 内容相同 → 跳过
+   - 动作: 执行 `sh $root/harness/script/harness-diff.sh <skill>/tack/harness $root/harness --profile update`，读取 TAB 分隔的分类行：
+     - `ADDED`: 远端有、本地无 → 直接列入新增清单
+     - `CHANGED`: 内容不一致 → 列入融合候选清单（需结合版本号与 diff 判断）
+     - `SAME`: 内容相同 → 跳过
+     - `LOCAL_ONLY`: 本地独有（含 `cmd/` 用户自建文件）→ 保留
+     - `PROTECTED`: `rule/` 下文件 → 永不覆盖
+   - 禁止手工逐文件判断分类；脚本只分类，不覆盖，采用/保留/融合仍由本命令与用户决定
    - 动作: 空间根 `.gitignore` 单独对比：对比 `<skill>/tack/.gitignore`（新版模板）与 `$root/.gitignore`（用户当前），按同样的新增/本地已修改/一致分类；`.gitignore` 不在 `harness/` 下，故单独处理
-   - 以下内容不参与对比，永不覆盖：`AGENTS.md`（含项目信息区块）、`cmd/` 中用户自建文件、`rule/`、`wiki/`、`space/`
+   - 以下内容不参与覆盖：`AGENTS.md`（含项目信息区块）、`cmd/` 中用户自建文件、`wiki/`、`space/`
    - 临时产物约束：本步对比/diff 产生的临时文件一律放 `$root/.tack/tmp/`，本步结束后及时清理，禁止写系统临时目录
 
 4. **提炼融合点**
-   - 动作: 对每个"本地已修改"的文件，阅读 diff 内容，将差异总结提炼为**功能点**（一句话描述该改动实现了什么，如"init-tack.sh 增加了 -n 防覆盖参数"、"plan 命令合并了 task 拆解能力"），形成融合点清单：
+   - 动作: 对每个 `CHANGED` 文件，阅读 diff 内容，将差异总结提炼为**功能点**（一句话描述该改动实现了什么，如"init-tack.sh 增加了 -n 防覆盖参数"、"plan 命令合并了 task 拆解能力"），形成融合点清单：
      ```
      文件: harness/script/xxx.sh
        - 本地功能点: <本地版本的改动描述>
@@ -56,8 +59,8 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
    - 约束: 每个融合点必须得到用户明确确认后才能写入文件，禁止未确认直接融合
 
 6. **备份**
-   - 动作: 将 `$root/harness` 备份到 `$root/.tack/backup/harness-<timestamp>/`
-   - 动作: 提示用户备份位置，说明放弃本地改动时可从备份找回
+   - 动作: 执行 `sh $root/harness/script/harness-backup.sh backup $root update`，记录输出的 `BACKUP_DIR`（备份 `harness/`、`AGENTS.md`、`.gitignore`）
+   - 动作: 提示用户备份位置，说明放弃本地改动时可从备份找回；恢复用 `harness-backup.sh restore` + `verify`
 
 7. **执行更新**
    - 动作: 按用户确认的方案执行：
@@ -68,10 +71,12 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
      - `cmd/` 只增补新增命令文件，不覆盖同名文件
      - `$root/.gitignore` 按同样的新增/覆盖/保留/融合流程处理（与 `harness/` 内文件一致，无特殊规则）
    - 文件覆盖阶段不触碰 AGENTS.md（项目信息区块仅由下一步 project.sh 单独写入 skill_version，其余字段一律不动）
+   - 失败恢复: 任一文件覆盖或验证失败时执行 `sh $root/harness/script/harness-backup.sh restore $root <BACKUP_DIR>`，再 `verify` 确认逐文件一致后重新开始
 
 8. **验证与收尾**
    - 动作: 执行 `sh $root/harness/script/scan-routes.sh list $root/harness` 确认工作流与命令路由正常
-   - 动作: 对执行过"融合"的脚本文件执行 `sh -n` 语法校验，不通过则回滚该文件并提示用户
+   - 动作: 对执行过"融合"的脚本文件执行 `sh -n` 语法校验，不通过则从备份回滚该文件并提示用户
+   - 动作: 执行 `sh $root/harness/script/harness-backup.sh verify $root <BACKUP_DIR>` 辅助核对差异范围；恢复后该命令应输出 `VERIFY_RESULT=ok`
    - 动作: 调用 project.sh 把新版本写入 AGENTS.md 项目信息区块（禁止手工编辑 YAML）：
      `sh $root/harness/script/project.sh skill-version $root <新版本> --no-commit`；`--no-commit` 表示由下一步框架提交统一入库
    - 动作: 引导老空间接入自动更新检查（一次性，仅当以下任一缺失时执行；新空间经 init-tack 物化已自带）：
@@ -88,7 +93,7 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
 
 - [ ] scan-routes.sh list 正常输出工作流与全部命令
 - [ ] 本机 skill 的 SKILL.md version 已更新为最新版本号（第 2 步已执行）
-- [ ] 所有"本地已修改"文件均已按用户确认的方案处理，无遗漏
+- [ ] `harness-diff.sh --profile update` 分类齐全，所有 `CHANGED` 文件均已按用户确认的方案处理，`PROTECTED` 未被覆盖
 - [ ] 融合文件通过 `sh -n` 校验，融合结果经用户确认
 - [ ] 用户自定义的 cmd、rule 未被改动；AGENTS.md 项目信息仅 skill_version 经 project.sh 更新，其余字段不变
 - [ ] skill_version 已更新为最新版本号

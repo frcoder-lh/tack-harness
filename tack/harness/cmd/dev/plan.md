@@ -78,18 +78,10 @@ summary: 读 spec、input、wiki（root/work）与代码事实，产出 plan.md�
    - 分工: 架构级路线已在第 4 步关闭，本步骤只收实现级局部选择，不重复方案对比
 
 8. **同步任务清单到 status.yaml**
-   - 动作: 将任务清单写入 `$work/status.yaml` 的 `tasks` 列表（直接编辑 YAML），每条结构：
-     ```yaml
-     tasks:
-       - id: "A-01"
-         title: "<任务标题>"
-         module: "<所属模块>"
-         repo: "<所属仓库>"
-         deps: []              # 依赖的任务 ID
-         acceptance: "<验收标准>"
-         parallel_with: []     # 可并行的任务 ID（信息性，调度以 deps 为准）
-         status: "pending"     # pending / in_progress / done / blocked
-     ```
+   - 动作: 将任务清单写成规范化 TSV（Tab 分隔，列：`id` / `title` / `module` / `repo` / `deps-csv` / `status`，deps 用逗号分隔），先 `mkdir -p $root/.tack/tmp` 再落 `$root/.tack/tmp/tasks.tsv`；执行
+     `sh $root/harness/script/work-status.sh $work/status.yaml tasks replace $root/.tack/tmp/tasks.tsv`
+   - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks validate`；退出码 4 时按 `ERROR<TAB>code<TAB>id<TAB>detail` 修复 TSV 后重试，不得绕过
+   - 说明: 脚本按 id 保留已有 `acceptance` / `parallel_with` 字段，任务级状态不再手工编辑 YAML
 
 9. **澄清与确认（人类审阅关口）**
    - 动作: 与用户逐条确认**第 4 步选定的实现方案**、技术取舍、模块边界、任务粒度与第 7 步的待决策项；用户确认前不进入 code
@@ -108,7 +100,7 @@ summary: 读 spec、input、wiki（root/work）与代码事实，产出 plan.md�
 - [ ] 方案门禁已履行：复杂任务有 ≥2 个方案、对比表与明确推荐，且用户已选定；简单任务已记录跳过理由与最终方案
 - [ ] 模块划分低耦合、边界清晰，依赖关系无环
 - [ ] 每个任务有明确交付物、deps 与验收标准
-- [ ] status.yaml 的 `tasks` 与 plan.md 任务清单一致，初始均为 pending
+- [ ] status.yaml 的 `tasks` 与 plan.md 任务清单一致（经 `tasks replace` 写入且 `tasks validate` 通过），初始均为 pending
 - [ ] 「决策记录」中需用户决断的事项已全部关闭
 - [ ] 已标注可复用资产；用户已审阅确认；未修改代码文件
 - [ ] status.yaml 已同步（progress.plan=true）

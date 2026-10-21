@@ -18,12 +18,12 @@ summary: 将目标分支合并进当前工作区分支（或在平台上发起�
 
 1. **确认合并方向与目标分支**
    - 输入: 目标分支参数（默认仓库主干 master/main，由用户确认）
-   - 动作: 在每个涉及的仓库确认当前分支名与目标分支
+   - 动作: 在每个涉及的仓库执行 `sh $root/harness/script/git-facts.sh status "$work/repo/<repo-name>"` 确认当前分支，目标分支用 `sh $root/harness/script/git-facts.sh default-branch "$work/repo/<repo-name>"` 取得（退出码 11 时由用户指定）
 
 2. **变更审查（审查必选，禁止跳过）**
    - 动作:
      - 读取 `$root/harness/agents/code-reviewer.md`，按其委派方式发起审查；审查方法论遵循 `harness/reference/code-review.md` 的双轴（Spec/Standards）
-     - 小改动可委派单一 reviewer 实例；跨模块/多仓库大改动并行委派 3 个实例（规范符合度 / bug 与正确性 / 约定与安全），审查范围为 `git diff <目标分支>...HEAD`
+     - 小改动可委派单一 reviewer 实例；跨模块/多仓库大改动并行委派 3 个实例（规范符合度 / bug 与正确性 / 约定与安全），审查范围可用 `sh $root/harness/script/git-diff-context.sh batch $work $root/.tack/tmp/review <目标分支>` 导出三点 diff
      - 规范来源：`$work/spec.md`、`plan.md`、`tech-design.md`；标准来源：`harness/rule/coding-standards.md`、`harness/rule/security.md`
      - 汇总各实例结论，按 Critical / Warning / Suggestion 分组呈现（每条含 `文件:行号` 证据与依据），审查者只读不改
    - 边界: 只审查本次变更新引入的问题；历史问题单列提示，不阻断合并
@@ -43,8 +43,8 @@ summary: 将目标分支合并进当前工作区分支（或在平台上发起�
    - 动作: 出现冲突立即停止自动处理，转交 `solve` 命令；不做静默取舍
 
 6. **合并后同步**
-   - 动作: 本地合并成功后提示 `push`；平台合并后回填 MR 链接到 `$work/status.yaml`（mr_url），并置 `progress.merged: true`；冲突解决可转入 merge-conflict 工作流
-   - 合并 ≠ 上线: 用户需要在 PPE/PROD 等环境继续验证或上线时，把各环境的上线计划与泳道/版本事实登记到 `$work/status.yaml` 的 `deploy` 区块（结构见 `harness/template/work-status.yaml`）；BOE 验证泳道不再使用时将对应条目置 `recycled`
+   - 动作: 本地合并成功后提示 `push`；平台合并后执行 `sh $root/harness/script/work-status.sh $work/status.yaml set mr_url "<url>"` 回填 MR 链接，并置 `progress.merged: true`；冲突解决可转入 merge-conflict 工作流
+   - 合并 ≠ 上线: 用户需要在 PPE/PROD 等环境继续验证或上线时，执行 `sh $root/harness/script/work-status.sh $work/status.yaml deploy upsert <repo> <env> <lane> <route> <build> <url> <status>` 登记各环境上线计划与泳道/版本事实；BOE 验证泳道不再使用时执行 `deploy mark <repo> <env> <lane> recycled`
 
 ## 后置完成检验
 

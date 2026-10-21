@@ -26,13 +26,13 @@ summary: 沉淀知识或扩展能力——先确定工作区与项目；能力�
 
 1. **获取记录内容（两种触发方式）**
    - 用户给了明确内容: 以参数/用户原话为准
-   - 用户未给具体内容（如只说「记录一下」「把最近的引导沉淀一下」）: 读取 `$work/status.yaml` 的 `guidance` 中 `status: raw` 条目（不存在 `$work` 时扫描 `$root/space/*/status.yaml`），列出候选请用户挑选；这些条目是任务结束时自动采集的用户引导（AGENTS.md 第 11 条）
+   - 用户未给具体内容（如只说「记录一下」「把最近的引导沉淀一下」）: 有 `$work` 时执行 `sh $root/harness/script/work-status.sh $work/status.yaml guidance list raw`，无 `$work` 时执行 `sh $root/harness/script/check-guidance.sh list $root raw`，列出候选请用户挑选；这些条目是任务结束时自动采集的用户引导（AGENTS.md 第 11 条）
 
 2. **判断内容类型与落点**
    - 动作: 按 `harness/rule/record-classification.md` 的判据归入 **agents / cmd / workflow / rule / wiki**；并区分「能力」与「参数」——
      - 能力（命令、工作流、规则、脚本、模板）→ `harness/` 对应目录
      - 项目级参数与代码外事实（各环境网关地址、租户、账号、平台入口等）→ `$root/wiki/<project>/`（多为 `manifest.md`）
-     - 工作区级参数（MR 地址、泳道、构建版本、需求链接等）→ `$work/status.yaml` 的 `mr_url` / `deploy` / `meego` / `tech_doc_url` 等字段
+     - 工作区级参数（MR 地址、泳道、构建版本、需求链接等）→ `$work/status.yaml` 的 `mr_url` / `meego` / `tech_doc_url` 用 `work-status.sh <status.yaml> set <字段> <值>` 写入，`deploy` 用 `deploy upsert` / `deploy mark` 写入
    - 类型存疑时按该文件的路由归类，并向用户确认；不得把工作区级参数写进 harness 或项目 wiki
 
 3. **先扫描，再决定融合或新建**
