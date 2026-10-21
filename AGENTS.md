@@ -32,15 +32,10 @@
 
 ## POSIX sh 脚本规范
 
-仓库内 `.sh` 均为 `#!/bin/sh`，须同时兼容 Windows（Git for Windows，GNU 工具）、Linux（GNU 工具）与 macOS（BSD 工具）：
+仓库内 `.sh` 均为 `#!/bin/sh`，须同时兼容 Windows（Git for Windows，GNU 工具）、Linux（GNU 工具）与 macOS（BSD 工具）。变量引用、bashism 禁用、外部命令三平台共有选项、`mktemp` 模板与 sed 方言等细则统一见 [tack/harness/rule/coding-standards-shell.md](tack/harness/rule/coding-standards-shell.md)，此处只保留本仓库特有的强制要求：
 
-- **外部命令只用三平台共有选项**：禁用 GNU 专有用法（`grep -P`、`find -printf`、`readlink -f`、`stat -c`、`date -d`、`mktemp -p`、`xargs -r`、`sort -V` 等）；`mktemp` 一律带模板（如 `"${TMPDIR:-/tmp}/tack-XXXXXX"`）；awk 只用 POSIX 特性；等价能力用 POSIX 工具或 awk 实现
-- **禁止依赖 `sed -i`**：GNU 与 BSD 的 `-i` 参数语义不同；就地修改一律「写临时文件 + `mv`」，例如 `sed '...' file > tmp && mv tmp file`
-- **sed 块内命令以 `;` 分隔**：`/pat/{ cmd1; cmd2; }` 的每条命令（含块内最后一条）后必须写 `;`，不依赖 GNU sed 对 `cmd }` 的宽松解析；不使用 GNU 扩展（`\+`、`\?`、`\b`、`-r`、`--posix` 等），需要扩展正则时用 `-E`
 - 结构化文本的替换必须限定地址范围，防止误伤正文——如 SKILL.md front matter 用 `2,/^---$/`；执行前先校验目标字段存在（文件缺失/字段缺失即报错中止），避免静默产出错误结果
-- 只用 POSIX 特性（`set -eu`、`[ ]`、`case`），不引入 bashism
-- **变量引用默认写 `"${VAR}"`**：命名变量一律「双引号 + 花括号」——花括号界定变量名边界（如拼接后缀 `"${name}_tmp"`），双引号防止词分割与通配展开；仅一位特殊参数保留惯用简写：`"$0"`、`"$1"`…`"$9"`、`"$@"`、`"$*"`、`"$#"`、`"$?"`、`"$$"`、`"$!"`（两位以上位置参数仍须 `"${10}"`）；刻意利用分词/glob 而不加引号仅限局部且意图明显（如命令位置的 `$PRIV`、`for x in $items`）；`${var:-x}`、`$((...))`、`"$(...)"` 按各自语法书写
-- 新建或修改 `.sh` 后必须 `sh -n` 语法检查
+- 新建或修改 `.sh` 后必须 `sh -n` 语法检查，作为交付前门禁
 
 ## 文档与注释写作纪律（硬约束）
 

@@ -42,11 +42,7 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
 4. **提炼工作区内容，确认是否记入 wiki**
    - **branch-op 工作流分流**：工作区无 spec/plan/tech-design 与 wiki 产物，input.md 为空；`branch_op` 区块只是本次过程记录，不属于跨工作区知识。动作: 检查其中是否夹带代码外事实（一般没有），无候选时一句话说明并跳过本步，不展示空清单
    - 输入源: 工作区**原始产物**——input.md、spec.md、plan.md（含决策记录）、tech-design.md、`$work/wiki/`、status.yaml（mr_url、tech_doc_url、meego 等）；**已有根 wiki 页面只用于确定融合位置，不作为事实来源**（防合成内容循环放大，见 `harness/rule/record-wiki.md` 边界）
-   - 动作: 从中提炼**跨工作区复用、且代码不应作为真源**的候选知识，按分工归类：
-     - **代码外事实**（环境配置、中间件/平台地址、不含凭据的账号）→ `$root/wiki/manifest.md`
-     - **稳定导航锚点**（业务术语 ↔ 检索关键词/代码入口、接口标识 ↔ 业务场景 ↔ 代码入口）→ `$root/wiki/code-understanding.md`
-     - **业务背景知识**（业务线背景、术语的业务释义、原始业务资料）→ `$root/wiki/business-understanding.md`
-     - **技术决策与工程约定**（plan.md「决策记录」中的选型取舍、代码外的项目规则如重试/舍入/默认值约定）→ `$root/wiki/decisions.md`
+   - 动作: 从中提炼**跨工作区复用、且代码不应作为真源**的候选知识，按 `harness/rule/record-wiki.md`「文件分工」归入 `$root/wiki/` 对应文件（代码外事实、稳定导航锚点、业务背景知识、技术决策与工程约定的具体落点见该规则）
    - 边界: 易变的代码实现、调用链、模块内部行为**不进 wiki**（以代码为唯一真源）；通用编码规范不进 decisions（走第 5 步 rule）；来源不明、无法从工作区产物证实的内容不提炼
    - 询问: 以候选条目清单（含建议落点与**来源标注**）询问用户**是否记入 wiki**；用户可全部采纳、挑选部分或放弃
    - 落盘: 被采纳条目按 `harness/rule/record-wiki.md` 写入 `$root/wiki/` 对应文件——文件已存在则融合去重（不重复追加），不存在时按 `harness/template/wiki-*.md` 模板创建（decisions.md 首条采纳时才创建）；每条带来源（`space/<workspace>/<文件>`，`<workspace>` 即当前工作区目录名），与旧条目矛盾时按「矛盾与演变」规则保留轨迹；**必须经人工审阅确认后才生效**；用户放弃则跳过
@@ -102,7 +98,7 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
 - [ ] branch-op：`A-ts`、`B-ts` 两个临时分支均已删除
 - [ ] 其他工作流：branches 列表中已合并的 main 分支已删除；未合并的 main 分支经用户确认（删除追加 force 或保留跳过）；所有 tmp 条目已删除
 - [ ] `$root/space/<workspace>/` 目录已删除（`work.sh purge` 成功），AGENTS.md 项目信息区块中已无该 work 条目
-- [ ] 记入 wiki 的内容符合边界（无易变代码逻辑、均有来源、无凭据明文）、四类分工归类正确且经人工审阅；用户放弃时未强行写入
+- [ ] 记入 wiki 的内容符合 `harness/rule/record-wiki.md` 的边界、文件分工与来源链，且经人工审阅；用户放弃时未强行写入
 - [ ] guidance 的 raw 条目已逐条处理：固化项经用户确认落盘并置 distilled（按 `落点: <相对 $root 路径>` 注明），不固化项置 dismissed；未确认落盘的条目保留 raw 且不阻塞关闭
 - [ ] `check-guidance.sh` 校验通过：本工作区 distilled 条目无失效落点
 - [ ] `deploy` 区块无未回收泳道（deploying/deployed），或用户已确认处理方式

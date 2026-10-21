@@ -9,7 +9,8 @@ summary: 初始化全局上下文——自动识别输入内容类型（项目�
 # init 初始化全局上下文
 
 > tack 骨架（AGENTS.md、harness/、wiki/、space/ 等）已由 skill 调用 `harness/script/init-tack.sh` 复制完成；
-> 该脚本同时确保本机 Git 可用（缺失时按平台自动安装：Windows 经 winget、Linux 经系统包管理器、macOS 经 Homebrew），并把 `$root` 初始化为 Git 仓库、由框架自动完成首次提交（已存在 `.git` 时跳过；空间仓库的 Git 操作全程框架自动，用户不直接操作）。
+> Git 可用性由调用链保证：Windows 由启动器 `run.ps1` 定位 Git for Windows 的 bash.exe（缺失时经 winget 自动安装）后再执行脚本；Linux / macOS 由 `init-tack.sh` 自身确保（缺失时分别经系统包管理器 / Homebrew 安装）。
+> `init-tack.sh` 同时把 `$root` 初始化为 Git 仓库、由框架自动完成首次提交（已存在 `.git` 时跳过；空间仓库的 Git 操作全程框架自动，用户不直接操作）。
 > 本命令负责收集全局上下文并物化为 `wiki/` 公共知识，同时把结构化项目信息写入 AGENTS.md 项目信息区块、把代码仓库接入 `$root/repo/`。
 > **首次初始化与后续补充都走本命令**：首次执行时 AI 主动询问用户补全 wiki；后续携带新材料（仓库/文档/映射）再次执行时只追加融合，不覆盖已有内容。
 >

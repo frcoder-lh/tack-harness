@@ -12,7 +12,7 @@ summary: 推送工作区提交到远端；未关联远端时先引导关联
 
 - 已确定当前工作区 `$work`
 - 各仓库已有本地提交
-- **Git 作用域**：遵守 `harness/rule/git-boundary.md`——只允许在 `$work/repo/<repo-name>/` 工作区代码仓库内执行 Git 操作
+- **Git 作用域与安全禁令**：遵守 `harness/rule/git-boundary.md`——只允许在 `$work/repo/<repo-name>/` 工作区代码仓库内执行 Git 操作，禁止 force push 与 `--no-verify`
 
 ## 指令内容
 
@@ -21,7 +21,7 @@ summary: 推送工作区提交到远端；未关联远端时先引导关联
 2. **推送**
    - 动作: 当前分支无上游时使用 `git push -u origin <branch>`（首次推送）；已有上游直接 `git push`；多仓库逐个推送
 3. **回填协作信息**
-   - 动作: 若平台返回创建 MR/PR 的链接，记录到 `$work/status.yaml` 的 `mr_url`；禁止 force push
+   - 动作: 若平台返回创建 MR/PR 的链接，记录到 `$work/status.yaml` 的 `mr_url`
 
 ## 后置完成检验
 

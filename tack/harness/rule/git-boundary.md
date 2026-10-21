@@ -12,6 +12,12 @@
 - worktree 的创建与移除只能经 `harness/script/git-worktree-helper.sh` 完成。
 - 代码仓库的提交统一由 `commit` 命令执行（自动生成提交信息后直接提交，无需二次确认）；框架自动提交只处理空间根仓库，不代为提交代码，两类提交不合并为一次。
 
+## 安全禁令
+
+- **禁止 force push**：不改写远端历史，推送始终保持 fast-forward。
+- **禁止 `--no-verify` / `--no-hooks`**：不得跳过 Git 钩子；钩子失败时修复问题后重新提交。
+- **禁止 `reset --hard` 等破坏性操作**：不丢弃工作区既有改动或改写历史。
+
 ## 引用方式
 
 - git 组命令（commit / fetch / merge / push / solve / worktree）在「前置准入条件」中引用本文件。

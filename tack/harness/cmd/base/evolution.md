@@ -3,7 +3,7 @@ command: evolution
 short: evo
 triggers: 进化, 进化harness, harness进化, evolution, evolve, evolve harness
 params: 无
-summary: 进化 harness——校准 AGENTS.md 工作区登记与 space/ 实际目录；审查 cmd 下每个指令与 AGENTS.md，识别可沉淀为 rule/reference 的内容、可固化为 script 的流程、文档结构优化、过时事实与反向描述清理；核对文档中的脚本调用签名与脚本实际参数；按三平台基线审查全部 sh 脚本（bashism、GNU 专有工具选项、sed 方言）；sh 脚本三平台兼容不符合项当场修正；其余落盘经人工确认
+summary: 进化 harness——校准 AGENTS.md 工作区登记与 space/ 实际目录；审查 cmd 下每个指令与 AGENTS.md，识别可沉淀为 rule/reference 的内容、可固化为 script 的流程、文档结构优化、过时事实与反向描述清理；核对文档中的脚本调用签名与脚本实际参数；按 coding-standards-shell.md 三平台基线审查全部 sh 脚本；sh 脚本三平台兼容不符合项当场修正；其余落盘经人工确认
 ---
 
 # evolution 进化 harness
@@ -71,9 +71,9 @@ summary: 进化 harness——校准 AGENTS.md 工作区登记与 space/ 实际�
      - 候选类型: AGENTS.md 产出 structure、rule（细则下沉）、interface（文档-脚本签名一致性）与 cleanup（过时事实/反向描述）候选，不产出 reference/script 候选
    - **sh 脚本三平台兼容审查（不符合即修，不走候选确认）**（第 4 步枚举的每个 `.sh` 逐个执行）:
      - 机检: 先执行 `sh $HARNESS_DIR/script/lint-shell-portability.sh $HARNESS_DIR`；任何 ERROR 按下列即修边界当场修正并重跑至退出码 0，lint 未覆盖的语义项继续人工核对
-     - 判据: 严格按 `$HARNESS_DIR/rule/coding-standards-shell.md` 与 POSIX 三平台基线逐条核对——① 变量引用规范：命名变量默认 `"${VAR}"` 双引号加花括号，特殊参数保留惯用简写，`${var:-x}`/`$((...))`/`"$(...)"` 按各自语法书写 ② 解释器与语法：shebang `#!/bin/sh`，不用 bashism（bash 数组/`[[`/进程替换/here-string/`set -o pipefail`/`local`/`declare`/`$RANDOM`/`source`）③ 外部命令三平台兼容：逐一核对 sed/date/grep/find/stat/readlink/mktemp/xargs/sort/awk/cp/mv/tar/curl 等只用三平台共有选项，禁用 GNU 专有选项（清单见 rule），`mktemp` 必须带模板 ④ `sh -n` 语法检查通过 ⑤ 路径用正斜杠、不硬编码平台特定路径或工具安装位置
+     - 判据: 严格按 `$HARNESS_DIR/rule/coding-standards-shell.md` 的三平台基线逐条核对——变量引用、bashism 禁用、外部命令共有选项与 `mktemp` 模板、sed 方言、路径规范等细则均以该文件为准；`sh -n` 语法检查须通过
      - 即修边界: 不符合项**发现后当场原地修正**，不列入候选、不等用户确认——这些是纯机械的合规修正，修正时必须保持脚本行为、参数与退出码语义不变，同一脚本内的存量不符合项一次性全量修正（不限于本次改动附近）；每修一个脚本必跑 `sh -n`，全部修正后在汇报中逐脚本列出修正项。若某问题的修法涉及行为或逻辑选择（非纯合规），立即停止直接修改、降级为 script 候选交用户确认
-     - 平台核对: 实际执行环境至少覆盖当前平台，其余平台按判据静态核对——Linux（GNU 工具）/ macOS（BSD 工具）/ Windows（Git for Windows GNU 工具）三平台均须可运行；`sh -n` 不校验 sed 表达式与外部命令选项，须逐条核对块内分号、GNU 扩展、`mktemp` 模板等；Windows 上跑 `sh -n` 见 `$HARNESS_DIR/rule/windows-env.md`「Shell 调用」——禁用 PATH 里的 `bash`（可能命中 WSL），须用 Git for Windows `sh.exe`
+     - 平台核对: 实际执行环境至少覆盖当前平台，其余平台按 `coding-standards-shell.md` 静态核对——Linux（GNU 工具）/ macOS（BSD 工具）/ Windows（Git for Windows GNU 工具）三平台均须可运行；`sh -n` 只校验 shell 语法，不校验外部命令选项与 sed 表达式，其余细则按该 rule 逐条核对；Windows 上跑 `sh -n` 见 `$HARNESS_DIR/rule/windows-env.md`「Shell 调用」——禁用 PATH 里的 `bash`（可能命中 WSL），须用 Git for Windows `sh.exe`
    - 无机会的命令明确标注「无」，不得为凑数制造候选
    - **guidance 候选**（实战引导固化）: 对第 4 步收集的 raw 条目，按 `$HARNESS_DIR/rule/record-classification.md` 判据评估——跨工作区可复用的操作习惯/流程修正才入候选，一次性过程信息排除；条目自带的 `candidate`（建议固化点）作为初判，仍需核对目标文件现状决定融合或新建
 
@@ -113,7 +113,7 @@ summary: 进化 harness——校准 AGENTS.md 工作区登记与 space/ 实际�
 - [ ] 已落盘的 rule/reference 优先融合了已有条目；script 有明确参数与退出码语义且最小用例通过
 - [ ] structure 候选仅重排未改语义，重排后按 `doc-structure.md` 验证无悬空编号引用
 - [ ] 被审查文件中的过时事实与反向描述已识别：无事实支撑且非真实禁令的描述已列为 cleanup 候选（删除前确认无真实消费者、删除后无悬空引用）
-- [ ] `$HARNESS_DIR/script/` 下每个 `.sh` 已按 `coding-standards-shell.md` 三平台基线审查（bashism、GNU 专有工具选项、`mktemp` 模板、sed 块内分号与 `-i` 依赖），`lint-shell-portability.sh` 退出码 0；不符合项已当场修正（行为/退出码语义不变）且 `sh -n` 通过；涉及逻辑选择的已降级为 script 候选，修正项已逐条汇报
+- [ ] `$HARNESS_DIR/script/` 下每个 `.sh` 已按 `coding-standards-shell.md` 三平台基线逐条审查，`lint-shell-portability.sh` 退出码 0；不符合项已当场修正（行为/退出码语义不变）且 `sh -n` 通过；涉及逻辑选择的已降级为 script 候选，修正项已逐条汇报
 - [ ] 文档中全部脚本调用已与脚本 Usage 及参数解析逐个核对：参数顺序、必填项、占位名一致；不一致项已按 interface 候选修正
 - [ ] 沉淀后的 cmd 只留流程骨架与正确引用，无残留的规则细节重复
 - [ ] 已处理的 guidance 条目回写为 distilled（按 `落点: <相对 $root 路径>` 注明）或 dismissed，未选中保留 raw

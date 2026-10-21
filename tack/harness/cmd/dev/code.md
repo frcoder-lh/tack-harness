@@ -57,7 +57,7 @@ summary: 编码前先判定涉及仓库并确保就绪（主仓库缺失转 crea
      4. 仓库模式：本地构建/相关测试通过后将该任务 `status: done`；**片段模式：不编译、不运行、不测试，片段交付即置 done**；随后将下一个就绪任务置 `in_progress`，继续开发
    - 纪律:
      - 不修改 spec/plan 等规划文档（发现需求问题应走 `fix` 命令，不擅自改需求）
-     - 不执行 force push、reset --hard 等破坏性 Git 操作
+     - Git 安全禁令（force push、`reset --hard`、`--no-verify`）见 `harness/rule/git-boundary.md`
    - **多方案处理**：plan「决策记录」之外若出现方案选择，自动按工程最优解实现（与现有代码一致性、可维护性、风险最小优先），并在最终汇总与 commit 说明中记录选择与理由
 
 5. **暂停时机（只在必要时打扰用户）**
