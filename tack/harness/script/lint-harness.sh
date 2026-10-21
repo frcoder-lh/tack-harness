@@ -15,6 +15,8 @@
 #   W（WARN，仅提示，不改变退出码）
 #     1. short 缺失（可选但建议有）
 #     2. reference/*.md 未被任何 cmd/workflow/agents/rule 文件引用（孤儿）
+#     3. harness/rule|reference|script|template 下的明确路径引用悬空
+#     4. 文档中的脚本调用签名不匹配（script/lint-doc-scripts.sh：子命令/参数数量/flag）
 #
 # agents/ 不参与命令路由：其名称/short/triggers 不做冲突检测。
 # 文件名以 _ 开头的私有文件跳过。
@@ -215,5 +217,10 @@ EOF
 done
 if [ "${REF_WARN}" -gt 0 ]; then
     echo "lint-harness: path-ref warning(s): ${REF_WARN}"
+fi
+
+# 文档中的脚本调用签名（脚本存在性/固定子命令/位置参数数量/明确 flag，初期仅 WARN）
+if [ -f "${HARNESS_DIR}/script/lint-doc-scripts.sh" ]; then
+    sh "${HARNESS_DIR}/script/lint-doc-scripts.sh" "${HARNESS_DIR}" || exit 1
 fi
 exit 0

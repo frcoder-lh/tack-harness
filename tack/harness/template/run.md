@@ -18,6 +18,18 @@
 |------|------|------|----------|------|
 | 1    |      |      |          |      |
 
+## 机器可读清单（run-plan）
+
+> `run-plan.sh check <work/run>` 只读校验本区块，不执行脚本。
+> 列以 Tab 分隔：seq / script / command / deps / requires。
+> seq 为正整数且按文件顺序严格递增；deps 为前置步骤 seq（逗号分隔，必须小于当前 seq）；
+> requires 为相对 run/ 的必需文件（逗号分隔，通常为 local/ 下凭据文件）。
+> script 与 requires 一律使用相对 run/ 的路径；可选参数不写入清单。
+
+<!-- run-plan:start -->
+seq	script	command	deps	requires
+<!-- run-plan:end -->
+
 ## 执行约定
 
 - 脚本退出码非 0 时停止后续步骤并报告
