@@ -12,13 +12,15 @@
 # 远端分支一律不自动删除（需人工在平台确认后处理），仅在输出中提示。
 #
 # 默认 dry-run：只输出计划，不改动任何分支；带 --apply 才实际删除本地分支。
-# 主分支的合并判定基于本地引用，执行前请先 fetch 主干，避免用陈旧引用判断。
+# 主分支判定前按仓库自动执行 git fetch origin --prune，并优先用 origin/<主干> 判断合并；
+# 无 origin 远端或 fetch 失败时回退本地引用，并在输出中告警。
 #
 # Usage:
 #   sh branch-clean.sh <root> <workspace> [--apply] [--trunk <name>]
 #     <workspace> 为 space/ 下的相对路径（通常为 <YYYYMMDD>-<branch>）
-#     --trunk 指定所有仓库的合并判定主干；缺省时按仓库自动识别
-#             （本地 main → 本地 master → origin/HEAD 指向的分支）
+#     --trunk 指定所有仓库的合并判定主干（按字面引用，可传 origin/master）；
+#             缺省时按仓库自动识别（本地 main → 本地 master → origin/HEAD），
+#             存在 origin/<主干> 时优先使用远端引用
 #
 # 退出码: 0 无阻断项；1 运行失败；2 用法错误；3 存在未清理项
 #
@@ -135,20 +137,45 @@ resolve_trunk() {
         printf '%s\n' "${TRUNK_OVERRIDE}"
         return 0
     fi
+
+    TRUNK_NAME=""
     if git -C "${REPO_PATH}" rev-parse --verify -q "refs/heads/main" >/dev/null 2>&1; then
-        printf '%s\n' "main"
+        TRUNK_NAME="main"
+    elif git -C "${REPO_PATH}" rev-parse --verify -q "refs/heads/master" >/dev/null 2>&1; then
+        TRUNK_NAME="master"
+    else
+        DEF="$(git -C "${REPO_PATH}" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null || true)"
+        TRUNK_NAME="${DEF#origin/}"
+    fi
+    [ -n "${TRUNK_NAME}" ] || return 1
+
+    # fetch 后优先用远端主干判断，避免本地主干落后导致已合并分支被误判为未合并
+    if git -C "${REPO_PATH}" rev-parse --verify -q "refs/remotes/origin/${TRUNK_NAME}" >/dev/null 2>&1; then
+        printf 'origin/%s\n' "${TRUNK_NAME}"
         return 0
     fi
-    if git -C "${REPO_PATH}" rev-parse --verify -q "refs/heads/master" >/dev/null 2>&1; then
-        printf '%s\n' "master"
+    printf '%s\n' "${TRUNK_NAME}"
+    return 0
+}
+
+# 每个仓库只 fetch 一次（用仓库路径去重）
+FETCHED_REPOS="|"
+ensure_fetched() {
+    EF_PATH="$1"
+    EF_NAME="$2"
+    case "${FETCHED_REPOS}" in
+        *"|${EF_PATH}|"*) return 0 ;;
+    esac
+    FETCHED_REPOS="${FETCHED_REPOS}${EF_PATH}|"
+    if ! git -C "${EF_PATH}" remote get-url origin >/dev/null 2>&1; then
+        echo "[warn] ${EF_NAME}: 未配置 origin 远端，按本地引用判定合并状态"
         return 0
     fi
-    DEF="$(git -C "${REPO_PATH}" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null || true)"
-    if [ -n "${DEF}" ] && git -C "${REPO_PATH}" rev-parse --verify -q "${DEF}" >/dev/null 2>&1; then
-        printf '%s\n' "${DEF}"
-        return 0
+    if GIT_TERMINAL_PROMPT=0 git -C "${EF_PATH}" fetch origin --prune >/dev/null 2>&1; then
+        echo "[fetch] ${EF_NAME}: 已更新 origin 引用"
+    else
+        echo "[warn] ${EF_NAME}: fetch origin 失败，按本地引用判定（可能把已合并分支误判为未合并）"
     fi
-    return 1
 }
 
 # 分支是否已合并进主干（主干是分支的祖先）
@@ -198,6 +225,7 @@ while IFS='|' read -r REPO NAME ROLE SRC CLEANED_FLAG; do
             REASON="临时分支"
             ;;
         main)
+            ensure_fetched "${REPO_PATH}" "${REPO}"
             if ! TRUNK="$(resolve_trunk "${REPO_PATH}")"; then
                 echo "[blocked] ${REPO}/${NAME}: 无法确定主干，保留待人工处理"
                 BLOCKED=$((BLOCKED + 1))

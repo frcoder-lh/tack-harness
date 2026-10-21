@@ -62,7 +62,7 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
      一次性移除工作 worktree 并删除 `A-ts`、`B-ts` 两个临时分支；worktree 存在未提交改动时脚本停止，报告事实并经用户确认后追加 `force` 参数
    - **其他工作流**：先执行 `sh $root/harness/script/git-worktree-helper.sh remove $root <workspace>`（`<workspace>` 取 `basename "$work"`），移除各仓库在 `$work/repo/` 下的 worktree；再执行
      `sh $root/harness/script/branch-clean.sh $root <workspace> --apply`
-     清理 `status.yaml` 中登记的分支——已合并进主干的 main 分支与 tmp 分支删除；未合并主分支、保护分支、被 worktree 占用的分支与主干无法确定的条目只列出并以退出码 3 阻断，原样告知用户由其手动处理，不阻塞关闭
+     清理 `status.yaml` 中登记的分支——脚本自动 fetch 后按主干判断，已合并的 main 分支与 tmp 分支删除；未合并主分支、保护分支、被 worktree 占用的分支与主干无法确定的条目只列出并以退出码 3 阻断，原样告知用户由其手动处理，不阻塞关闭
    - 幂等: `branch-clean.sh` 对已不存在的分支自动跳过，收尾中断后重跑本步安全——工作区目录将在第 7 步删除，清理状态不回写 status.yaml
    - 边界: 只清理 `status.yaml` branches 列表登记的分支；用户在工作区期间手动 `checkout -b` 创建的分支未登记，框架不自动删除（可提示用户检查工作区是否有未登记分支）；远端分支不由脚本删除，输出中的远端提示需用户人工确认后处理
 
