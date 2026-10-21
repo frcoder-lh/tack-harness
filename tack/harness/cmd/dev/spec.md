@@ -32,7 +32,7 @@ summary: 读 input.md、wiki（root/work）与代码事实，按 harness/templat
    - 按需参考 reference（须经本命令引用方可加载）: `grill-with-docs.md`、`grilling.md`、`domain-modeling.md`、`to-spec.md`
 
 3. **生成 spec.md**
-   - 输入: `$work/input.md` 原文 + wiki/代码命中要点 + `$root/harness/template/spec.md`
+   - 输入: `$work/input.md` 原文 + `$root/wiki/<project>/` 与 `$work/wiki/` 命中要点 + 代码事实 + `$root/harness/template/spec.md`
    - 动作: 按模板章节在 `$work/spec.md` 输出：背景目标与范围、Story 拆分（优先级、涉及系统/模块、验收标准）、系统与模块影响面、模块关系与交互、边界约定、验收标准（合同）、风险与待澄清
    - 纪律: 对原始需求只做格式整理与梳理，不篡改原始含义；不写数据结构、编码步骤等实现细节（属于 plan.md）
 

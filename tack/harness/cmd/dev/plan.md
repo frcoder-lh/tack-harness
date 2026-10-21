@@ -33,7 +33,7 @@ summary: 读 spec、input、wiki（root/work）与代码事实，产出 plan.md�
    - 按需参考 reference: `domain-modeling.md`、`codebase-design.md`、`research.md`、`to-tickets.md`
 
 3. **生成 plan.md 主体**
-   - 输入: spec.md + input.md + wiki/代码事实 + `$root/harness/template/plan.md`
+   - 输入: spec.md + input.md + `$root/wiki/<project>/` 与 `$work/wiki/` 命中内容 + 代码事实 + `$root/harness/template/plan.md`
    - 动作: 按模板在 `$work/plan.md` 输出：
      - 需求理解（关键约束与假设）
      - 开发环节与顺序（环节、仓库/模块、依赖、产出）

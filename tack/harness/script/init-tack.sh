@@ -6,7 +6,8 @@
 #   tack/ 目录本身就是出厂模板，内部结构与 tack 空间一一对应——
 #   复制 <tack>/ 全部内容即完成静态骨架物化（AGENTS.md、.gitignore 在空间根）。
 #   wiki 公共知识是运行时产物：init 命令有真实事实才按需物化文件，
-#   故骨架只预建空的 wiki/ 目录；space/、repo/ 同为空目录，由本脚本显式创建。
+#   故骨架只预建空的 wiki/ 目录（项目子目录 wiki/<project>/ 由 init 的 project-add 创建）；
+#   space/、repo/ 同为空目录，由本脚本显式创建。
 # 额外职责：
 #   1. 确保本机 Git 可用——缺失时尝试自动安装：Linux 用系统包管理器，
 #      macOS 用 Homebrew；Windows 不经本脚本（Git for Windows 由 run.ps1

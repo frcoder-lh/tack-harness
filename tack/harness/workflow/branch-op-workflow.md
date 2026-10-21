@@ -56,7 +56,7 @@ initialized → preparing → integrating → pushing → completed
 | # | 环节 | 执行 | 完成后状态 |
 |---|------|------|------------|
 | 1 | 解析意图与确认仓库 | `work` 分流：解析 op（合并→merge，变基→rebase）、A、B；逐仓库校验分支存在并由用户确认 | initialized |
-| 2 | 建骨架与 prepare | `work.sh --no-worktree` 建工作区骨架 → `branch-op.sh prepare ...`（每仓库一次），解析输出的临时分支名 | preparing |
+| 2 | 建骨架与 prepare | `work.sh --no-worktree <root> <project> <branch>` 建工作区骨架（project 由 work 命令确定）→ `branch-op.sh prepare ...`（每仓库一次），解析输出的临时分支名 | preparing |
 | 3 | 集成 | `branch-op.sh integrate ...`；退出码 10 → 第 4 步 | integrating |
 | 4 | 解决冲突 | `solve`：展示双方差异与意图，用户拍板，禁止静默取舍 | resolving |
 | 5 | 继续 | `branch-op.sh continue ...`；退出码 10 回第 4 步；用户放弃则 `abort` 后置 blocked | integrating |

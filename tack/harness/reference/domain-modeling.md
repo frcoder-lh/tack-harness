@@ -28,7 +28,7 @@
 
 ### 即时更新文档
 
-当术语被澄清时，立即更新 `wiki/business-understanding.md`；文件不存在时按 `harness/template/wiki-business-understanding.md` 创建。不要批量处理：捕获它们。`wiki/business-understanding.md` 应该完全没有实现细节。
+当术语被澄清时，立即更新 `$root/wiki/<project>/business-understanding.md`；文件不存在时按 `harness/template/wiki-business-understanding.md` 创建。不要批量处理：捕获它们。`business-understanding.md` 应该完全没有实现细节。
 
 ### 节制地提出技术决策
 

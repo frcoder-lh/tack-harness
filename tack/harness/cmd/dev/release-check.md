@@ -30,7 +30,7 @@ summary: 上线前检查清单——以 plan.md/tech-design.md 与目标分支�
 
 3. **加载输入**
    - 规范: `$work/plan.md`、`$work/tech-design.md`（部署架构、依赖清单、数据模型章节）
-   - 环境事实: `$root/wiki/manifest.md` 的「环境与事实信息」（部署环境、平台入口、申请流程，如已登记）
+   - 环境事实: `$root/wiki/<project>/manifest.md` 的「环境与事实信息」（部署环境、平台入口、申请流程，如已登记）
    - 事实: 各仓库 diff 文件 + 必要的完整文件上下文（配置模板、migration 全文）；加载纪律遵守 `harness/rule/context-loading.md`
 
 4. **逐项识别上线检查项**（以 diff 为唯一事实来源，每项附 `路径:行号` 锚点）

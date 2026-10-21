@@ -1,6 +1,6 @@
 # 需求规划文档（spec.md）模板
 
-> 由 `/tack spec` 命令读取：结合 `input.md` 原文与 `wiki/` 公共知识产出 `$work/spec.md`。
+> 由 `/tack spec` 命令读取：结合 `input.md` 原文、`$root/wiki/<project>/` 项目知识与 `$work/wiki/` 产出 `$work/spec.md`。
 > 定位：**开发施工图 + 验收合同**。拆解 story、划清系统与模块边界、明确交互与验收标准；
 > 不写具体实现细节（数据结构、编码步骤属于 plan.md）。对原始需求只做整理，不篡改原意。
 

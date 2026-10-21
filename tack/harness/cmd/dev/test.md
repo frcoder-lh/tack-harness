@@ -25,8 +25,8 @@ summary: 按需命令（非开发必经环节，用户需要时触发）——�
    - 动作: 描述宽泛时先澄清边界（测哪些功能、不测哪些、用什么环境），意图明确后再继续；不得带着模糊目的直接生成方案
 
 2. **加载上下文（节约 token）**
-   - 输入源: `$work/spec.md`（验收标准）、`$work/plan.md`（模块与接口）、`$work/wiki/` 与 `$root/wiki/`（环境与接口事实，grep 定位后读命中小节）、代码事实
-   - 加载纪律: 遵守 `harness/rule/context-loading.md`；环境拓扑、泳道、部署方式等静态事实查 `$root/wiki/manifest.md`「部署环境与泳道」，缺失不臆造
+   - 输入源: `$work/spec.md`（验收标准）、`$work/plan.md`（模块与接口）、`$work/wiki/` 与 `$root/wiki/<project>/`（环境与接口事实，grep 定位后读命中小节）、代码事实
+   - 加载纪律: 遵守 `harness/rule/context-loading.md`；环境拓扑、泳道、部署方式等静态事实查 `$root/wiki/<project>/manifest.md`「部署环境与泳道」，缺失不臆造
 
 3. **生成 test.md（可落地、可执行方案）**
    - 动作: 复制 `harness/template/test.md` 到 `$work/test.md`，把用户描述转化为结构化测试方案：

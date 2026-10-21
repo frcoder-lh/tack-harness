@@ -1,22 +1,34 @@
 #!/bin/sh
-# project.sh — 维护 AGENTS.md 中的「项目信息」YAML 区块（取代根 status.yaml）
+# project.sh — 维护 AGENTS.md 中的「项目信息」YAML 区块（projects 数组 + work 列表）
 #
 # 区块边界（区块体内为纯 YAML，不含 markdown 围栏，便于脚本可靠读写）：
 #   <!-- tack:info:start -->
 #   skill_version: ""
 #   skill_update_url: "https://github.com/frcoder-lh/tack-harness"
 #   ...
-#   work: []
+#   projects:
+#     - name: "project-a"
+#       keywords: [...]
+#       description: ""
+#       root_path: ""
+#       repo_scan_path: []
+#       service_repo_mapping: [...]
+#   work:
+#     - work_id: "..."
+#       project: "project-a"
+#       ...
 #   <!-- tack:info:end -->
 #
 # Usage:
-#   sh project.sh ensure        <root>                                              # 区块缺失时在 AGENTS.md 尾部追加空模板（幂等）
-#   sh project.sh set           <root> <name|description|root_path> <value>         # 更新 project 下简单标量
-#   sh project.sh skill-version <root> <version> [--if-empty] [--no-commit]         # 写入 skill_version；--if-empty 仅空值时填充（已有值跳过）
-#   sh project.sh keywords      <root> <kw1,kw2,...> [--no-commit]                  # 覆盖写 project.keywords 列表
-#   sh project.sh service-repo  <root> <service_name> <repo_name> <repo_git> <repo_path> [--no-commit]
-#                                                                                   # 追加一条 project.service_repo_mapping（repo_git 可传空串）
-#   sh project.sh work-add      <root> <id> <description> <work_path> <branch> <svc1,svc2> [triggers]
+#   sh project.sh ensure            <root>                                              # 区块缺失时在 AGENTS.md 尾部追加空模板（幂等）
+#   sh project.sh project-add       <root> <name> [description] [--no-commit]           # 追加项目条目并创建 wiki/<name>/
+#   sh project.sh project-set       <root> <name> <description|root_path> <value>       # 更新项目下简单标量
+#   sh project.sh project-keywords  <root> <name> <kw1,kw2,...> [--no-commit]           # 覆盖写某项目 keywords
+#   sh project.sh project-service-repo <root> <name> <service_name> <repo_name> <repo_git> <repo_path> [--no-commit]
+#                                                                                       # 追加某项目的 service_repo_mapping（repo_git 可传空串）
+#   sh project.sh project-list      <root>                                              # 输出 name<TAB>description，每行一个项目
+#   sh project.sh skill-version     <root> <version> [--if-empty] [--no-commit]         # 写入 skill_version；--if-empty 仅空值时填充（已有值跳过）
+#   sh project.sh work-add      <root> <project> <id> <description> <work_path> <branch> <svc1,svc2> [triggers]
 #   sh project.sh work-set      <root> <id> <status>                                # 更新某工作条目状态
 #   sh project.sh work-remove   <root> <id>                                         # 移除某工作条目（close 时工作区目录删除后同步清理登记）
 #   sh project.sh work-path     <root> <id> <work_path>                             # 修正某工作条目的 work_path（reconcile 发现重命名残留时校准）
@@ -27,7 +39,7 @@
 #
 # --no-commit: 跳过尾部空间仓库自动提交，供 init-tack / update 等复合流程统一收尾提交
 #
-# 退出码: 0 成功 / 非 0 失败（AGENTS.md 不存在、work_id 重复或找不到等）
+# 退出码: 0 成功 / 非 0 失败（AGENTS.md 不存在、项目或 work_id 找不到/重复等）
 
 set -e
 
@@ -39,7 +51,7 @@ START_MARK='<!-- tack:info:start -->'
 END_MARK='<!-- tack:info:end -->'
 
 if [ -z "${ACTION}" ] || [ -z "${ROOT}" ]; then
-    echo "Usage: sh project.sh <ensure|set|skill-version|keywords|service-repo|work-add|work-set|work-remove|work-path|work-reconcile|work-services|work-trigger> <root> [args...]" >&2
+    echo "Usage: sh project.sh <ensure|project-add|project-set|project-keywords|project-service-repo|project-list|skill-version|work-add|work-set|work-remove|work-path|work-reconcile|work-services|work-trigger> <root> [args...]" >&2
     exit 1
 fi
 if [ ! -f "${AGENTS}" ]; then
@@ -93,25 +105,47 @@ has_block() {
     grep -qF "${START_MARK}" "${AGENTS}" && grep -qF "${END_MARK}" "${AGENTS}"
 }
 
+# require_projects — 校验多项目结构（projects 数组）存在；旧版单项目区块给出迁移提示
+require_projects() {
+    grep -qE '^projects:' "${AGENTS}" && return 0
+    if grep -qE '^project:' "${AGENTS}"; then
+        echo "Error: 检测到旧版单项目区块 project:。多项目结构须为 projects 数组，且每个 work 条目带 project 字段；请按 AGENTS.md 模板手工迁移该区块后再执行" >&2
+    else
+        echo "Error: 项目信息区块缺少 projects 字段，先执行 project.sh ensure" >&2
+    fi
+    exit 1
+}
+
+# project_exists <name> — projects 数组中是否存在该 name
+project_exists() {
+    awk -v want="$1" '
+        BEGIN { inproj=0 }
+        /^projects:/ { inproj=1; next }
+        inproj==1 && /^[^[:space:]]/ { inproj=0 }
+        inproj==1 && /^  - name:/ {
+            line=$0; sub(/^  - name:[[:space:]]*/, "", line)
+            gsub(/"/, "", line); gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+            if (line == want) { found=1 }
+        }
+        END { exit (found ? 0 : 1) }
+    ' "${AGENTS}"
+}
+
 # ensure: 幂等追加空区块
 cmd_ensure() {
     if has_block; then
-        echo "项目信息区块已存在，跳过"
-        return 0
+        if grep -qE '^projects:' "${AGENTS}"; then
+            echo "项目信息区块已存在，跳过"
+            return 0
+        fi
+        require_projects
     fi
     tmp_body="${AGENTS}.body.$$"
     cat > "${tmp_body}" <<'EOF'
 skill_version: ""
 skill_update_url: "https://github.com/frcoder-lh/tack-harness"
 skill_trigger: "tack"
-project:
-  name: ""
-  keywords:
-    - ""
-  description: ""
-  root_path: ""
-  repo_scan_path: []
-  service_repo_mapping: []
+projects: []
 work: []
 EOF
     # 确保文件尾有空行，再追加区块
@@ -119,7 +153,7 @@ EOF
     {
         echo "## 项目信息"
         echo ""
-        echo "> 以下 YAML 区块由 harness/script/project.sh 维护（init、work、close 时自动更新）；可手工查阅，结构化内容（keywords、service_repo_mapping、work.services）由 init 等命令经脚本写入（内容经人工确认）。"
+        echo "> 以下 YAML 区块由 harness/script/project.sh 维护（init、work、close 时自动更新）；可手工查阅，结构化内容（projects、service_repo_mapping、work.services）由 init 等命令经脚本写入（内容经人工确认）。项目名与 work.project 对应，项目级知识落 wiki/<project>/。"
         echo ""
         echo "${START_MARK}"
         cat "${tmp_body}"
@@ -129,37 +163,132 @@ EOF
     echo "已在 AGENTS.md 追加项目信息区块"
 }
 
-# set: 更新 project 下的简单标量
-cmd_set() {
-    FIELD="$3"
-    VALUE="$4"
-    case "${FIELD}" in
-        name|description|root_path) ;;
-        *) echo "Error: set 仅支持 name/description/root_path（列表字段用 keywords / service-repo / work-services 子命令）" >&2; exit 1 ;;
+# project-add: 追加项目条目（projects 数组），并创建 wiki/<name>/ 目录
+cmd_project_add() {
+    NAME="$3"
+    DESC="${4:-}"
+    [ "${DESC}" = "--no-commit" ] && DESC=""
+    [ -n "${NAME}" ] || { echo "Usage: project.sh project-add <root> <name> [description]" >&2; exit 1; }
+    case "${NAME}" in
+        */*|*'\'*|*" "*|.|..)
+            echo "Error: 非法项目名 '${NAME}'（仅接受单层目录名，不得含分隔符或空白）" >&2
+            exit 1
+            ;;
     esac
     has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+    require_projects
+    if project_exists "${NAME}"; then
+        echo "Error: 项目 '${NAME}' 已存在于 projects 数组" >&2
+        exit 1
+    fi
+
+    tmp_body="${AGENTS}.body.$$"
+    extract_body "${tmp_body}"
+    tmp_entry="${AGENTS}.entry.$$"
+    cat > "${tmp_entry}" <<EOF
+  - name: "$(esc "${NAME}")"
+    keywords: []
+    description: "$(esc "${DESC}")"
+    root_path: ""
+    repo_scan_path: []
+    service_repo_mapping: []
+EOF
+
+    tmp_new="${AGENTS}.new.$$"
+    if grep -qE '^projects:[[:space:]]*\[\][[:space:]]*(#.*)?$' "${tmp_body}"; then
+        awk -v entryfile="${tmp_entry}" '
+            /^projects:[[:space:]]*\[\][[:space:]]*(#.*)?$/ {
+                print "projects:"
+                while ((getline l < entryfile) > 0) print l
+                next
+            }
+            { print }
+        ' "${tmp_body}" > "${tmp_new}"
+    else
+        awk -v entryfile="${tmp_entry}" '
+            BEGIN { done=0 }
+            done==0 && /^work:/ {
+                while ((getline l < entryfile) > 0) print l
+                done=1
+            }
+            { print }
+            END {
+                if (done==0) { while ((getline l < entryfile) > 0) print l }
+            }
+        ' "${tmp_body}" > "${tmp_new}"
+    fi
+
+    rewrite_block "${tmp_new}"
+    rm -f "${tmp_body}" "${tmp_entry}" "${tmp_new}"
+    mkdir -p "${ROOT}/wiki/${NAME}"
+    echo "已登记项目: ${NAME}（知识目录 wiki/${NAME}/）"
+}
+
+# project-set: 更新指定项目下的简单标量（项目名不可改，避免 wiki 目录与 work.project 失联）
+cmd_project_set() {
+    NAME="$3"; FIELD="$4"; VALUE="$5"
+    [ -n "${NAME}" ] && [ -n "${FIELD}" ] || { echo "Usage: project.sh project-set <root> <name> <description|root_path> <value>" >&2; exit 1; }
+    case "${FIELD}" in
+        description|root_path) ;;
+        *) echo "Error: project-set 仅支持 description/root_path（项目名不可改，列表字段用 project-keywords / project-service-repo）" >&2; exit 1 ;;
+    esac
+    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+    require_projects
+    project_exists "${NAME}" || { echo "Error: 项目 '${NAME}' 不存在" >&2; exit 1; }
 
     tmp_body="${AGENTS}.body.$$"
     extract_body "${tmp_body}"
     tmp_new="${AGENTS}.new.$$"
-    awk -v field="${FIELD}" -v value="$(esc "${VALUE}")" '
-        BEGIN { inproj=0; done=0 }
-        /^project:/ { inproj=1; print; next }
+    awk -v want="$(esc "${NAME}")" -v field="${FIELD}" -v value="$(esc "${VALUE}")" '
+        BEGIN { inproj=0; cur=""; done=0 }
+        /^projects:/ { inproj=1; print; next }
         inproj==1 && /^[^[:space:]]/ { inproj=0 }
-        inproj==1 && done==0 && $0 ~ "^  " field ":[[:space:]]*" {
-            print "  " field ": \"" value "\""
+        inproj==1 && /^  - name:/ {
+            line=$0; sub(/^  - name:[[:space:]]*/, "", line)
+            gsub(/"/, "", line); gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+            cur=line
+            print; next
+        }
+        inproj==1 && cur==want && done==0 && $0 ~ "^    " field ":[[:space:]]*" {
+            print "    " field ": \"" value "\""
             done=1
             next
         }
         { print }
         END { if (done==0) exit 3 }
     ' "${tmp_body}" > "${tmp_new}" || {
-        echo "Error: 未在 project 段找到字段 '${FIELD}'" >&2
+        echo "Error: 未在项目 '${NAME}' 中找到字段 '${FIELD}'" >&2
         rm -f "${tmp_body}" "${tmp_new}"; exit 1
     }
     rewrite_block "${tmp_new}"
     rm -f "${tmp_body}" "${tmp_new}"
-    echo "已更新 project.${FIELD}"
+    echo "已更新 projects[${NAME}].${FIELD}"
+}
+
+# project-list: 输出全部项目（name<TAB>description）
+cmd_project_list() {
+    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+    require_projects
+    awk '
+        function clean(v) {
+            gsub(/"/, "", v); gsub(/^[[:space:]]+|[[:space:]]+$/, "", v); return v
+        }
+        BEGIN { inproj=0; have=0; name=""; desc="" }
+        /^projects:/ { inproj=1; next }
+        inproj==1 && /^[^[:space:]]/ {
+            if (have) printf "%s\t%s\n", name, desc
+            inproj=0; have=0
+        }
+        inproj==1 && /^  - name:/ {
+            if (have) printf "%s\t%s\n", name, desc
+            line=$0; sub(/^  - name:[[:space:]]*/, "", line); name=clean(line)
+            desc=""; have=1; next
+        }
+        inproj==1 && have && /^    description:/ {
+            line=$0; sub(/^    description:[[:space:]]*/, "", line); desc=clean(line)
+        }
+        END { if (have) printf "%s\t%s\n", name, desc }
+    ' "${AGENTS}"
 }
 
 # skill-version: 写入区块顶级标量 skill_version
@@ -217,13 +346,16 @@ cmd_skill_version() {
     echo "已更新 skill_version: ${NEWVER}"
 }
 
-# work-add: 追加工作条目
+# work-add: 追加工作条目（必须归属一个已有项目）
 cmd_work_add() {
-    ID="$3"; DESC="$4"; WPATH="$5"; BRANCH="$6"; SERVICES="${7:-}"; TRIGGERS="${8:-}"
-    # --no-commit 可落在第 8 位（未传 triggers 时），此时清空 triggers
+    PROJECT="$3"; ID="$4"; DESC="$5"; WPATH="$6"; BRANCH="$7"; SERVICES="${8:-}"; TRIGGERS="${9:-}"
+    # --no-commit 可落在第 8/9 位（未传 services/triggers 时），此时清空对应参数
+    [ "${SERVICES}" = "--no-commit" ] && SERVICES=""
     [ "${TRIGGERS}" = "--no-commit" ] && TRIGGERS=""
-    [ -n "${ID}" ] || { echo "Usage: project.sh work-add <root> <id> <description> <work_path> <branch> [services] [triggers]" >&2; exit 1; }
+    [ -n "${PROJECT}" ] && [ -n "${ID}" ] || { echo "Usage: project.sh work-add <root> <project> <id> <description> <work_path> <branch> [services] [triggers]" >&2; exit 1; }
     has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+    require_projects
+    project_exists "${PROJECT}" || { echo "Error: 项目 '${PROJECT}' 不存在，先执行 project.sh project-add" >&2; exit 1; }
 
     tmp_body="${AGENTS}.body.$$"
     extract_body "${tmp_body}"
@@ -249,6 +381,7 @@ cmd_work_add() {
     tmp_entry="${AGENTS}.entry.$$"
     cat > "${tmp_entry}" <<EOF
   - work_id: "$(esc "${ID}")"
+    project: "$(esc "${PROJECT}")"
     description: "$(esc "${DESC}")"
     trigger_words: [$TRIG_LIST]
     work_path: "$(esc "${WPATH}")"
@@ -278,7 +411,7 @@ EOF
 
     rewrite_block "${tmp_new}"
     rm -f "${tmp_body}" "${tmp_entry}" "${tmp_new}"
-    echo "已登记工作: ${ID}"
+    echo "已登记工作: ${ID}（项目: ${PROJECT}）"
 }
 
 # work-set: 更新某工作条目状态
@@ -387,12 +520,12 @@ cmd_work_path() {
     echo "已修正工作路径: ${ID} -> ${WPATH}"
 }
 
-# 从单个 status.yaml 提取概要行：work_id<TAB>branch<TAB>status<TAB>svc1,svc2
+# 从单个 status.yaml 提取概要行：work_id<TAB>project<TAB>branch<TAB>status<TAB>svc1,svc2
 # 文件不存在或字段缺失以 - 占位
 status_summary() {
     f="$1"
     if [ ! -f "${f}" ]; then
-        printf -- '-\t-\t-\t-\n'
+        printf -- '-\t-\t-\t-\t-\n'
         return
     fi
     awk '
@@ -403,9 +536,10 @@ status_summary() {
             gsub(/^"|"$/,"",v)
             return v
         }
-        BEGIN { id="-"; br="-"; st="-"; svc=""; insvc=0 }
+        BEGIN { id="-"; prj="-"; br="-"; st="-"; svc=""; insvc=0 }
         /^[A-Za-z_]/ { insvc=0 }
         /^work_id:/ { id=val($0) }
+        /^project:/ { prj=val($0) }
         /^branch:/  { br=val($0) }
         /^status:/  { st=val($0) }
         /^services:[[:space:]]*$/ { insvc=1; next }
@@ -423,7 +557,7 @@ status_summary() {
             gsub(/^[[:space:]]+|[[:space:]]+$/,"",v); gsub(/^"|"$/,"",v)
             if (v!="") svc=(svc==""?v:svc","v)
         }
-        END { printf "%s\t%s\t%s\t%s\n", id, br, st, svc }
+        END { printf "%s\t%s\t%s\t%s\t%s\n", id, prj, br, st, svc }
     ' "${f}"
 }
 
@@ -432,7 +566,7 @@ status_summary() {
 #   MISSING_DIR    <id> <登记目录名>        <status>                 条目在、目录缺失
 #   STALE_COMPLETED <id> <目录名>            <status>                 条目已 completed 但目录仍在（旧归档残留）
 #   PATH_MISMATCH  <id> <登记目录名>         <实际目录名>              work_path 与 status.yaml work_id 指向不符（重命名中断）
-#   UNREGISTERED   <目录名> <work_id|-> <branch|-> <status|-> <svc,svc|-| 目录在、无条目
+#   UNREGISTERED   <目录名> <work_id|-> <project|-> <branch|-> <status|-> <svc,svc|->   目录在、无条目
 cmd_work_reconcile() {
     has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
 
@@ -521,91 +655,104 @@ cmd_work_reconcile() {
     rm -f "${tmp_body}" "${tmp_entries}" "${tmp_seen}"
 }
 
-# keywords: 覆盖写 project.keywords（逗号分隔；空值写空序列）
-cmd_keywords() {
-    KW="$3"
-    [ -n "${KW}" ] || { echo "Usage: project.sh keywords <root> <kw1,kw2,...>" >&2; exit 1; }
+# project-keywords: 覆盖写指定项目的 keywords（逗号分隔；空值写空序列）
+cmd_project_keywords() {
+    NAME="$3"; KW="$4"
+    [ -n "${NAME}" ] && [ -n "${KW}" ] || { echo "Usage: project.sh project-keywords <root> <name> <kw1,kw2,...>" >&2; exit 1; }
     has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+    require_projects
+    project_exists "${NAME}" || { echo "Error: 项目 '${NAME}' 不存在" >&2; exit 1; }
 
+    KW_LIST=$(csv_to_yaml "${KW}")
     tmp_body="${AGENTS}.body.$$"
     extract_body "${tmp_body}"
     tmp_new="${AGENTS}.new.$$"
-    awk -v kws="$(esc "${KW}")" '
-        BEGIN { inproj=0; inkw=0; done=0 }
-        /^project:/ { inproj=1; print; next }
-        inproj==1 && /^[^[:space:]]/ { inproj=0; inkw=0 }
-        inproj==1 && $0 ~ /^  keywords:[[:space:]]*($|#)/ {
-            n = split(kws, arr, ",")
-            c = 0
-            for (i=1;i<=n;i++) {
-                gsub(/^[[:space:]]+|[[:space:]]+$/, "", arr[i])
-                if (arr[i] != "") { c++; clean[c] = arr[i] }
-            }
-            if (c == 0) { print "  keywords: []" }
-            else {
-                print "  keywords:"
-                for (i=1;i<=c;i++) print "    - \"" clean[i] "\""
-            }
+    awk -v want="$(esc "${NAME}")" -v list="${KW_LIST}" '
+        BEGIN { inproj=0; cur=""; inkw=0; done=0 }
+        /^projects:/ { inproj=1; print; next }
+        inproj==1 && /^[^[:space:]]/ { inproj=0; inkw=0; cur="" }
+        inproj==1 && /^  - name:/ {
+            line=$0; sub(/^  - name:[[:space:]]*/, "", line)
+            gsub(/"/, "", line); gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+            cur=line; inkw=0
+            print; next
+        }
+        inproj==1 && cur==want && done==0 && /^    keywords:/ {
+            print "    keywords: [" list "]"
             inkw=1; done=1; next
         }
-        inproj==1 && inkw==1 && $0 ~ /^[[:space:]]*-[[:space:]]/ { next }
-        inproj==1 && inkw==1 && $0 ~ /^  [A-Za-z_]/ { inkw=0 }
+        inproj==1 && inkw==1 && /^      - / { next }
+        inproj==1 && inkw==1 && /^    [A-Za-z_]/ { inkw=0 }
         { print }
         END { if (done==0) exit 3 }
     ' "${tmp_body}" > "${tmp_new}" || {
-        echo "Error: 未在 project 段找到 keywords 字段" >&2
+        echo "Error: 未在项目 '${NAME}' 中找到 keywords 字段" >&2
         rm -f "${tmp_body}" "${tmp_new}"; exit 1
     }
     rewrite_block "${tmp_new}"
     rm -f "${tmp_body}" "${tmp_new}"
-    echo "已更新 project.keywords"
+    echo "已更新 projects[${NAME}].keywords"
 }
 
-# service-repo: 追加一条 project.service_repo_mapping（空 [] 替换为块，非空在块尾追加）
-cmd_service_repo() {
-    SVC="$3"; RN="$4"; RG="$5"; RP="$6"
-    if [ -z "${SVC}" ] || [ -z "${RN}" ] || [ -z "${RP}" ]; then
-        echo "Usage: project.sh service-repo <root> <service_name> <repo_name> <repo_git> <repo_path>" >&2
+# project-service-repo: 追加一条指定项目的 service_repo_mapping（空 [] 替换为块，非空在块尾追加）
+cmd_project_service_repo() {
+    NAME="$3"; SVC="$4"; RN="$5"; RG="$6"; RP="$7"
+    if [ -z "${NAME}" ] || [ -z "${SVC}" ] || [ -z "${RN}" ] || [ -z "${RP}" ]; then
+        echo "Usage: project.sh project-service-repo <root> <name> <service_name> <repo_name> <repo_git> <repo_path>" >&2
         exit 1
     fi
     has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+    require_projects
+    project_exists "${NAME}" || { echo "Error: 项目 '${NAME}' 不存在" >&2; exit 1; }
 
     tmp_body="${AGENTS}.body.$$"
     extract_body "${tmp_body}"
     tmp_new="${AGENTS}.new.$$"
-    awk -v svc="$(esc "${SVC}")" -v rn="$(esc "${RN}")" -v rg="$(esc "${RG}")" -v rp="$(esc "${RP}")" '
+    awk -v want="$(esc "${NAME}")" -v svc="$(esc "${SVC}")" -v rn="$(esc "${RN}")" -v rg="$(esc "${RG}")" -v rp="$(esc "${RP}")" '
         function emit() {
-            print "    - service_name: \"" svc "\""
-            print "      repo_name: \"" rn "\""
-            print "      repo_git: \"" rg "\""
-            print "      repo_path: \"" rp "\""
+            print "      - service_name: \"" svc "\""
+            print "        repo_name: \"" rn "\""
+            print "        repo_git: \"" rg "\""
+            print "        repo_path: \"" rp "\""
         }
-        BEGIN { inproj=0; inmap=0; done=0 }
-        /^project:/ { inproj=1; print; next }
+        BEGIN { inproj=0; cur=""; inmap=0; done=0 }
+        /^projects:/ { inproj=1; print; next }
         inproj==1 && /^[^[:space:]]/ {
-            if (inmap==1) { emit(); done=1; inmap=0 }
-            inproj=0
+            if (inmap==1 && cur==want && done==0) { emit(); done=1 }
+            inproj=0; inmap=0; cur=""
             print; next
         }
-        inproj==1 && $0 ~ /^  service_repo_mapping:[[:space:]]*\[\][[:space:]]*(#.*)?$/ {
-            print "  service_repo_mapping:"
+        inproj==1 && /^  - name:/ {
+            if (inmap==1 && cur==want && done==0) { emit(); done=1 }
+            line=$0; sub(/^  - name:[[:space:]]*/, "", line)
+            gsub(/"/, "", line); gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+            cur=line; inmap=0
+            print; next
+        }
+        inproj==1 && cur==want && $0 ~ /^    service_repo_mapping:[[:space:]]*\[\][[:space:]]*(#.*)?$/ {
+            print "    service_repo_mapping:"
             emit(); done=1
             next
         }
-        inproj==1 && $0 ~ /^  service_repo_mapping:[[:space:]]*($|#)/ { inmap=1; print; next }
-        inproj==1 && inmap==1 && $0 ~ /^  [A-Za-z_]/ {
+        inproj==1 && cur==want && $0 ~ /^    service_repo_mapping:[[:space:]]*($|#)/ {
+            inmap=1; print; next
+        }
+        inproj==1 && inmap==1 && $0 ~ /^    [A-Za-z_]/ {
             emit(); done=1; inmap=0
             print; next
         }
         { print }
-        END { if (inmap==1 && done==0) { emit(); done=1 }; if (done==0) exit 3 }
+        END {
+            if (inmap==1 && cur==want && done==0) { emit(); done=1 }
+            if (done==0) exit 3
+        }
     ' "${tmp_body}" > "${tmp_new}" || {
-        echo "Error: 未在 project 段找到 service_repo_mapping 字段" >&2
+        echo "Error: 未在项目 '${NAME}' 中找到 service_repo_mapping 字段" >&2
         rm -f "${tmp_body}" "${tmp_new}"; exit 1
     }
     rewrite_block "${tmp_new}"
     rm -f "${tmp_body}" "${tmp_new}"
-    echo "已登记服务映射: ${SVC} -> ${RN}"
+    echo "已登记项目服务映射: ${NAME} ${SVC} -> ${RN}"
 }
 
 # work-services: 覆盖写某 work 条目的 services；给 status.yaml 时同步其顶层 services
@@ -737,19 +884,21 @@ cmd_work_trigger() {
 }
 
 case "${ACTION}" in
-    ensure)        cmd_ensure ;;
-    set)           cmd_set "$@" ;;
-    skill-version) cmd_skill_version "$@" ;;
-    keywords)      cmd_keywords "$@" ;;
-    service-repo)  cmd_service_repo "$@" ;;
-    work-add)      cmd_work_add "$@" ;;
-    work-set)      cmd_work_set "$@" ;;
-    work-remove)   cmd_work_remove "$@" ;;
-    work-path)     cmd_work_path "$@" ;;
-    work-reconcile) NO_COMMIT=1; cmd_work_reconcile "$@" ;;
-    work-services) cmd_work_services "$@" ;;
-    work-trigger)  cmd_work_trigger "$@" ;;
-    *) echo "Error: 未知动作 '${ACTION}'（支持 ensure / set / skill-version / keywords / service-repo / work-add / work-set / work-remove / work-path / work-reconcile / work-services / work-trigger）" >&2; exit 1 ;;
+    ensure)                cmd_ensure ;;
+    project-add)           cmd_project_add "$@" ;;
+    project-set)           cmd_project_set "$@" ;;
+    project-keywords)      cmd_project_keywords "$@" ;;
+    project-service-repo)  cmd_project_service_repo "$@" ;;
+    project-list)          cmd_project_list "$@" ;;
+    skill-version)         cmd_skill_version "$@" ;;
+    work-add)              cmd_work_add "$@" ;;
+    work-set)              cmd_work_set "$@" ;;
+    work-remove)           cmd_work_remove "$@" ;;
+    work-path)             cmd_work_path "$@" ;;
+    work-reconcile)        NO_COMMIT=1; cmd_work_reconcile "$@" ;;
+    work-services)         cmd_work_services "$@" ;;
+    work-trigger)          cmd_work_trigger "$@" ;;
+    *) echo "Error: 未知动作 '${ACTION}'（支持 ensure / project-add / project-set / project-keywords / project-service-repo / project-list / skill-version / work-add / work-set / work-remove / work-path / work-reconcile / work-services / work-trigger）" >&2; exit 1 ;;
 esac
 
 # AGENTS.md 项目信息区块变更后，框架自动提交空间仓库（无变更时 space.sh 内部跳过）；

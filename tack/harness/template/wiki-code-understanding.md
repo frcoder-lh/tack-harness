@@ -1,7 +1,7 @@
 # 代码理解
 
-> 本模板由 `/tack init` 读取：接入代码仓库后，根据 AGENTS.md 项目信息区块的
-> `service_repo_mapping` 渲染仓库概览，物化为 `$root/wiki/code-understanding.md`。
+> 本模板由 `/tack init` 读取：接入代码仓库后，根据 AGENTS.md 当前项目条目的
+> `service_repo_mapping` 渲染仓库概览，物化为 `$root/wiki/<project>/code-understanding.md`。
 >
 > **记录边界**：代码逻辑（实现细节、调用链、模块内部行为、业务规则的代码实现）
 > 以代码本身为唯一真源，本文件**一律不记录**——这些内容会随迭代变化，wiki 更新不及时反而误导。

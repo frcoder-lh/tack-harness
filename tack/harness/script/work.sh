@@ -2,7 +2,8 @@
 # work.sh — 新建工作区（space/<YYYYMMDD>-<branch>/）
 #
 # Usage:
-#   sh work.sh [--no-worktree] <root> <branch> [repo-name ...]
+#   sh work.sh [--no-worktree] <root> <project> <branch> [repo-name ...]
+#     project 必须已在 AGENTS.md projects 数组中登记（work 条目与项目 wiki 的归属依据）
 #     repo-name 可传多个；不传则默认为 root/repo 下的全部仓库创建 worktree
 #     --no-worktree：只建目录骨架与模板文件，不创建任何 worktree
 #       （branch-op 工作流使用，临时分支 worktree 由 branch-op.sh prepare 另行创建）
@@ -94,16 +95,25 @@ case "${1:-}" in
 esac
 
 ROOT="${1:-.}"
-BRANCH="$2"
+PROJECT="$2"
+BRANCH="$3"
 
-if [ -z "${BRANCH}" ]; then
-    echo "Usage: sh work.sh <root> <branch> [repo-name ...]" >&2
+if [ -z "${PROJECT}" ] || [ -z "${BRANCH}" ]; then
+    echo "Usage: sh work.sh <root> <project> <branch> [repo-name ...]" >&2
     exit 1
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # 工作区模板位于 harness/template/（文件复制 + sed 占位替换，不做字符串拼接）
 TEMPLATE_DIR="${SCRIPT_DIR}/../template"
+
+# 项目必须已在 AGENTS.md projects 数组中登记（workspace 的 project 字段与项目 wiki 依据）
+PROJECTS_LIST="$(sh "${SCRIPT_DIR}/project.sh" project-list "${ROOT}")" || exit 1
+if ! printf '%s\n' "${PROJECTS_LIST}" \
+    | awk -F"$(printf '\t')" -v want="${PROJECT}" '$1 == want { found=1 } END { exit(found ? 0 : 1) }'; then
+    echo "Error: 项目 '${PROJECT}' 未在 AGENTS.md projects 中登记，请先执行 project.sh project-add" >&2
+    exit 1
+fi
 
 cd "${ROOT}"
 
@@ -125,7 +135,7 @@ mkdir -p "${BRANCH_DIR}/repo" "${BRANCH_DIR}/wiki"
 echo "已创建: ${BRANCH_DIR}/"
 
 # 2. 确定要建 worktree 的仓库列表
-shift 2
+shift 3
 REPO_NAMES="$*"
 if [ "${NO_WORKTREE}" = 1 ]; then
     REPO_NAMES=""
@@ -171,7 +181,7 @@ if [ -f "${TEMPLATE_DIR}/work-status.yaml" ]; then
     cp "${TEMPLATE_DIR}/work-status.yaml" "${BRANCH_DIR}/status.yaml"
     # sed 分隔符用 | ：目录名/分支名允许含 /（如 feature/x），用 / 作分隔符会误伤替换值；
     # 就地改写走临时文件 + mv（兼容 GNU/BSD，不依赖 sed -i）
-    sed "s|{{WORK_DIR}}|${WORK_BASENAME}|g; s|{{BRANCH}}|${SAFE_BRANCH}|g; s|{{CREATED_AT}}|${CREATED_AT}|g" \
+    sed "s|{{WORK_DIR}}|${WORK_BASENAME}|g; s|{{PROJECT}}|${PROJECT}|g; s|{{BRANCH}}|${SAFE_BRANCH}|g; s|{{CREATED_AT}}|${CREATED_AT}|g" \
         "${BRANCH_DIR}/status.yaml" > "${BRANCH_DIR}/status.yaml.tmp" \
         && mv "${BRANCH_DIR}/status.yaml.tmp" "${BRANCH_DIR}/status.yaml"
     echo "已创建: status.yaml"

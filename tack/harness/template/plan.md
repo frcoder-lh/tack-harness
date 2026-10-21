@@ -1,6 +1,6 @@
 # 需求开发文档（plan.md）模板
 
-> 由 `/tack plan` 命令读取：根据 `input.md`、`spec.md` 与 `wiki/` 中本需求链路相关信息，产出 `$work/plan.md`。
+> 由 `/tack plan` 命令读取：根据 `input.md`、`spec.md`、`$root/wiki/<project>/` 与 `$work/wiki/` 中本需求链路相关信息，产出 `$work/plan.md`。
 > 定位：**详细设计 + 编码落地计划**。回答「先做什么、再做什么、每个环节具体怎么编码」。
 > 细节放本文件，`status.yaml` 只保留状态与待办。
 

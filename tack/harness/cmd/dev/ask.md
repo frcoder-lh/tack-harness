@@ -16,7 +16,7 @@ summary: 代码理解——整体分析仓库结构生成分析文档；或针�
 
 ## 前置准入条件
 
-- 已确定当前工作区 `$work`（`$root/space/<workspace>/`）
+- 已确定当前工作区 `$work`（`$root/space/<workspace>/`）与所属项目（`$work/status.yaml` 的 `project`）
 - `$work/repo/` 下至少有一个可访问的 git worktree（`git status` 正常）
 - 执行前重新读取 `$work/status.yaml`，尊重本地最新状态
 
@@ -29,7 +29,7 @@ summary: 代码理解——整体分析仓库结构生成分析文档；或针�
 2. **确定分析范围与新鲜度检查**
    - 输入: 参数指定仓库名；未指定时遍历 `$work/repo/` 下全部仓库
    - 动作: 对每个目标仓库确认 `git status` 正常，记录仓库名、路径与当前 HEAD（`git rev-parse --short HEAD`）
-   - 新鲜度: 查 `$work/wiki/` 是否已有该仓库的分析文档、`$root/wiki/code-understanding.md` 索引行是否记录其「基准 commit」——
+   - 新鲜度: 查 `$work/wiki/` 是否已有该仓库的分析文档、`$root/wiki/<project>/code-understanding.md` 索引行是否记录其「基准 commit」——
      - 已存在且基准与当前 HEAD 一致：告知用户文档是最新的，询问是直接复用还是重新分析
      - 已存在但 HEAD 已偏离：提示「既有分析基于 <旧 commit>，当前已偏离 N 个提交（`git rev-list --count <base>..HEAD`），结论可能过时」，询问增量更新还是重新分析
      - 不存在：正常进入分析（冷仓库，work 开场通常已建议过执行本命令）
@@ -59,23 +59,23 @@ summary: 代码理解——整体分析仓库结构生成分析文档；或针�
          8. **待确认问题**：分析中发现的不清晰之处
    - 纪律: 结论必须有代码依据（引用文件路径+行号或代码片段）；不臆测未读代码的行为；大文件只摘录关键片段
    - 边界: 本文档是绑定当前分支的**临期快照**，可以记录调用链、模块职责等实现细节；
-     这些易变内容只留在 `$work/wiki/`，**不回写根 wiki**——根 wiki 只接受稳定导航锚点与决策约定（见第 4 步）
+     这些易变内容只留在 `$work/wiki/`，**不回写项目 wiki**——项目 wiki 只接受稳定导航锚点与决策约定（见第 4 步）
    - 按需参考 reference（须经本命令引用方可加载）: `codebase-design.md`、`domain-modeling.md`
 
 4. **汇总、登记索引与审阅**
    - 动作: 列出生成的文档路径与各文档摘要，提示用户审阅
    - 用户可直接修改文档；发现分析有误时告知 AI 重新分析对应部分
-   - **同步根 wiki 索引**：把每份分析文档登记到 `$root/wiki/code-understanding.md` 的「工作区分析文档索引」
+   - **同步项目 wiki 索引**：把每份分析文档登记到 `$root/wiki/<project>/code-understanding.md` 的「工作区分析文档索引」
      （工作区分支 | 仓库 | 分析文档路径（相对 `$root`） | 基准 commit | 生成时间）；同一仓库已有旧行则更新（含基准 commit），不重复追加
      - 文件不存在时：按 `$root/harness/template/wiki-code-understanding.md` 创建——
        仓库概览从 AGENTS.md 项目信息区块的 `service_repo_mapping` 渲染真实行，再写入本次索引行
-   - **提炼稳定锚点候选（不直接写根 wiki）**：从本次分析中挑出重构频率低、可用于导航的事实——
+   - **提炼稳定锚点候选（不直接写项目 wiki）**：从本次分析中挑出重构频率低、可用于导航的事实——
      「业务术语 ↔ 检索关键词/代码入口」「接口标识 ↔ 业务场景 ↔ 代码入口」，整理成候选清单交用户审阅；
-     用户确认保留的条目，按 `record` 命令沉淀到 `$root/wiki/code-understanding.md` 的两张映射表
+     用户确认保留的条目，按 `record` 命令沉淀到 `$root/wiki/<project>/code-understanding.md` 的两张映射表
      （人工审阅后生效；已存在的同义条目就地融合更新）。实现细节与调用链只留在工作区分析文档，不上沉
-   - **提炼决策/约定候选（不直接写根 wiki）**：把第 3 步 git history 线索中、能被 commit message 明确证实
+   - **提炼决策/约定候选（不直接写项目 wiki）**：把第 3 步 git history 线索中、能被 commit message 明确证实
      且代码本身看不出的项目决策/工程约定，整理成第二份候选清单（条目 | 类型（决策/约定）| 来源 commit hash）；
-     用户确认后按 `record` 沉淀到 `$root/wiki/decisions.md`（人工审阅后生效）；无法证实的线索保留在分析文档
+     用户确认后按 `record` 沉淀到 `$root/wiki/<project>/decisions.md`（人工审阅后生效）；无法证实的线索保留在分析文档
      「git history 线索」小节标「待确认」，不上沉
 
 5. **回写完成状态**
@@ -122,23 +122,23 @@ summary: 代码理解——整体分析仓库结构生成分析文档；或针�
      - 在「问答记录」下追加：`### Q<n>: <问题>（<日期>）` + 回答（含依据链接）
      - 同步更新「梳理结论」区：把新结论**融合**进已有表述——重复内容合并、结论变化时就地更新，不堆叠矛盾说法；更新头部「最近更新」与「涉及仓库」
      - 取当前 HEAD 更新头部「基准 commit」；若问答前发现 HEAD 已偏离文档基准，先提示用户早期结论可能基于旧代码，再据实更新
-   - 索引: 将该主题文档登记/更新到 `$root/wiki/code-understanding.md` 的「工作区分析文档索引」（仓库列填主要涉及仓库；跨仓库填「跨仓库」；同步基准 commit 与生成时间）；不把问答中的易变实现细节提炼成锚点——用户确认有稳定导航价值时，走 `record` 沉淀
+   - 索引: 将该主题文档登记/更新到 `$root/wiki/<project>/code-understanding.md` 的「工作区分析文档索引」（仓库列填主要涉及仓库；跨仓库填「跨仓库」；同步基准 commit 与生成时间）；不把问答中的易变实现细节提炼成锚点——用户确认有稳定导航价值时，走 `record` 沉淀
 
 6. **回写完成状态**
    - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml set progress.ask true next "等待用户继续提问或进入下一环节"`
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): code analysis <branch>"`，把 `$work/wiki/` 分析文档、根 wiki 索引与 status.yaml 的变更自动提交到 tack 空间根仓库；无变更自动跳过
+- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): code analysis <branch>"`，把 `$work/wiki/` 分析文档、项目 wiki 索引与 status.yaml 的变更自动提交到 tack 空间根仓库；无变更自动跳过
 - 边界: 遵守 `harness/rule/git-boundary.md`（空间提交含工作区文档，不含 worktree 代码）
 
 ## 后置完成检验
 
 - [ ] 已正确识别两种模式；问答模式未对宽泛问题强行作答
 - [ ] 已做新鲜度检查：既有分析文档的基准 commit 与当前 HEAD 一致或已就偏离提示用户
-- [ ] 模式一：`$work/wiki/<repo>-analysis.md` 已生成（头部含基准 commit），核心章节完整（含 git history 线索小节），根 wiki 索引已登记基准 commit，已呈现稳定锚点候选与决策/约定候选
+- [ ] 模式一：`$work/wiki/<repo>-analysis.md` 已生成（头部含基准 commit），核心章节完整（含 git history 线索小节），项目 wiki 索引已登记基准 commit，已呈现稳定锚点候选与决策/约定候选
 - [ ] 模式二：问答已当场回答用户；同主题连续问答落在**同一文档**（追加 Q 条目 + 融合结论区、更新基准 commit），新主题才新建文档
-- [ ] 全部结论有代码依据（路径+行号）或 commit hash 依据，未臆测；易变实现细节未直写根 wiki；无法证实的 history 线索只标「待确认」
+- [ ] 全部结论有代码依据（路径+行号）或 commit hash 依据，未臆测；易变实现细节未直写项目 wiki；无法证实的 history 线索只标「待确认」
 - [ ] `$work/status.yaml` 已同步（progress.ask=true）；本命令未修改任何代码文件
 
 ## 下一步建议

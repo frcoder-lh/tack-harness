@@ -23,7 +23,7 @@ summary: 结合技术模板与 spec/plan 产出技术评审文档 tech-design.md
 
 2. **读取模板与分析产物**
    - 输入: `$root/harness/template/tech-design.md`、`$work/spec.md`、`$work/plan.md`
-   - 动作: 对照模板章节，必要时查阅 `$root/wiki/` 与 `$work/wiki/` 中的服务与配置信息
+   - 动作: 对照模板章节，必要时查阅 `$root/wiki/<project>/` 与 `$work/wiki/` 中的服务与配置信息
    - 加载纪律: 遵守 `harness/rule/context-loading.md`，按技术点关键词定位 wiki 小节与代码文件（数据模型、接口、配置）
 
 3. **生成技术评审文档**

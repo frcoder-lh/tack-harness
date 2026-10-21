@@ -40,8 +40,8 @@ initialized → planning → developing → reviewing → merged ──close─�
 
 | # | 环节 | 命令 | 产物 | 完成后状态/进度 |
 |---|------|------|------|----------------|
-| 1 | 初始化项目空间 | `init` | AGENTS.md 项目信息、repo/ 接入 | — |
-| 2 | 新建工作区 | `work` | `space/<YYYYMMDD>-<branch>/`、worktree、AGENTS.md work 条目、开场知识清单（roster） | initialized |
+| 1 | 初始化项目上下文 | `init` | AGENTS.md 项目条目、`wiki/<project>/`、repo/ 接入 | — |
+| 2 | 新建工作区 | `work` | `space/<YYYYMMDD>-<branch>/`（含 project）、worktree、AGENTS.md work 条目、开场知识清单（roster） | initialized |
 | 2.5 | 代码理解（可选） | `ask` | `$work/wiki/<repo>-analysis.md` 及问答文档（含基准 commit 与 git history 线索；大仓库可委派 code-explorer 并行勘探） | — / progress.ask |
 | 3 | 需求规划（整体设计） | `spec` | spec.md | planning / progress.spec |
 | 4 | 开发计划（方案对比 + 详细设计 + 任务拆解） | `plan` | plan.md（复杂任务多方案对比与选定、含任务清单）、status.yaml 的 tasks 列表 | planning / progress.plan |
@@ -68,10 +68,10 @@ initialized → planning → developing → reviewing → merged ──close─�
 
 ## 各环节说明
 
-1. **init**：提炼项目名称、关键词、描述写入 AGENTS.md 项目信息区块；本地仓库深度 ≤5 扫描后软链到 `repo/`，远端仓库克隆到 `repo/`
-2. **work**：目的宽泛时先给出可能的具体意图候选请用户明确，再据此生成英文分支名，推断涉及服务由用户确认；`work.sh` 创建 `space/<YYYYMMDD>-<branch>/` 扁平骨架（status.yaml、input.md、wiki/、repo/ worktree；目录名带创建日期前缀，git 分支名不带日期）；`project.sh work-add` 登记；**登记后输出开场知识清单（roster）**——一行一项列出已有 wiki 页面、与本仓库相关的历史分析文档（含基准 commit 与新鲜度），冷仓库主动建议先跑 `ask`；只列不读，不塞全文
+1. **init**：先确定目标项目，提炼项目名称、关键词、描述写入 AGENTS.md 当前项目条目；本地仓库深度 ≤5 扫描后软链到 `repo/`，远端仓库克隆到 `repo/`
+2. **work**：先确定所属项目；目的宽泛时先给出可能的具体意图候选请用户明确，再据此生成英文分支名，推断涉及服务由用户确认；`work.sh` 创建 `space/<YYYYMMDD>-<branch>/` 扁平骨架（status.yaml 含 project、input.md、wiki/、repo/ worktree；目录名带创建日期前缀，git 分支名不带日期）；`project.sh work-add` 登记；**登记后输出开场知识清单（roster）**——一行一项列出当前项目已有 wiki 页面、与本仓库相关的历史分析文档（含基准 commit 与新鲜度），冷仓库主动建议先跑 `ask`；只列不读，不塞全文
 2.5 **ask**（可选）：分析 `$work/repo/` 下的代码，在 `$work/wiki/` 生成 `<repo>-analysis.md`（仓库概览、目录结构、模块划分、核心流程、关键技术点、外部依赖、git history 线索）；文档头部记录**基准 commit**，重跑时先比对 HEAD 提示新鲜度；分析前扫描近期 commit message（默认 50 条、只读 message）发现代码外决策线索；大仓库或可切维度时读取 `harness/agents/code-explorer.md` 委派多个 explorer 实例并行勘探，主 AI 汇总落盘；也可针对具体代码逻辑提问，问答按主题沉淀（同主题追加融合、更新基准 commit）；锚点候选与决策/约定候选交用户确认后分别走 `record` 沉淀到 code-understanding 与 decisions；可在 spec/plan 前执行以建立代码侧上下文
-3. **spec**：以 input.md、`$root/wiki/`、`$work/wiki/`、代码事实为输入，先 grep 定位再加载相关内容，产出 spec.md（story、系统/模块、关系交互、边界、验收标准），只整理不篡改，人工确认
+3. **spec**：以 input.md、`$root/wiki/<project>/`、`$work/wiki/`、代码事实为输入，先 grep 定位再加载相关内容，产出 spec.md（story、系统/模块、关系交互、边界、验收标准），只整理不篡改，人工确认
 4. **plan**：以 spec/input/wiki/代码为输入（先 grep 定位），产出 plan.md；**复杂任务先过方案门禁**——委派 code-architect 并行产出 ≥2 个方案（最小改动/干净架构/务实平衡取向），输出对比表与推荐，用户选定后再拆模块；**随后拆低耦合模块、标注模块依赖图**，再逐级拆任务（deps 无环），任务同步 status.yaml 的 `tasks`；实现级「决策记录」在本环节关闭需用户决断的事项；简单任务可声明跳过多方案并记录理由
 5. **tech-design**：读技术模板与 spec/plan，产出 tech-design.md；飞书等外链回填工作区 status.yaml
 6. **code**：编码前先做仓库准入判定——汇总 tasks 的 repo 字段与 plan 模块划分得到涉及仓库清单，主仓库缺失转 `create-repo` 新建、worktree 缺失转 `worktree` 补建，用户拒绝致准入无法满足则 blocked；用户明确说明「只生成代码片段、不编译不运行」时进入片段模式，仅在回复交付片段（标注建议落点）、不动仓库文件。按 tasks 的 deps 拓扑调度，无依赖任务并行、有依赖串行，连续开发尽量不打扰用户；已有类似逻辑优先复用或模仿；plan 外的多方案自动按工程最优解实现并记录；仅在受阻、业务决策不明或模块里程碑时暂停。参考 reference：implement.md、codebase-design.md、research.md
@@ -79,14 +79,14 @@ initialized → planning → developing → reviewing → merged ──close─�
 7. **testcode / test / run（按需命令，见上节）**：均非必经环节，只在用户主动触发时执行，AI 不在 code 完成后主动引导或询问；准入准出与执行细节以各自 `harness/cmd/dev/` 命令文件为唯一权威。testcode 参考 reference：tdd.md、code-review.md；测试凭据落位遵守 `harness/rule/security.md`（入库文档只标来源）
 8. **commit/push**：非 git 目录先 init；未关联远端先引导关联；Git 安全禁令见 `harness/rule/git-boundary.md`
 9. **merge**：合并前审查必选——读取 `harness/agents/code-reviewer.md` 委派审查（小改动单实例，大改动按其三视角并行：规范符合度/bug 与正确性/约定与安全；审查框架为 reference `code-review.md` 双轴，三视角是双轴的执行分解）；审查结论由用户三选一分流：立即修复（回 fix 后复审）/ 记录后续（登记 status.yaml `follow_ups` 或 issue，允许合并）/ 维持现状（用户确认承担风险）；之后优先平台 MR/PR 合并；冲突不静默取舍，进入 solve
-10. **close**：完成态直接收尾，非完成态经用户确认才可关闭；**worktree 移除前输出四段交付摘要（构建内容/关键决策/改动文件/建议后续步骤）**；提炼工作区**原始产物**中的可复用知识（事实/锚点/业务知识/**技术决策与工程约定**四类，后者含 plan 决策记录 → `wiki/decisions.md`），每条带来源、矛盾保留演变，经用户确认与人工审阅后写入 `$root/wiki/`；**自动触发一次自进化**——消费 status.yaml 的 guidance 中 raw 条目，将可复用操作习惯固化到 workflow/cmd/rule（经用户确认，能融合则融合），回写 distilled/dismissed（distilled 按 `落点: <相对 $root 路径>` 注明并经 `check-guidance.sh` 校验）；移除 worktree 后执行 `work.sh purge` 删除工作区目录、`project.sh work-remove` 移除 AGENTS.md work 条目（过程文档不保留，跨工作区知识已先行入 wiki/harness）
+10. **close**：完成态直接收尾，非完成态经用户确认才可关闭；**worktree 移除前输出四段交付摘要（构建内容/关键决策/改动文件/建议后续步骤）**；提炼工作区**原始产物**中的可复用知识（事实/项目级参数/锚点/业务知识/**技术决策与工程约定**四类，后者含 plan 决策记录 → `wiki/<project>/decisions.md`），每条带来源、矛盾保留演变，经用户确认与人工审阅后写入 `$root/wiki/<project>/`；工作区级参数留在 `$work/status.yaml`；**自动触发一次自进化**——消费 status.yaml 的 guidance 中 raw 条目，将可复用操作习惯固化到 workflow/cmd/rule（经用户确认，能融合则融合），回写 distilled/dismissed（distilled 按 `落点: <相对 $root 路径>` 注明并经 `check-guidance.sh` 校验）；移除 worktree 后执行 `work.sh purge` 删除工作区目录、`project.sh work-remove` 移除 AGENTS.md work 条目（过程文档不保留，跨工作区知识已先行入 wiki/harness）
 
 ## 上下文加载原则（spec/plan/code/testcode 共同遵守）
 
 - 通用加载纪律见 `harness/rule/context-loading.md`（先定位后加载，禁止整仓通读）
-- 输入源统一为：`$work/input.md`、上一阶段产物、`$root/wiki/`、`$work/wiki/`、代码
+- 输入源统一为：`$work/input.md`、上一阶段产物、`$root/wiki/<project>/`、`$work/wiki/`、代码
 - 代码是事实的唯一真源；wiki 只提供代码中拿不到的信息
-- **三级降级**：知识不足时按 `$root/wiki/`（跨工作区共识）→ `$work/wiki/`（本工作区临期分析，注意基准 commit 是否过时）→ 直接读代码（永远的最终真源）顺序取用；上层缺失或存疑时不得止步，必须下沉取证，不以「wiki 没写」作为不查证的理由
+- **三级降级**：知识不足时按 `$root/wiki/<project>/`（跨工作区共识）→ `$work/wiki/`（本工作区临期分析，注意基准 commit 是否过时）→ 直接读代码（永远的最终真源）顺序取用；上层缺失或存疑时不得止步，必须下沉取证，不以「wiki 没写」作为不查证的理由
 - **防循环放大**：wiki 只从工作区原始产物、代码、git history、用户原始资料取证；已有的 AI 合成页面不作为另一个页面更新的事实来源（见 `harness/rule/record-wiki.md`）
 
 ## 状态回写要求

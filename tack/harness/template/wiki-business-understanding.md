@@ -1,7 +1,7 @@
 # 业务理解
 
 > 本模板由 `/tack init` 在用户提供业务资料（项目描述、业务文档、背景信息等）时读取，
-> 整理物化为 `$root/wiki/business-understanding.md`；用户未提供任何资料时不生成空文件，
+> 整理物化为 `$root/wiki/<project>/business-understanding.md`；用户未提供任何资料时不生成空文件，
 > 后续可通过 `init` 补充或 `record` 沉淀创建。
 > 本文件记录业务线、项目的整体背景知识（代码里拿不到的信息）。
 > 术语表只记录术语的**业务释义**，不写代码实现；术语到检索关键词/代码入口的导航锚点见 `code-understanding.md`。

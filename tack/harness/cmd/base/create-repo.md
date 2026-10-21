@@ -15,7 +15,8 @@ summary: 在本地创建新的代码仓库并纳入项目空间管理
 
 ## 指令内容
 
-1. **明确建仓目的**
+1. **确定所属项目与建仓目的**
+   - 项目: 按当前工作区的 `project`，或从 AGENTS.md `projects` 选择；项目不明确时先向用户确认
    - 输入: 建仓用途（承载什么服务、技术栈、与已有服务的关系）
 
 2. **建议仓库名称**
@@ -29,11 +30,11 @@ summary: 在本地创建新的代码仓库并纳入项目空间管理
    - 动作: 有地址则执行 `git remote add origin <url>`；没有则提示先在代码平台建仓，稍后可补
 
 5. **登记映射**
-   - 动作: 执行 `sh $root/harness/script/project.sh service-repo $root "<服务名称>" "<repo 名>" "<repo_git，未关联远端则空串>" "repo/<name>"` 追加 AGENTS.md 项目信息区块的 `project.service_repo_mapping`，并按 init 第 6 步物化/更新 `wiki/manifest.md` 与 `wiki/code-understanding.md`：只渲染仓库/服务真实行；两张映射表（术语→检索词/代码入口、接口→业务场景）与环境事实章节有真实事实才填写，不臆造锚点；提示用户补全服务信息
+   - 动作: 执行 `sh $root/harness/script/project.sh project-service-repo $root "<项目名>" "<服务名称>" "<repo 名>" "<repo_git，未关联远端则空串>" "repo/<name>"` 追加当前项目的 `service_repo_mapping`，并按 init 第 6 步物化/更新 `wiki/<project>/manifest.md` 与 `wiki/<project>/code-understanding.md`：只渲染仓库/服务真实行；两张映射表（术语→检索词/代码入口、接口→业务场景）与环境事实章节有真实事实才填写，不臆造锚点；提示用户补全服务信息
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 第 5 步 `project.sh service-repo` 执行时自动把 AGENTS.md 映射变更提交到 tack 空间根仓库（无变更自动跳过）；wiki 物化变更随后执行 `sh $root/harness/script/space.sh commit $root "chore(tack): register repo <name>"` 统一收尾
+- 动作: 第 5 步 `project.sh project-service-repo` 执行时自动把 AGENTS.md 映射变更提交到 tack 空间根仓库（无变更自动跳过）；wiki 物化变更随后执行 `sh $root/harness/script/space.sh commit $root "chore(tack): register repo <name>"` 统一收尾
 - 边界: 遵守 `harness/rule/git-boundary.md`；新代码仓库内的 README / .gitignore 首次提交由用户经 `commit` 命令发起，框架不代提
 
 ## 后置完成检验

@@ -197,7 +197,7 @@ hook_detect_work() {
 }
 
 # hook_work_snapshot <work-dir>
-# 输出工作区状态快照（供注入模型）：status/workflow + current 三件套
+# 输出工作区状态快照（供注入模型）：project + status/workflow + current 三件套
 hook_work_snapshot() {
     _sf="$1/status.yaml"
     [ -f "${_sf}" ] || return 1
@@ -208,6 +208,7 @@ hook_work_snapshot() {
         sub(/[[:space:]]*#.*$/, "", v)
         v=trim(v); gsub(/^"|"$/, "", v); return v
     }
+    /^project:[[:space:]]/  && prj == "" { prj=val($0) }
     /^status:[[:space:]]/   && st == ""  { st=val($0) }
     /^workflow:[[:space:]]/ && wf == ""  { wf=val($0) }
     /^current:[[:space:]]*$/             { inc=1; next }
@@ -216,6 +217,7 @@ hook_work_snapshot() {
     inc && /^[[:space:]]+task:/          { task=val($0) }
     inc && /^[[:space:]]+next:/          { nxt=val($0) }
     END {
+        print "  项目: " (prj == "" ? "—" : prj)
         print "  状态: " (st == "" ? "—" : st)
         print "  工作流: " (wf == "" ? "—" : wf)
         print "  当前环节: " (stage == "" ? "—" : stage)
