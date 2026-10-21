@@ -77,7 +77,7 @@ initialized → planning → developing → reviewing → merged ──close─�
 6. **code**：编码前先做仓库准入判定——汇总 tasks 的 repo 字段与 plan 模块划分得到涉及仓库清单，主仓库缺失转 `create-repo` 新建、worktree 缺失转 `worktree` 补建，用户拒绝致准入无法满足则 blocked；用户明确说明「只生成代码片段、不编译不运行」时进入片段模式，仅在回复交付片段（标注建议落点）、不动仓库文件。按 tasks 的 deps 拓扑调度，无依赖任务并行、有依赖串行，连续开发尽量不打扰用户；已有类似逻辑优先复用或模仿；plan 外的多方案自动按工程最优解实现并记录；仅在受阻、业务决策不明或模块里程碑时暂停。参考 reference：implement.md、codebase-design.md、research.md
 6.5 **fix**：需求修正走 spec→plan→tasks→代码；代码修正走代码→再评估并反向同步文档，保持四者一致
 7. **testcode / test / run（按需命令，见上节）**：均非必经环节，只在用户主动触发时执行，AI 不在 code 完成后主动引导或询问；准入准出与执行细节以各自 `harness/cmd/dev/` 命令文件为唯一权威。testcode 参考 reference：tdd.md、code-review.md；测试凭据落位遵守 `harness/rule/security.md`（入库文档只标来源）
-8. **commit/push**：非 git 目录先 init；未关联远端先引导关联；不跳过 hooks、不 force push
+8. **commit/push**：非 git 目录先 init；未关联远端先引导关联；Git 安全禁令见 `harness/rule/git-boundary.md`
 9. **merge**：合并前审查必选——读取 `harness/agents/code-reviewer.md` 委派审查（小改动单实例，大改动按其三视角并行：规范符合度/bug 与正确性/约定与安全；审查框架为 reference `code-review.md` 双轴，三视角是双轴的执行分解）；审查结论由用户三选一分流：立即修复（回 fix 后复审）/ 记录后续（登记 status.yaml `follow_ups` 或 issue，允许合并）/ 维持现状（用户确认承担风险）；之后优先平台 MR/PR 合并；冲突不静默取舍，进入 solve
 10. **close**：完成态直接收尾，非完成态经用户确认才可关闭；**worktree 移除前输出四段交付摘要（构建内容/关键决策/改动文件/建议后续步骤）**；提炼工作区**原始产物**中的可复用知识（事实/锚点/业务知识/**技术决策与工程约定**四类，后者含 plan 决策记录 → `wiki/decisions.md`），每条带来源、矛盾保留演变，经用户确认与人工审阅后写入 `$root/wiki/`；**自动触发一次自进化**——消费 status.yaml 的 guidance 中 raw 条目，将可复用操作习惯固化到 workflow/cmd/rule（经用户确认，能融合则融合），回写 distilled/dismissed（distilled 按 `落点: <相对 $root 路径>` 注明并经 `check-guidance.sh` 校验）；移除 worktree 后执行 `work.sh purge` 删除工作区目录、`project.sh work-remove` 移除 AGENTS.md work 条目（过程文档不保留，跨工作区知识已先行入 wiki/harness）
 

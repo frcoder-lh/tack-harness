@@ -49,7 +49,7 @@ initialized → fetching → merging → resolving → verifying → pushing →
 ## 各环节说明
 
 1. **只做引导不做静默取舍**：每个冲突点展示双方差异与代码意图，解决建议由用户拍板；modify/delete 冲突需明确保留或删除
-2. **不绕过冲突**：禁止强制操作、禁止 `--no-verify`；无法达成一致时置 blocked 保留冲突现场
+2. **不绕过冲突**：Git 安全禁令见 `harness/rule/git-boundary.md`；无法达成一致时置 blocked 保留冲突现场
 3. **验证后继续**：冲突全部解决后构建与相关测试必须通过，再继续中断的 merge/rebase
 4. **多仓库逐一处理**：每个涉及仓库独立走完 fetch→merge→solve→push，并在最终汇总各仓库结果
 5. 可选参考：`reference/handoff.md`（冲突处理跨会话时交接现场）
