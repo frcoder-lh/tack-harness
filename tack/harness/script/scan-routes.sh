@@ -44,6 +44,10 @@ if [ -z "${HARNESS_DIR}" ] || [ ! -d "${HARNESS_DIR}" ]; then
     exit 1
 fi
 
+# 共享 YAML 标量/行内列表函数（唯一事实源 script/yamlib.awk）
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+YAML_LIB="$(cat "${SCRIPT_DIR}/yamlib.awk")"
+
 # 固定分组顺序，其余自定义分组按名称排序追加
 GROUP_ORDER="base dev git"
 
@@ -74,9 +78,6 @@ for f in "${HARNESS_DIR}/agents"/*.md; do
 done
 
 AWK_PROG='
-function ltrim(s) { sub(/^[[:space:]]+/, "", s); return s }
-function rtrim(s) { sub(/[[:space:]]+$/, "", s); return s }
-function trim(s)  { return ltrim(rtrim(s)) }
 function basename(path,   n, a) { n = split(path, a, "/"); return a[n] }
 function parent(path,   n, a)   { n = split(path, a, "/"); return a[n-1] }
 function grandp(path,   n, a)   { n = split(path, a, "/"); return a[n-2] }
@@ -262,6 +263,7 @@ END {
     exit 1
 }
 '
+AWK_PROG="${YAML_LIB}${AWK_PROG}"
 
 # 无任何文件时给 awk 喂 /dev/null，避免其挂起读 stdin
 if [ -z "${FILES}" ]; then

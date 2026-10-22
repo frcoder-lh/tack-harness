@@ -122,6 +122,10 @@ else
 fi
 trap 'rm -f "${PAIRS}" "${TMP}"; rmdir "${TMP_DIR}" 2>/dev/null || true' EXIT HUP INT TERM
 
+# 共享 YAML 标量/行内列表函数（唯一事实源 script/yamlib.awk）
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+YAML_LIB="$(cat "${SCRIPT_DIR}/yamlib.awk")"
+
 # guidance 子命令：固化结论回写（distilled 写「落点:」行；dismissed 仅置状态）
 if [ "${SUBCMD}" = "guidance" ]; then
   # guidance list [raw|all]：跨工作区统一列举（TAB 分隔）
@@ -132,24 +136,15 @@ if [ "${SUBCMD}" = "guidance" ]; then
       *) echo "work-status: guidance list 过滤值只允许 raw|all: ${GFILTER}" >&2; exit 2 ;;
     esac
     # 工作区名：优先 work_dir，缺失时取 status.yaml 所在目录名
-    GWORK="$(awk '
-      function trim(s) { sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); return s }
+    GWORK="$(awk "${YAML_LIB}"'
       /^work_dir[[:space:]]*:/ {
-          v=$0; sub(/^[^:]*:/,"",v); v=trim(v); sub(/[[:space:]]*#.*$/,"",v); v=trim(v)
-          gsub(/^"|"$/,"",v); if (v!="") { print v; exit }
+          v=val($0); if (v!="") { print v; exit }
       }
     ' "${FILE}")"
     if [ -z "${GWORK}" ]; then
       GWORK="$(basename "$(dirname "${FILE}")")"
     fi
-    awk -v WANT="${GFILTER}" -v WS="${GWORK}" '
-      function trim(s) { sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); return s }
-      function val(line,   v) {
-          v = line; sub(/^[^:]*:/, "", v)
-          v = trim(v); sub(/[[:space:]]*#.*$/, "", v); v = trim(v)
-          gsub(/^"|"$/, "", v)
-          return v
-      }
+    awk -v WANT="${GFILTER}" -v WS="${GWORK}" "${YAML_LIB}"'
       function flush() {
           if (cur_id != "" && (WANT == "all" || cur_status == "raw" || cur_status == ""))
               printf "%s\t%s\t%s\t%s\t%s\t%s\n", WS, cur_id, cur_status, cur_stage, cur_candidate, cur_summary
@@ -196,15 +191,7 @@ if [ "${SUBCMD}" = "guidance" ]; then
   else
     [ $# -eq 0 ] || { echo "work-status: dismissed 不接受落点路径" >&2; exit 2; }
   fi
-  if awk -v GID="${GID}" -v GSTATE="${GSTATE}" -v GLAND="${GLAND}" -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" '
-    function vof(line,   v) {
-        v = line; sub(/^[^:]*:/, "", v)
-        sub(/^[[:space:]]+/, "", v); sub(/[[:space:]]+$/, "", v)
-        sub(/[[:space:]]*#.*$/, "", v)
-        sub(/^[[:space:]]+$/, "", v)
-        gsub(/^"|"$/, "", v)
-        return v
-    }
+  if awk -v GID="${GID}" -v GSTATE="${GSTATE}" -v GLAND="${GLAND}" -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" "${YAML_LIB}"'
     # 目标条目在「下一条目 / 下一顶层键 / EOF」边界结束，补写缺失行
     function finish(   ind) {
         if (!target) { cur = ""; target = 0; return }
@@ -281,22 +268,6 @@ if [ "${SUBCMD}" = tasks ]; then
 
   # 任务区块解析（只读）：输出/校验共用同一套解析口径
   TASKS_AWK='
-    function trim(s) { sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); return s }
-    function val(line,   v) {
-        v = line; sub(/^[^:]*:/, "", v)
-        v = trim(v); sub(/[[:space:]]*#.*$/, "", v); v = trim(v)
-        gsub(/^"|"$/, "", v)
-        return v
-    }
-    function norm_csv(v,   s, a, n, i, x, out) {
-        s = v; gsub(/^\[/, "", s); gsub(/\]$/, "", s)
-        n = split(s, a, ","); out = ""
-        for (i = 1; i <= n; i++) {
-            x = trim(a[i]); gsub(/^"|"$/, "", x)
-            if (x != "") out = (out == "" ? x : out "," x)
-        }
-        return out
-    }
     function flush() {
         if (!item_open) return
         n++
@@ -346,7 +317,7 @@ if [ "${SUBCMD}" = tasks ]; then
         # 块格式 deps（- A-01）按逗号拼接
         if ($0 ~ /^[[:space:]]+-[[:space:]]/) {
             x = $0; sub(/^[[:space:]]+-[[:space:]]*/, "", x)
-            x = trim(x); gsub(/^"|"$/, "", x)
+            x = clean(x)
             if (x != "") cur_deps = (cur_deps == "" ? x : cur_deps "," x)
         }
     }
@@ -439,6 +410,7 @@ if [ "${SUBCMD}" = tasks ]; then
         }
     }
   '
+  TASKS_AWK="${YAML_LIB}${TASKS_AWK}"
 
   case "${TACT}" in
     list|validate|ready|repos)
@@ -474,13 +446,7 @@ if [ "${SUBCMD}" = tasks ]; then
           exit 4
           ;;
       esac
-      if awk -v ID="${TID}" -v NEW="${TNEW}" -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" '
-        function vof(line,   v) {
-            v = line; sub(/^[^:]*:/, "", v)
-            sub(/^[[:space:]]+/, "", v); sub(/[[:space:]]+$/, "", v)
-            sub(/[[:space:]]*#.*$/, "", v); gsub(/^"|"$/, "", v)
-            return v
-        }
+      if awk -v ID="${TID}" -v NEW="${TNEW}" -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" "${YAML_LIB}"'
         function finish() {
             if (target && !saw) print "    status: \"" NEW "\""
             target = 0; saw = 0
@@ -548,36 +514,7 @@ if [ "${SUBCMD}" = tasks ]; then
       ' "${TSV_FILE}"; then
         exit 4
       fi
-      if ! awk -v TSV="${TSV_FILE}" -v SRC="${FILE}" -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" '
-        function trim(s) { sub(/^[[:space:]]+/, "", s); sub(/^[[:space:]]+$/, "", s); return s }
-        function val(line,   v) {
-            v = line; sub(/^[^:]*:/, "", v)
-            v = trim(v); sub(/[[:space:]]*#.*$/, "", v); v = trim(v)
-            gsub(/^"|"$/, "", v); return v
-        }
-        function esc(v,   s) {
-            s = v; gsub(/\\/, "\\\\", s); gsub(/"/, "\\\"", s)
-            return "\"" s "\""
-        }
-        function norm_csv(v,   s, a, n, i, x, out) {
-            s = v; gsub(/^\[/, "", s); gsub(/\]$/, "", s)
-            n = split(s, a, ","); out = ""
-            for (i = 1; i <= n; i++) {
-                x = trim(a[i]); gsub(/^"|"$/, "", x)
-                if (x != "") out = (out == "" ? x : out "," x)
-            }
-            return out
-        }
-        function inline_list(csv,   n, a, i, x, out) {
-            if (csv == "") return "[]"
-            n = split(csv, a, ","); out = ""
-            for (i = 1; i <= n; i++) {
-                x = trim(a[i]); gsub(/^"|"$/, "", x)
-                if (x == "") continue
-                out = (out == "" ? "" : out ", ") "\"" x "\""
-            }
-            return (out == "" ? "[]" : "[" out "]")
-        }
+      if ! awk -v TSV="${TSV_FILE}" -v SRC="${FILE}" -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" "${YAML_LIB}"'
         function emit_item(i) {
             print "  - id: " esc(tid[i])
             print "    title: " esc(ttitle[i])
@@ -667,13 +604,7 @@ if [ "${SUBCMD}" = deploy ]; then
 
   case "${DACT}" in
     list)
-      awk '
-        function trim(s) { sub(/^[[:space:]]+/, "", s); sub(/^[[:space:]]+$/, "", s); return s }
-        function vof(line,   v) {
-            v = line; sub(/^[^:]*:/, "", v)
-            v = trim(v); sub(/[[:space:]]*#.*$/, "", v); v = trim(v)
-            gsub(/^"|"$/, "", v); return v
-        }
+      awk "${YAML_LIB}"'
         function flush() {
             if (cur_repo != "" || cur_env != "" || cur_lane != "")
                 printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", cur_repo, cur_env, cur_lane, cur_route, cur_build, cur_url, cur_status
@@ -712,15 +643,7 @@ if [ "${SUBCMD}" = deploy ]; then
       esac
       if awk -v REPO="${D_REPO}" -v ENV="${D_ENV}" -v LANE="${D_LANE}" -v ROUTE="${D_ROUTE}" \
             -v BUILD="${D_BUILD}" -v URL="${D_URL}" -v STATUS="${D_STATUS}" \
-            -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" '
-        function vof(line,   v) {
-            v = line; sub(/^[^:]*:/, "", v)
-            sub(/^[[:space:]]+/, "", v); sub(/[[:space:]]+$/, "", v)
-            sub(/[[:space:]]*#.*$/, "", v); gsub(/^"|"$/, "", v); return v
-        }
-        function esc(v,   s) {
-            s = v; gsub(/\\/, "\\\\", s); gsub(/"/, "\\\"", s); return "\"" s "\""
-        }
+            -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" "${YAML_LIB}"'
         function emit_new() {
             print "  - repo: " esc(REPO)
             print "    env: " esc(ENV)
@@ -789,12 +712,7 @@ if [ "${SUBCMD}" = deploy ]; then
         *) echo "work-status: 非法部署状态: ${D_STATUS}（允许 ${DSTATUSES}）" >&2; exit 2 ;;
       esac
       if awk -v REPO="${D_REPO}" -v ENV="${D_ENV}" -v LANE="${D_LANE}" -v STATUS="${D_STATUS}" \
-            -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" '
-        function vof(line,   v) {
-            v = line; sub(/^[^:]*:/, "", v)
-            sub(/^[[:space:]]+/, "", v); sub(/[[:space:]]+$/, "", v)
-            sub(/[[:space:]]*#.*$/, "", v); gsub(/^"|"$/, "", v); return v
-        }
+            -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" "${YAML_LIB}"'
         BEGIN { in_b = 0; cur_repo = ""; cur_env = ""; cur_lane = ""; target = 0; found = 0; saw = 0 }
         /^[A-Za-z_][A-Za-z0-9_]*:/ {
             if (target && !saw) { print "    status: \"" STATUS "\""; saw = 1 }
@@ -845,14 +763,7 @@ if [ "${SUBCMD}" = branch ]; then
       [ $# -ge 4 ] || { echo "work-status: branch register 需要 <repo> <name> <role> <source>" >&2; exit 2; }
       B_REP="$1"; B_NAM="$2"; B_ROL="$3"; B_SRC="$4"
       set +e
-      awk -v REP="${B_REP}" -v NAM="${B_NAM}" -v ROL="${B_ROL}" -v SRC="${B_SRC}" -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" '
-        function vof(line,   v) {
-            v = line; sub(/^[^:]*:/, "", v)
-            sub(/^[[:space:]]+/, "", v); sub(/[[:space:]]+$/, "", v)
-            sub(/[[:space:]]*#.*$/, "", v)
-            gsub(/^"|"$/, "", v)
-            return v
-        }
+      awk -v REP="${B_REP}" -v NAM="${B_NAM}" -v ROL="${B_ROL}" -v SRC="${B_SRC}" -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" "${YAML_LIB}"'
         function emit_new() {
             print "  - repo: \"" REP "\""
             print "    name: \"" NAM "\""
@@ -914,14 +825,7 @@ if [ "${SUBCMD}" = branch ]; then
       B_REP="$1"; B_NAM="$2"; B_FLAG="$3"
       [ "${B_FLAG}" = cleaned ] || { echo "work-status: branch mark 仅支持 cleaned" >&2; exit 2; }
       set +e
-      awk -v REP="${B_REP}" -v NAM="${B_NAM}" -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" '
-        function vof(line,   v) {
-            v = line; sub(/^[^:]*:/, "", v)
-            sub(/^[[:space:]]+/, "", v); sub(/[[:space:]]+$/, "", v)
-            sub(/[[:space:]]*#.*$/, "", v)
-            gsub(/^"|"$/, "", v)
-            return v
-        }
+      awk -v REP="${B_REP}" -v NAM="${B_NAM}" -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" "${YAML_LIB}"'
         BEGIN { in_b=0; cur_repo=""; target=0; found=0; saw_cleaned=0 }
         /^[A-Za-z_][A-Za-z0-9_]*:/ {
             if (target && !saw_cleaned) print "    cleaned: true"
@@ -971,13 +875,7 @@ if [ "${SUBCMD}" = branch ]; then
     rename)
       [ $# -ge 2 ] || { echo "work-status: branch rename 需要 <old-name> <new-name>" >&2; exit 2; }
       B_OLD="$1"; B_NEW="$2"
-      awk -v OLD="${B_OLD}" -v NEW="${B_NEW}" -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" '
-        function vof(line,   v) {
-            v = line; sub(/^[^:]*:/, "", v)
-            sub(/^[[:space:]]+/, "", v); sub(/[[:space:]]+$/, "", v)
-            sub(/[[:space:]]*#.*$/, "", v); gsub(/^"|"$/, "", v)
-            return v
-        }
+      awk -v OLD="${B_OLD}" -v NEW="${B_NEW}" -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" "${YAML_LIB}"'
         BEGIN { in_b = 0; n = 0 }
         /^[A-Za-z_][A-Za-z0-9_]*:/ {
             in_b = ($0 ~ /^branches[[:space:]]*:/)
@@ -999,14 +897,7 @@ if [ "${SUBCMD}" = branch ]; then
       exit 0
       ;;
     list)
-      awk '
-        function vof(line,   v) {
-            v = line; sub(/^[^:]*:/, "", v)
-            sub(/^[[:space:]]+/, "", v); sub(/[[:space:]]+$/, "", v)
-            sub(/[[:space:]]*#.*$/, "", v)
-            gsub(/^"|"$/, "", v)
-            return v
-        }
+      awk "${YAML_LIB}"'
         BEGIN { in_b=0; cur_repo=""; cur_name=""; cur_role=""; cur_src=""; cur_cln="false" }
         /^[A-Za-z_][A-Za-z0-9_]*:/ {
             if (in_b && cur_repo != "") { print cur_repo "|" cur_name "|" cur_role "|" cur_src "|" cur_cln; cur_repo="" }
@@ -1059,16 +950,15 @@ while [ $# -gt 0 ]; do
 done
 if [ "${HAS_UPDATED_AT}" = "0" ]; then printf 'updated_at\t%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" >> "${PAIRS}"; fi
 
-awk -F'\t' '
+awk -F'\t' "${YAML_LIB}"'
 function fmt(v) {
   if (v == "true" || v == "false") return v
-  gsub(/"/, "\\\"", v)
-  return "\"" v "\""
+  return esc(v)
 }
 FNR==1 { fi++ }
 fi==1 {
   n++
-  val[n] = $2
+  pval[n] = $2
   if ($1 == "status" || $1 == "updated_at" || $1 == "mr_url" || $1 == "meego" || $1 == "tech_doc_url" \
       || $1 == "work_id" || $1 == "work_dir" || $1 == "branch") { blk[n] = ""; fld[n] = $1 }
   else if (substr($1, 1, 9) == "progress.") { blk[n] = "progress"; fld[n] = substr($1, 10) }
@@ -1091,14 +981,14 @@ fi==3 {
     print $0
     cur = $0; sub(/:.*/, "", cur)
     for (i = 1; i <= n; i++)
-      if (blk[i] == cur && !found[i] && !done[i]) { print "  " fld[i] ": " fmt(val[i]); done[i] = 1 }
+      if (blk[i] == cur && !found[i] && !done[i]) { print "  " fld[i] ": " fmt(pval[i]); done[i] = 1 }
     next
   }
   replaced = 0
   for (i = 1; i <= n; i++) {
     if (done[i]) continue
-    if (blk[i] == "" && $0 ~ "^" fld[i] ":") { print fld[i] ": " fmt(val[i]); done[i] = 1; replaced = 1; break }
-    if (blk[i] == cur && $0 ~ "^[ \t]+" fld[i] ":") { print "  " fld[i] ": " fmt(val[i]); done[i] = 1; replaced = 1; break }
+    if (blk[i] == "" && $0 ~ "^" fld[i] ":") { print fld[i] ": " fmt(pval[i]); done[i] = 1; replaced = 1; break }
+    if (blk[i] == cur && $0 ~ "^[ \t]+" fld[i] ":") { print "  " fld[i] ": " fmt(pval[i]); done[i] = 1; replaced = 1; break }
   }
   if (!replaced) print $0
   next
@@ -1106,12 +996,12 @@ fi==3 {
 END {
   for (i = 1; i <= n; i++) {
     if (done[i]) continue
-    if (blk[i] == "") { print fld[i] ": " fmt(val[i]); done[i] = 1 }
+    if (blk[i] == "") { print fld[i] ": " fmt(pval[i]); done[i] = 1 }
   }
   for (i = 1; i <= n; i++) {
     if (done[i]) continue
     if (!blkout[blk[i]]++) print blk[i] ":"
-    print "  " fld[i] ": " fmt(val[i])
+    print "  " fld[i] ": " fmt(pval[i])
     done[i] = 1
   }
 }

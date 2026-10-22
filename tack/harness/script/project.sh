@@ -51,6 +51,10 @@ AGENTS="${ROOT}/AGENTS.md"
 START_MARK='<!-- tack:info:start -->'
 END_MARK='<!-- tack:info:end -->'
 
+# 共享 YAML 标量/行内列表函数（唯一事实源 script/yamlib.awk）
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+YAML_LIB="$(cat "${SCRIPT_DIR}/yamlib.awk")"
+
 if [ -z "${ACTION}" ] || [ -z "${ROOT}" ]; then
     echo "Usage: sh project.sh <ensure|project-add|project-set|project-keywords|project-service-repo|project-list|skill-version|work-add|work-set|work-remove|work-path|work-rename|work-reconcile|work-services|work-trigger> <root> [args...]" >&2
     exit 1
@@ -82,13 +86,9 @@ esc() {
     printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
-# 逗号分隔列表 -> YAML 行内序列内容：a,b → "a", "b"（去空白、去空项）
+# 逗号分隔列表 -> YAML 行内序列：a,b → ["a", "b"]（去空白、去空项）
 csv_to_yaml() {
-    printf '%s' "$1" | awk -F',' '
-        { for (i=1;i<=NF;i++) {
-            gsub(/^[[:space:]]+|[[:space:]]+$/,"",$i)
-            if ($i!="") printf "%s\"%s\"", (n++?", ":""), $i
-        } }'
+    printf '%s' "$1" | awk "${YAML_LIB}"'{ print yaml_inline_list($0) }'
 }
 
 # 提取区块体（两个标记之间的内容）到指定临时文件
@@ -129,14 +129,12 @@ require_projects() {
 
 # project_exists <name> — projects 数组中是否存在该 name
 project_exists() {
-    awk -v want="$1" '
+    awk -v want="$1" "${YAML_LIB}"'
         BEGIN { inproj=0 }
         /^projects:/ { inproj=1; next }
         inproj==1 && /^[^[:space:]]/ { inproj=0 }
         inproj==1 && /^  - name:/ {
-            line=$0; sub(/^  - name:[[:space:]]*/, "", line)
-            gsub(/"/, "", line); gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
-            if (line == want) { found=1 }
+            if (val($0) == want) { found=1 }
         }
         END { exit (found ? 0 : 1) }
     ' "${AGENTS}"
@@ -250,14 +248,12 @@ cmd_project_set() {
     tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
     tmp_new="$(new_tmp)"
-    awk -v want="$(esc "${NAME}")" -v field="${FIELD}" -v value="$(esc "${VALUE}")" '
+    awk -v want="$(esc "${NAME}")" -v field="${FIELD}" -v value="$(esc "${VALUE}")" "${YAML_LIB}"'
         BEGIN { inproj=0; cur=""; done=0 }
         /^projects:/ { inproj=1; print; next }
         inproj==1 && /^[^[:space:]]/ { inproj=0 }
         inproj==1 && /^  - name:/ {
-            line=$0; sub(/^  - name:[[:space:]]*/, "", line)
-            gsub(/"/, "", line); gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
-            cur=line
+            cur=val($0)
             print; next
         }
         inproj==1 && cur==want && done==0 && $0 ~ "^    " field ":[[:space:]]*" {
@@ -280,10 +276,7 @@ cmd_project_set() {
 cmd_project_list() {
     has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
     require_projects
-    awk '
-        function clean(v) {
-            gsub(/"/, "", v); gsub(/^[[:space:]]+|[[:space:]]+$/, "", v); return v
-        }
+    awk "${YAML_LIB}"'
         BEGIN { inproj=0; have=0; name=""; desc="" }
         /^projects:/ { inproj=1; next }
         inproj==1 && /^[^[:space:]]/ {
@@ -292,11 +285,11 @@ cmd_project_list() {
         }
         inproj==1 && /^  - name:/ {
             if (have) printf "%s\t%s\n", name, desc
-            line=$0; sub(/^  - name:[[:space:]]*/, "", line); name=clean(line)
+            name=val($0)
             desc=""; have=1; next
         }
         inproj==1 && have && /^    description:/ {
-            line=$0; sub(/^    description:[[:space:]]*/, "", line); desc=clean(line)
+            desc=val($0)
         }
         END { if (have) printf "%s\t%s\n", name, desc }
     ' "${AGENTS}"
@@ -320,14 +313,9 @@ cmd_skill_version() {
     extract_body "${tmp_body}"
 
     if [ "${IF_EMPTY}" -eq 1 ]; then
-        CUR=$(awk '
+        CUR=$(awk "${YAML_LIB}"'
             /^skill_version:[[:space:]]*/ {
-                line=$0
-                sub(/^skill_version:[[:space:]]*/, "", line)
-                gsub(/"/, "", line)
-                sub(/^[[:space:]]+/, "", line)
-                sub(/[[:space:]]+$/, "", line)
-                print line
+                print val($0)
                 exit
             }
         ' "${tmp_body}")
@@ -372,11 +360,9 @@ cmd_work_add() {
     extract_body "${tmp_body}"
 
     # 同 work_id 已存在则拒绝（幂等保护）
-    if awk -v id="$(esc "${ID}")" '
+    if awk -v id="$(esc "${ID}")" "${YAML_LIB}"'
         /^[[:space:]]*-[[:space:]]*work_id:/ {
-            line=$0; sub(/.*work_id:[[:space:]]*/,"",line)
-            gsub(/"/,"",line); gsub(/^[[:space:]]+|[[:space:]]+$/,"",line)
-            if (line==id) found=1
+            if (val($0) == id) found=1
         }
         END { exit (found?0:1) }
     ' "${tmp_body}"; then
@@ -394,10 +380,10 @@ cmd_work_add() {
   - work_id: "$(esc "${ID}")"
     project: "$(esc "${PROJECT}")"
     description: "$(esc "${DESC}")"
-    trigger_words: [$TRIG_LIST]
+    trigger_words: ${TRIG_LIST}
     work_path: "$(esc "${WPATH}")"
     branch: "$(esc "${BRANCH}")"
-    services: [$SVC_LIST]
+    services: ${SVC_LIST}
     status: "initialized"
     created_at: "${CREATED_AT}"
 EOF
@@ -434,14 +420,12 @@ cmd_work_set() {
     tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
     tmp_new="$(new_tmp)"
-    awk -v want="$(esc "${ID}")" -v st="$(esc "${STATUS}")" '
+    awk -v want="$(esc "${ID}")" -v st="$(esc "${STATUS}")" "${YAML_LIB}"'
         BEGIN { inwork=0; cur=""; updated=0 }
         /^work:/ { inwork=1; print; next }
         inwork==1 && /^[^[:space:]]/ { inwork=0 }
         inwork==1 && $0 ~ /^[[:space:]]*-[[:space:]]*work_id:/ {
-            line=$0; sub(/.*work_id:[[:space:]]*/,"",line)
-            gsub(/"/,"",line); gsub(/^[[:space:]]+|[[:space:]]+$/,"",line)
-            cur=line
+            cur=val($0)
             print; next
         }
         inwork==1 && cur==want && $0 ~ /^[[:space:]]+status:/ {
@@ -469,14 +453,12 @@ cmd_work_remove() {
     tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
     tmp_new="$(new_tmp)"
-    awk -v want="$(esc "${ID}")" '
+    awk -v want="$(esc "${ID}")" "${YAML_LIB}"'
         BEGIN { inwork=0; cur=""; skip=0; removed=0 }
         /^work:/ { inwork=1; print; next }
         inwork==1 && /^[^[:space:]]/ { inwork=0; skip=0 }
         inwork==1 && $0 ~ /^[[:space:]]*-[[:space:]]*work_id:/ {
-            line=$0; sub(/.*work_id:[[:space:]]*/,"",line)
-            gsub(/"/,"",line); gsub(/^[[:space:]]+|[[:space:]]+$/,"",line)
-            cur=line
+            cur=val($0)
             if (cur==want) { skip=1; removed=1; next }
             skip=0
         }
@@ -505,14 +487,12 @@ cmd_work_path() {
     tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
     tmp_new="$(new_tmp)"
-    awk -v want="$(esc "${ID}")" -v wp="$(esc "${WPATH}")" '
+    awk -v want="$(esc "${ID}")" -v wp="$(esc "${WPATH}")" "${YAML_LIB}"'
         BEGIN { inwork=0; cur=""; updated=0 }
         /^work:/ { inwork=1; print; next }
         inwork==1 && /^[^[:space:]]/ { inwork=0 }
         inwork==1 && $0 ~ /^[[:space:]]*-[[:space:]]*work_id:/ {
-            line=$0; sub(/.*work_id:[[:space:]]*/,"",line)
-            gsub(/"/,"",line); gsub(/^[[:space:]]+|[[:space:]]+$/,"",line)
-            cur=line
+            cur=val($0)
             print; next
         }
         inwork==1 && cur==want && $0 ~ /^[[:space:]]+work_path:/ {
@@ -544,11 +524,9 @@ cmd_work_rename() {
     extract_body "${tmp_body}"
 
     # 新 work_id 已被其他条目占用时拒绝
-    if [ "${ID}" != "${NEWID}" ] && awk -v id="$(esc "${NEWID}")" '
+    if [ "${ID}" != "${NEWID}" ] && awk -v id="$(esc "${NEWID}")" "${YAML_LIB}"'
         /^[[:space:]]*-[[:space:]]*work_id:/ {
-            line=$0; sub(/.*work_id:[[:space:]]*/,"",line)
-            gsub(/"/,"",line); gsub(/^[[:space:]]+|[[:space:]]+$/,"",line)
-            if (line==id) found=1
+            if (val($0) == id) found=1
         }
         END { exit (found?0:1) }
     ' "${tmp_body}"; then
@@ -558,13 +536,12 @@ cmd_work_rename() {
 
     tmp_new="$(new_tmp)"
     awk -v want="$(esc "${ID}")" -v nid="$(esc "${NEWID}")" \
-        -v nbr="$(esc "${NEWBR}")" -v nwp="$(esc "${NEWPATH}")" '
-        function clean(v) { gsub(/"/,"",v); gsub(/^[[:space:]]+|[[:space:]]+$/,"",v); return v }
+        -v nbr="$(esc "${NEWBR}")" -v nwp="$(esc "${NEWPATH}")" "${YAML_LIB}"'
         BEGIN { inwork=0; cur=""; found=0 }
         /^work:/ { inwork=1; print; next }
         inwork==1 && /^[^[:space:]]/ { inwork=0 }
         inwork==1 && $0 ~ /^[[:space:]]*-[[:space:]]*work_id:/ {
-            line=$0; sub(/.*work_id:[[:space:]]*/,"",line); cur=clean(line)
+            cur=val($0)
             if (cur==want) { print "  - work_id: \"" nid "\""; found=1; cur=want; next }
             print; next
         }
@@ -593,14 +570,7 @@ status_summary() {
         printf -- '-\t-\t-\t-\t-\n'
         return
     fi
-    awk '
-        function val(line,   v) {
-            v=line; sub(/^[^:]*:/,"",v)
-            gsub(/^[[:space:]]+|[[:space:]]+$/,"",v)
-            sub(/[[:space:]]*#.*$/, "", v)
-            gsub(/^"|"$/,"",v)
-            return v
-        }
+    awk "${YAML_LIB}"'
         BEGIN { id="-"; prj="-"; br="-"; st="-"; svc=""; insvc=0 }
         /^[A-Za-z_]/ { insvc=0 }
         /^work_id:/ { id=val($0) }
@@ -609,17 +579,12 @@ status_summary() {
         /^status:/  { st=val($0) }
         /^services:[[:space:]]*$/ { insvc=1; next }
         /^services:/ {
-            line=$0; sub(/.*\[/,"",line); sub(/\].*/,"",line)
-            n=split(line, arr, ",")
-            for (i=1;i<=n;i++) {
-                v=arr[i]; gsub(/^[[:space:]]+|[[:space:]]+$/,"",v); gsub(/^"|"$/,"",v)
-                if (v!="") svc=(svc==""?v:svc","v)
-            }
+            svc=norm_csv(val($0))
             next
         }
         insvc==1 && /^[[:space:]]+-[[:space:]]/ {
             v=$0; sub(/^[[:space:]]+-[[:space:]]*/,"",v)
-            gsub(/^[[:space:]]+|[[:space:]]+$/,"",v); gsub(/^"|"$/,"",v)
+            v=clean(v)
             if (v!="") svc=(svc==""?v:svc","v)
         }
         END { printf "%s\t%s\t%s\t%s\t%s\n", id, prj, br, st, svc }
@@ -642,25 +607,24 @@ cmd_work_reconcile() {
     : > "${tmp_seen}"
 
     # 提取条目：id<TAB>work_path 末段<TAB>status
-    awk '
-        function clean(v) { gsub(/"/,"",v); gsub(/^[[:space:]]+|[[:space:]]+$/,"",v); return v }
+    awk "${YAML_LIB}"'
         function flush() { if (cur!="") print cur "\t" wp "\t" st; cur=""; wp=""; st="" }
         BEGIN { inwork=0; cur=""; wp=""; st="" }
         /^work:/ { inwork=1; next }
         inwork==1 && /^[^[:space:]]/ { flush(); inwork=0 }
         inwork==1 && $0 ~ /^[[:space:]]*-[[:space:]]*work_id:/ {
             flush()
-            line=$0; sub(/.*work_id:[[:space:]]*/,"",line); cur=clean(line)
+            cur=val($0)
             next
         }
         inwork==1 && cur!="" && $0 ~ /^[[:space:]]+work_path:/ {
-            line=$0; sub(/.*work_path:[[:space:]]*/,"",line); line=clean(line)
+            line=val($0)
             gsub(/\\/,"/",line)
             n=split(line, parts, "/"); wp=parts[n]
             next
         }
         inwork==1 && cur!="" && $0 ~ /^[[:space:]]+status:/ {
-            line=$0; sub(/.*status:[[:space:]]*/,"",line); st=clean(line)
+            st=val($0)
         }
         END { flush() }
     ' "${tmp_body}" > "${tmp_entries}"
@@ -685,7 +649,7 @@ cmd_work_reconcile() {
         if [ -d "${ROOT}/space" ]; then
             for sf in "${ROOT}/space"/*/status.yaml; do
                 [ -f "${sf}" ] || continue
-                sid=$(awk '/^work_id:/ { v=$0; sub(/^[^:]*:/,"",v); gsub(/"/,"",v); gsub(/^[[:space:]]+|[[:space:]]+$/,"",v); print v; exit }' "${sf}")
+                sid=$(awk "${YAML_LIB}"'/^work_id:/ { print val($0); exit }' "${sf}")
                 if [ "${sid}" = "${id}" ]; then
                     actual=$(basename "$(dirname "${sf}")")
                     break
@@ -732,18 +696,16 @@ cmd_project_keywords() {
     tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
     tmp_new="$(new_tmp)"
-    awk -v want="$(esc "${NAME}")" -v list="${KW_LIST}" '
+    awk -v want="$(esc "${NAME}")" -v list="${KW_LIST}" "${YAML_LIB}"'
         BEGIN { inproj=0; cur=""; inkw=0; done=0 }
         /^projects:/ { inproj=1; print; next }
         inproj==1 && /^[^[:space:]]/ { inproj=0; inkw=0; cur="" }
         inproj==1 && /^  - name:/ {
-            line=$0; sub(/^  - name:[[:space:]]*/, "", line)
-            gsub(/"/, "", line); gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
-            cur=line; inkw=0
+            cur=val($0); inkw=0
             print; next
         }
         inproj==1 && cur==want && done==0 && /^    keywords:/ {
-            print "    keywords: [" list "]"
+            print "    keywords: " list
             inkw=1; done=1; next
         }
         inproj==1 && inkw==1 && /^      - / { next }
@@ -773,7 +735,7 @@ cmd_project_service_repo() {
     tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
     tmp_new="$(new_tmp)"
-    awk -v want="$(esc "${NAME}")" -v svc="$(esc "${SVC}")" -v rn="$(esc "${RN}")" -v rg="$(esc "${RG}")" -v rp="$(esc "${RP}")" '
+    awk -v want="$(esc "${NAME}")" -v svc="$(esc "${SVC}")" -v rn="$(esc "${RN}")" -v rg="$(esc "${RG}")" -v rp="$(esc "${RP}")" "${YAML_LIB}"'
         function emit() {
             print "      - service_name: \"" svc "\""
             print "        repo_name: \"" rn "\""
@@ -789,9 +751,7 @@ cmd_project_service_repo() {
         }
         inproj==1 && /^  - name:/ {
             if (inmap==1 && cur==want && done==0) { emit(); done=1 }
-            line=$0; sub(/^  - name:[[:space:]]*/, "", line)
-            gsub(/"/, "", line); gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
-            cur=line; inmap=0
+            cur=val($0); inmap=0
             print; next
         }
         inproj==1 && cur==want && $0 ~ /^    service_repo_mapping:[[:space:]]*\[\][[:space:]]*(#.*)?$/ {
@@ -833,18 +793,16 @@ cmd_work_services() {
     tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
     tmp_new="$(new_tmp)"
-    awk -v want="$(esc "${ID}")" -v list="${SVC_LIST}" '
+    awk -v want="$(esc "${ID}")" -v list="${SVC_LIST}" "${YAML_LIB}"'
         BEGIN { inwork=0; cur=""; updated=0 }
         /^work:/ { inwork=1; print; next }
         inwork==1 && /^[^[:space:]]/ { inwork=0 }
         inwork==1 && $0 ~ /^[[:space:]]*-[[:space:]]*work_id:/ {
-            line=$0; sub(/.*work_id:[[:space:]]*/,"",line)
-            gsub(/"/,"",line); gsub(/^[[:space:]]+|[[:space:]]+$/,"",line)
-            cur=line
+            cur=val($0)
             print; next
         }
         inwork==1 && cur==want && $0 ~ /^[[:space:]]+services:/ {
-            print "    services: [" list "]"
+            print "    services: " list
             updated=1
             next
         }
@@ -859,8 +817,8 @@ cmd_work_services() {
 
     if [ -n "${SYNC}" ] && [ "${SYNC}" != "--no-commit" ]; then
         tmp_s="${SYNC}.$$"
-        awk -v list="${SVC_LIST}" '
-            /^services:[[:space:]]*/ { print "services: [" list "]"; done=1; next }
+        awk -v list="${SVC_LIST}" "${YAML_LIB}"'
+            /^services:[[:space:]]*/ { print "services: " list; done=1; next }
             { print }
             END { if (done==0) exit 3 }
         ' "${SYNC}" > "${tmp_s}" || {
@@ -892,11 +850,9 @@ cmd_work_trigger() {
     # 验证 work_id 存在（EXISTING 和 BR 同时为空且无匹配 → 报错）
     if [ -z "${BR}" ]; then
         # 再确认一次条目是否存在（可能条目无 branch 字段，极少情况）
-        if ! awk -v id="$(esc "${ID}")" '
+        if ! awk -v id="$(esc "${ID}")" "${YAML_LIB}"'
             /^[[:space:]]*-[[:space:]]*work_id:/ {
-                line=$0; sub(/.*work_id:[[:space:]]*/,"",line)
-                gsub(/"/,"",line); gsub(/^[[:space:]]+|[[:space:]]+$/,"",line)
-                if (line==id) found=1
+                if (val($0) == id) found=1
             }
             END { exit (found?0:1) }
         ' "${tmp_body}"; then
@@ -918,23 +874,21 @@ cmd_work_trigger() {
 
     MERGED_LIST=$(csv_to_yaml "${MERGED}")
     tmp_new="$(new_tmp)"
-    awk -v want="$(esc "${ID}")" -v list="${MERGED_LIST}" '
+    awk -v want="$(esc "${ID}")" -v list="${MERGED_LIST}" "${YAML_LIB}"'
         BEGIN { inwork=0; cur=""; inserted=0 }
         /^work:/ { inwork=1; print; next }
         inwork==1 && /^[^[:space:]]/ { inwork=0 }
         inwork==1 && $0 ~ /^[[:space:]]*-[[:space:]]*work_id:/ {
-            line=$0; sub(/.*work_id:[[:space:]]*/,"",line)
-            gsub(/"/,"",line); gsub(/^[[:space:]]+|[[:space:]]+$/,"",line)
-            cur=line
+            cur=val($0)
             print; next
         }
         inwork==1 && cur==want && $0 ~ /^[[:space:]]+description:/ {
             print
-            if (inserted==0) { print "    trigger_words: [" list "]"; inserted=1 }
+            if (inserted==0) { print "    trigger_words: " list; inserted=1 }
             next
         }
         inwork==1 && cur==want && $0 ~ /^[[:space:]]+trigger_words:/ {
-            if (inserted==0) { print "    trigger_words: [" list "]"; inserted=1 }
+            if (inserted==0) { print "    trigger_words: " list; inserted=1 }
             next
         }
         { print }
@@ -970,6 +924,5 @@ esac
 # AGENTS.md 项目信息区块变更后，框架自动提交空间仓库（无变更时 space.sh 内部跳过）；
 # --no-commit 时交由复合流程（init-tack、update）统一收尾提交
 if [ "${NO_COMMIT}" -ne 1 ]; then
-    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
     sh "${SCRIPT_DIR}/space.sh" commit "${ROOT}" "chore(tack): project ${ACTION}"
 fi

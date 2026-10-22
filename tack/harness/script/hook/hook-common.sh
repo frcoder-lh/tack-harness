@@ -17,6 +17,9 @@
 # 改标记时必须同步 SKILL.md 的探测说明）
 _TACK_HOOK_MARK='本空间由 tack harness 驱动'
 
+# 共享 YAML 标量/行内列表函数（唯一事实源 script/yamlib.awk）
+YAML_LIB="$(cat "$(cd "${SCRIPT_DIR:-$(dirname "$0")}" && pwd)/../yamlib.awk")"
+
 # hook_grep_mark <file> — 标记匹配统一走 C locale 纯字节比较：
 # Git for Windows 的 GNU grep 3.0 在 zh_CN.UTF-8 下对中文模式行为不稳定，
 # 模式与文件同为 UTF-8 字节时 LC_ALL=C 最可靠（macOS BSD grep 同样适用）
@@ -128,13 +131,9 @@ hook_detect_root() {
 # hook_yaml_top <file> <key>
 # 读 status.yaml 顶层标量（去引号/去行尾注释/trim）
 hook_yaml_top() {
-    awk -v k="$2" '
-    function trim(s) { sub(/^[[:space:]]+/,"",s); sub(/[[:space:]]+$/,"",s); return s }
+    awk -v k="$2" "${YAML_LIB}"'
     $0 ~ "^" k ":[[:space:]]*" {
-        line=$0; sub(/^[^:]*:/,"",line)
-        sub(/[[:space:]]*#.*$/, "", line)
-        line=trim(line); gsub(/^"|"$/, "", line)
-        printf "%s", line; exit
+        printf "%s", val($0); exit
     }' "$1"
 }
 
@@ -201,13 +200,7 @@ hook_detect_work() {
 hook_work_snapshot() {
     _sf="$1/status.yaml"
     [ -f "${_sf}" ] || return 1
-    awk '
-    function trim(s) { sub(/^[[:space:]]+/,"",s); sub(/[[:space:]]+$/,"",s); return s }
-    function val(line,   v) {
-        v=line; sub(/^[^:]*:/,"",v)
-        sub(/[[:space:]]*#.*$/, "", v)
-        v=trim(v); gsub(/^"|"$/, "", v); return v
-    }
+    awk "${YAML_LIB}"'
     /^project:[[:space:]]/  && prj == "" { prj=val($0) }
     /^status:[[:space:]]/   && st == ""  { st=val($0) }
     /^workflow:[[:space:]]/ && wf == ""  { wf=val($0) }

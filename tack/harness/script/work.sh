@@ -143,13 +143,13 @@ if [ "${1:-}" = "rename" ]; then
     fi
 
     SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    YAML_LIB="$(cat "${SCRIPT_DIR}/yamlib.awk")"
     OLD_DIR=""
     OLD_BRANCH=""
     for sf in "${ROOT}/space"/*/status.yaml; do
         [ -f "${sf}" ] || continue
-        id="$(awk '
-            function v(line,   x) { x=line; sub(/^[^:]*:/,"",x); gsub(/^[[:space:]]+|[[:space:]]+$/,"",x); sub(/[[:space:]]*#.*$/,"",x); gsub(/^"|"$/,"",x); return x }
-            /^work_id[[:space:]]*:/ { print v($0); exit }
+        id="$(awk "${YAML_LIB}"'
+            /^work_id[[:space:]]*:/ { print val($0); exit }
         ' "${sf}")"
         if [ "${id}" = "${OLD_ID}" ]; then
             d="$(basename "$(dirname "${sf}")")"
@@ -167,9 +167,8 @@ if [ "${1:-}" = "rename" ]; then
 
     OLD_PATH="${ROOT}/space/${OLD_DIR}"
     STATUS="${OLD_PATH}/status.yaml"
-    OLD_BRANCH="$(awk '
-        function v(line,   x) { x=line; sub(/^[^:]*:/,"",x); gsub(/^[[:space:]]+|[[:space:]]+$/,"",x); sub(/[[:space:]]*#.*$/,"",x); gsub(/^"|"$/,"",x); return x }
-        /^branch[[:space:]]*:/ { print v($0); exit }
+    OLD_BRANCH="$(awk "${YAML_LIB}"'
+        /^branch[[:space:]]*:/ { print val($0); exit }
     ' "${STATUS}")"
     [ -n "${OLD_BRANCH}" ] || OLD_BRANCH="${OLD_ID}"
 

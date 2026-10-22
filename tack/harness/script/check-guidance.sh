@@ -24,6 +24,10 @@
 # Windows: powershell -ExecutionPolicy Bypass -File run.ps1 check-guidance <root> [workspace]
 # 退出码: 0 无失效落点（WARN 不改变退出码）/ 1 存在规范失效落点 / 2 用法错误
 
+# 共享 YAML 标量/行内列表函数（唯一事实源 script/yamlib.awk）
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+YAML_LIB="$(cat "${SCRIPT_DIR}/yamlib.awk")"
+
 if [ "${1:-}" = list ]; then
     ROOT="$2"
     FILTER="${3:-raw}"
@@ -36,7 +40,6 @@ if [ "${1:-}" = list ]; then
         echo "Usage: sh check-guidance.sh list <root> [raw|all]" >&2
         exit 2
     fi
-    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
     TMP_DIR="${ROOT}/.tack/tmp"
     mkdir -p "${TMP_DIR}"
     TMP_LIST="${TMP_DIR}/check-guidance-list.$$.txt"
@@ -95,17 +98,7 @@ trap 'rm -f "${TMP_OUT}"; rmdir "${TMP_DIR}" 2>/dev/null || true' EXIT INT TERM
 : > "${TMP_OUT}"
 
 for f in $FILES; do
-    awk -v ROOT="${ROOT}" -v F="${f}" '
-    function trim(s) { sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); return s }
-    function val(line, key,   v) {
-        v = line
-        sub(/^[^:]*:/, "", v)
-        v = trim(v)
-        sub(/[[:space:]]*#.*$/, "", v)
-        v = trim(v)
-        gsub(/^"|"$/, "", v)
-        return v
-    }
+    awk -v ROOT="${ROOT}" -v F="${f}" "${YAML_LIB}"'
     # 刷新上一个条目：distilled 时核对其落点
     function flush(   s, p, found, norm, cmd) {
         if (cur_id == "") return
@@ -153,9 +146,7 @@ for f in $FILES; do
             cur_text = cur_text "\n" line
             if (line ~ /^[[:space:]]*status[[:space:]]*:/) cur_status = val(line, "status")
             if (index(line, "落点:") > 0) {
-                lp = line
-                sub(/^[^:]*:/, "", lp)
-                cur_landing = trim(lp)
+                cur_landing = val(line)
             }
         }
     }

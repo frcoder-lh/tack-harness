@@ -50,10 +50,11 @@ fi
 
 [ -z "${FILES}" ] && FILES="/dev/null"
 
-awk -v H="${HARNESS_DIR}" '
-function ltrim(s) { sub(/^[[:space:]]+/, "", s); return s }
-function rtrim(s) { sub(/[[:space:]]+$/, "", s); return s }
-function trim(s)  { return ltrim(rtrim(s)) }
+# 共享 YAML 标量/行内列表函数（唯一事实源 script/yamlib.awk）
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+YAML_LIB="$(cat "${SCRIPT_DIR}/yamlib.awk")"
+
+awk -v H="${HARNESS_DIR}" "${YAML_LIB}"'
 function basename(path,   n, a) { n = split(path, a, "/"); return a[n] }
 function parent(path,   n, a)   { n = split(path, a, "/"); return a[n-1] }
 function grandp(path,   n, a)   { n = split(path, a, "/"); return a[n-2] }
