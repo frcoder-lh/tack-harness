@@ -74,9 +74,7 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 8. **输出开场知识清单（roster，只列不读）**
    - 动作: 上下文就绪后，给用户一份「一行一项」的知识清单，**不贴正文**，需要时再按路径读取：
      1. `$root/wiki/<project>/` 下已存在的页面（manifest / code-understanding / business-understanding / decisions，标注各自用途一句话）
-     2. `$root/wiki/<project>/code-understanding.md`「工作区分析文档索引」中与本次已选仓库相关的分析文档（含基准 commit）；
-        对每份文档取对应 worktree 当前 HEAD，与基准不一致时标注「可能已过时（偏离 N 提交），必要时先跑 ask 更新」
-     3. **冷仓库提示**：已选仓库在索引中无任何分析记录时，提示「该仓库尚无分析文档，建议在 spec/plan 前执行 `ask <仓库名>` 整体分析」（仅建议，不自动执行）
+     2. **冷仓库提示**：已选仓库在 `code-understanding.md` 中无任何锚点记录时，提示「该仓库尚无分析锚点，建议在 spec/plan 前执行 `ask <仓库名>` 整体分析」（仅建议，不自动执行）
    - 边界: 清单是可选读的导航，不把 wiki 全文塞入上下文；知识不足时按三级降级取用（wiki → `$work/wiki/` → 直接读代码，代码永远是真源，见 development 工作流「上下文加载原则」）
 
 ### 分支操作（branch-op）
