@@ -491,8 +491,8 @@ html:lang(en) .cta h2{font-size:clamp(23px,3.1vw,30px)}
       <div class="feat reveal">
         <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></svg></div>
         <h3 data-i18n="f6.t">自进化</h3>
-        <p data-i18n="f6.d">guidance 闭环：任务各环节自动把用户引导以原始事实追加到 status.yaml，close 时审查固化到 workflow/cmd/rule，经 check-guidance 校验，形成「采集 → 固化 → 校验」回路。</p>
-        <div class="tagrow"><span class="tk">guidance</span><span class="tk">check-guidance</span></div>
+        <p data-i18n="f6.d">guidance 闭环：任务各环节自动把用户引导以原始事实追加到 status.yaml，close 时审查固化到 workflow/cmd/rule，回写时直接校验落点，形成「采集 → 固化 → 校验」回路。</p>
+        <div class="tagrow"><span class="tk">guidance</span><span class="tk">work-status</span></div>
       </div>
       <div class="feat reveal">
         <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2"/><circle cx="12" cy="12" r="3.2"/></svg></div>
@@ -698,7 +698,7 @@ sh install.sh</pre>
       </div>
       <div class="sec-item reveal">
         <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></svg></div>
-        <div><h3 data-i18n="s6.t">落点证据链校验</h3><p data-i18n="s6.d">check-guidance.sh 校验 guidance distilled 条目落点文件仍然存在，失效即阻断 close，防止固化证据链悬空。</p></div>
+        <div><h3 data-i18n="s6.t">固化落点校验</h3><p data-i18n="s6.d">guidance 固化回写时校验落点文件存在，路径失效即阻断写入，防止固化证据链悬空。</p></div>
       </div>
     </div>
   </div>
@@ -799,7 +799,7 @@ var I18N = {
     "f3.t":"缺陷溯源","f3.d":"bugfix 工作流内置 git-bug-trace：定位缺陷代码行后一键追溯引入 commit、时间、作者、对应需求/工单 ID 与 MR 链接，区分需求引入与历史遗留。",
     "f4.t":"审查与上线门禁","f4.d":"code-review 以方案为规范、三点 diff 为事实逐函数审查；release-check 产出上线检查清单——数据库变更、配置模板、接口权限、中间件资源，逐项打勾后发布。",
     "f5.t":"命令自创造","f5.d":"record 是「生成指令的指令」。先扫描已有命令尝试融合修正；若无合适命令，仅需提供 command，简写、中英文触发词与命令正文自动生成。","f5.tag":"自动生成",
-    "f6.t":"自进化","f6.d":"guidance 闭环：任务各环节自动把用户引导以原始事实追加到 status.yaml，close 时审查固化到 workflow/cmd/rule，经 check-guidance 校验，形成「采集 → 固化 → 校验」回路。",
+    "f6.t":"自进化","f6.d":"guidance 闭环：任务各环节自动把用户引导以原始事实追加到 status.yaml，close 时审查固化到 workflow/cmd/rule，回写时直接校验落点，形成「采集 → 固化 → 校验」回路。",
     "f7.t":"角色委派","f7.d":"内置可委派角色 code-explorer / code-architect / code-reviewer，被 ask、plan、tech-design、code-review、merge 等命令引用后经 Task 子代理在独立上下文并行执行。",
     "f8.t":"自动更新检查","f8.d":"close / evolution / record / help 收尾时静默检查新版本（7 天 + 同版本双节流），发现新版本即展示本机到最新版本的全部更新内容，确认后说「更新」即可升级。",
     "f9.t":"向外学习","f9.d":"study 把外部 skill 或仓库当作教材：通读结构、提炼可借鉴点、以新增/融合/优化方式落盘到 harness，统一预览确认后自动提交并触发一次 evolution 向内自审。",
@@ -827,7 +827,7 @@ var I18N = {
     "s3.t":"命令准入准出","s3.d":"破坏性 Git 操作被禁用，命令执行受准入准出约束。",
     "s4.t":"人工审阅关口","s4.d":"分析结论、合并均需人工确认后方可生效；提交由用户主动发起 commit 命令触发。",
     "s5.t":"凭据明文拦截","s5.d":"scan-secrets.sh 在空间文档提交前做高置信凭据扫描，命中即阻断自动提交；支持豁免标记与占位值过滤。",
-    "s6.t":"落点证据链校验","s6.d":"check-guidance.sh 校验 guidance distilled 条目落点文件仍然存在，失效即阻断 close，防止固化证据链悬空。",
+    "s6.t":"固化落点校验","s6.d":"guidance 固化回写时校验落点文件存在，路径失效即阻断写入，防止固化证据链悬空。",
     "faq.eyebrow":"FAQ","faq.h2":"常见问题",
     "cta.h2":"让每个 agent 都沿着稳定的研发链路走","cta.p":"无论小规模项目还是大型项目，Tack Harness 都能让 AI 开发流程更规范、更可复现、更省 token。","cta.top":"返回顶部",
     "footer.tagline":"精简克制・人类可读・任意配置 — 专为软件研发打造的编程工作流框架。",
@@ -859,7 +859,7 @@ var I18N = {
     "f3.t":"Defect origin tracing","f3.d":"The bugfix workflow ships with git-bug-trace: locate the defective line and one command traces the introducing commit, time, author, requirement/ticket ID, and the MR link—distinguishing requirement-introduced defects from legacy ones.",
     "f4.t":"Review &amp; release gates","f4.d":"code-review reviews changes function by function using the plan/tech-design as the spec and the three-dot diff as facts; release-check produces a go-live checklist—database migrations, config templates, API permissions, middleware requests—each checked off before release.",
     "f5.t":"Self-authoring commands","f5.d":"record is \u201cthe command that generates commands.\u201d It first scans existing commands and merges fixes; if none fits, you only supply command and the short form, Chinese/English triggers, and the body are generated automatically.","f5.tag":"auto-generated",
-    "f6.t":"Self-evolution","f6.d":"The guidance closed loop: user guidance and corrections are auto-appended as raw facts to the guidance list in status.yaml; at close they are crystallized into workflow/cmd/rule and verified by check-guidance—a \u201ccollect → crystallize → verify\u201d loop.",
+    "f6.t":"Self-evolution","f6.d":"The guidance closed loop: user guidance and corrections are auto-appended as facts to the guidance list in status.yaml; at close they are crystallized into workflow/cmd/rule and landing points are validated at write time—a \u201ccollect → crystallize → verify\u201d loop.",
     "f7.t":"Role delegation","f7.d":"harness/agents/ ships delegatable roles (code-explorer / code-architect / code-reviewer); referenced by commands such as ask, plan, tech-design, code-review, and merge, they run in parallel via Task subagents in isolated contexts.",
     "f8.t":"Automatic update checks","f8.d":"When close/evolution/record/help finish, new versions are checked silently (7-day + same-version dual throttle). When found, every update between your version and the latest is shown—just say \u201cupdate\u201d to upgrade.",
     "f9.t":"Learning from outside","f9.d":"study treats external skills or repositories as teaching material: it reads the structure, distills borrowable ideas, and lands them in the harness by adding, merging, or optimizing—then triggers one evolution for inward self-review.",
@@ -887,7 +887,7 @@ var I18N = {
     "s3.t":"Command entry/exit gates","s3.d":"Destructive Git operations are disabled, and command execution is bound by entry/exit gates.",
     "s4.t":"Human review checkpoints","s4.d":"Analysis conclusions and merges take effect only after human confirmation; commits are triggered by the user issuing the commit command.",
     "s5.t":"Plaintext credential blocking","s5.d":"scan-secrets.sh scans space documents before commit and blocks the auto-commit on high-confidence hits; supports exemption markers and placeholder filtering.",
-    "s6.t":"Landing-point verification","s6.d":"check-guidance.sh verifies that the landing files of distilled guidance entries still exist; failure blocks close, preventing dangling evidence chains.",
+    "s6.t":"Landing-point validation","s6.d":"Guidance writeback validates that landing files exist when marking an entry applied; invalid paths block the write, preventing dangling evidence chains.",
     "faq.eyebrow":"FAQ","faq.h2":"Frequently asked questions",
     "cta.h2":"Let every agent run along a stable R&amp;D chain","cta.p":"For both small and large projects, Tack Harness makes AI development more standardized, more reproducible, and cheaper on tokens.","cta.top":"Back to top",
     "footer.tagline":"Minimal &amp; restrained · Human-readable · Fully configurable — a programming workflow framework built for software R&amp;D.",

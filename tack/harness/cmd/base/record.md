@@ -26,7 +26,7 @@ summary: 沉淀知识或扩展能力——先确定工作区与项目；能力�
 
 1. **获取记录内容（两种触发方式）**
    - 用户给了明确内容: 以参数/用户原话为准
-   - 用户未给具体内容（如只说「记录一下」「把最近的引导沉淀一下」）: 有 `$work` 时执行 `sh $root/harness/script/work-status.sh $work/status.yaml guidance list raw`，无 `$work` 时执行 `sh $root/harness/script/check-guidance.sh list $root raw`，列出候选请用户挑选；这些条目是任务结束时自动采集的用户引导（AGENTS.md 第 11 条）
+   - 用户未给具体内容（如只说「记录一下」「把最近的引导沉淀一下」）: 有 `$work` 时执行 `sh $root/harness/script/work-status.sh $work/status.yaml guidance list pending`，无 `$work` 时执行 `sh $root/harness/script/work-status.sh $root guidance all pending`，列出候选请用户挑选；这些条目是任务结束时自动采集的用户引导（AGENTS.md 第 11 条）
 
 2. **判断内容类型与落点**
    - 动作: 按 `harness/rule/record-classification.md` 的判据归入 **agents / cmd / workflow / rule / wiki**；并区分「能力」与「参数」——
@@ -58,7 +58,7 @@ summary: 沉淀知识或扩展能力——先确定工作区与项目；能力�
    - 动作:
      - cmd / workflow：执行 `sh $root/harness/script/scan-routes.sh list $root/harness`，确认新建/修改后的条目出现在路由表中
      - agents：重新读取 `$root/AGENTS.md`，确认条目位置正确、区块标记与项目信息区块完好
-     - 本次内容来自 guidance 条目: 执行 `sh $root/harness/script/work-status.sh <来源 status.yaml> guidance <id> distilled <落点路径...>`（多落点空格分隔，脚本同步写 `status` 与 `落点:` 行，格式见 `harness/template/work-status.yaml`）；用户挑选后放弃的条目执行 `sh $root/harness/script/work-status.sh <来源 status.yaml> guidance <id> dismissed`
+     - 本次内容来自 guidance 条目: 执行 `sh $root/harness/script/work-status.sh <来源 status.yaml> guidance <id> applied <落点路径...>`（多落点空格分隔，脚本校验落点文件存在后只置 `status: applied`）；用户挑选后放弃的条目执行 `sh $root/harness/script/work-status.sh <来源 status.yaml> guidance <id> rejected`
 
 7. **版本检查（更新提醒挂载点）**
    - 动作: 按 `harness/rule/update-check.md` 执行 `sh $root/harness/script/check-update.sh $root`；有新版本时原样转述并**建议先执行 `update` 再继续沉淀**（避免在旧版 harness 上落盘，改动可能与新版冲突）
@@ -76,7 +76,7 @@ summary: 沉淀知识或扩展能力——先确定工作区与项目；能力�
 - [ ] 新建 cmd 时用户只提供了 command，其余字段为 AI 自动生成并经审阅
 - [ ] 文件已落盘到正确目录，文件头字段完整
 - [ ] agents 条目落在 AGENTS.md 核心约束且仅限全空间约束，未触碰项目信息 YAML 区块与 harness 固定章节；scan-routes 能扫描到新 cmd/workflow 条目
-- [ ] 素材来自 guidance 时，来源条目已回写 distilled（含落点）或 dismissed
+- [ ] 素材来自 guidance 时，来源条目已回写 applied 或 rejected
 - [ ] 用户已审阅确认
 - [ ] 版本检查已执行；有新版本时已原样转述提醒与更新内容，并建议先执行 `update`
 

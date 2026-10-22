@@ -10,14 +10,17 @@
 #     mr_url|meego|tech_doc_url  顶层工作区链接字段
 #     work_id|work_dir|branch    顶层工作区标识（work.sh rename 使用）
 #
-# 用法: sh work-status.sh <status.yaml> guidance <id> <distilled|dismissed> [落点路径 ..]
-#   - distilled: 置该条 status，并写/更新「落点:」行（须给 ≥1 个落点，相对 $root，空格分隔）
-#   - dismissed: 仅置该条 status（不接受落点参数）
+# 用法: sh work-status.sh <status.yaml> guidance <id> <applied|rejected> [落点路径 ..]
+#   - applied: 置该条 status，并校验落点文件存在（须给 ≥1 个落点，相对 $root，空格分隔）
+#   - rejected: 仅置该条 status（不接受落点参数）
 #   - 条目（guidance 区块内 - id: "<id>"）不存在时退出码 3
-# 用法: sh work-status.sh <status.yaml> guidance list [raw|all]
-#   - 输出 guidance 条目（默认 raw），每行一条，TAB 分隔：
-#     workspace / id / status / stage / candidate / summary
+# 用法: sh work-status.sh <status.yaml> guidance list [pending|all]
+#   - 输出 guidance 条目（默认 pending），每行一条，TAB 分隔：
+#     workspace / id / status / stage / summary
 #   - workspace 取 status.yaml 的 work_dir（缺失时取所在目录名）
+# 用法: sh work-status.sh <root> guidance all [pending|all]
+#   - 跨工作区汇总 $root/space/*/status.yaml 的 guidance 条目（列同上）；
+#     同一 stage + summary 重复出现时在 stderr 输出 DUPLICATE 行
 #
 # 用法: sh work-status.sh <status.yaml> tasks list
 #   - 输出 tasks 条目，每行一条，TAB 分隔：id / status / title / repo / deps(逗号分隔)
@@ -33,7 +36,7 @@
 # 用法: sh work-status.sh <status.yaml> tasks replace <normalized-tsv>
 #   - normalized-tsv 为文件路径（- 表示 stdin），列：id title module repo deps-csv status
 #   - 首行可为表头；写入前校验依赖图，非法则不落盘并退出码 4
-#   - 已存在同一 id 时保留其 acceptance / parallel_with 字段
+#   - 已存在同一 id 时保留其 acceptance 字段
 #
 # 用法: sh work-status.sh <status.yaml> deploy list
 #   - 输出部署登记，每行一条，TAB 分隔：repo / env / lane / route / build / url / status
@@ -63,16 +66,17 @@
 # 最小用例:
 #   sh work-status.sh space/20261001-feat-x/status.yaml set status planning stage spec next "生成并确认 spec.md"
 #   sh work-status.sh space/20261001-feat-x/status.yaml set progress.spec true
-#   sh work-status.sh space/20261001-feat-x/status.yaml guidance G-01 distilled harness/cmd/dev/code.md
-#   sh work-status.sh space/20261001-feat-x/status.yaml guidance G-02 dismissed
+#   sh work-status.sh space/20261001-feat-x/status.yaml guidance G-01 applied harness/cmd/dev/code.md
+#   sh work-status.sh space/20261001-feat-x/status.yaml guidance G-02 rejected
 
 set -e
 
 usage() {
   echo "work-status: 用法:" >&2
   echo "  sh work-status.sh <status.yaml> set <key> <value> [<key> <value> ...]" >&2
-  echo "  sh work-status.sh <status.yaml> guidance <id> <distilled|dismissed> [落点路径 ..]" >&2
-  echo "  sh work-status.sh <status.yaml> guidance list [raw|all]" >&2
+  echo "  sh work-status.sh <status.yaml> guidance <id> <applied|rejected> [落点路径 ..]" >&2
+  echo "  sh work-status.sh <status.yaml> guidance list [pending|all]" >&2
+  echo "  sh work-status.sh <root> guidance all [pending|all]" >&2
   echo "  sh work-status.sh <status.yaml> tasks list|validate|ready|repos" >&2
   echo "  sh work-status.sh <status.yaml> tasks set <task-id> <pending|in_progress|done|blocked>" >&2
   echo "  sh work-status.sh <status.yaml> tasks replace <normalized-tsv>" >&2
@@ -89,13 +93,13 @@ if [ $# -lt 3 ]; then
   usage
   exit 2
 fi
+# 共享 YAML 标量/行内列表函数（唯一事实源 script/yamlib.awk）
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+YAML_LIB="$(cat "${SCRIPT_DIR}/yamlib.awk")"
+
 FILE="$1"
 SUBCMD="$2"
 shift 2
-if [ ! -f "${FILE}" ]; then
-  echo "work-status: 文件不存在: ${FILE}" >&2
-  exit 1
-fi
 case "${SUBCMD}" in
   set|guidance|tasks|deploy|branch) ;;
   *)
@@ -104,6 +108,53 @@ case "${SUBCMD}" in
     exit 2
     ;;
 esac
+
+# guidance all <root> [pending|all]：跨工作区汇总（FILE 位为空间根目录）
+if [ "${SUBCMD}" = "guidance" ] && [ "${1:-}" = "all" ]; then
+  ROOT="${FILE}"
+  GFILTER="${2:-pending}"
+  case "${GFILTER}" in
+    pending|all) ;;
+    *) echo "work-status: guidance all 过滤值只允许 pending|all: ${GFILTER}" >&2; exit 2 ;;
+  esac
+  if [ ! -d "${ROOT}" ]; then
+    echo "work-status: tack 空间根不存在: ${ROOT}" >&2
+    exit 2
+  fi
+  TMP_DIR="${ROOT}/.tack/tmp"
+  mkdir -p "${TMP_DIR}" 2>/dev/null || TMP_DIR=""
+  if [ -n "${TMP_DIR}" ]; then
+    TMP_LIST="${TMP_DIR}/work-status-all.$$.txt"
+  else
+    TMP_LIST="$(mktemp "${TMPDIR:-/tmp}/tack-ws-all.XXXXXX")"
+  fi
+  trap 'rm -f "${TMP_LIST}"; rmdir "${TMP_DIR}" 2>/dev/null || true' EXIT HUP INT TERM
+  : > "${TMP_LIST}"
+  for f in "${ROOT}/space"/*/status.yaml; do
+    [ -f "${f}" ] || continue
+    sh "${SCRIPT_DIR}/work-status.sh" "${f}" guidance list "${GFILTER}" >> "${TMP_LIST}"
+  done
+  cat "${TMP_LIST}"
+  awk -F"$(printf '\t')" '
+      function norm(s) { gsub(/[[:space:]]+/, " ", s); return s }
+      {
+          key = norm($4) "|" norm($5)
+          cnt[key]++
+          stage[key] = $4
+          summary[key] = norm($5)
+      }
+      END {
+          for (k in cnt) if (cnt[k] > 1)
+              printf "DUPLICATE\t%d\t%s\t%s\n", cnt[k], stage[k], summary[k]
+      }
+  ' "${TMP_LIST}" >&2
+  exit 0
+fi
+
+if [ ! -f "${FILE}" ]; then
+  echo "work-status: 文件不存在: ${FILE}" >&2
+  exit 1
+fi
 
 # 临时文件优先放 tack 空间 .tack/tmp/（不写系统 temp，退出即清）；
 # 仅当 FILE 不在规范空间布局内（<root>/space/<workspace>/status.yaml）时回退系统临时目录
@@ -122,18 +173,14 @@ else
 fi
 trap 'rm -f "${PAIRS}" "${TMP}"; rmdir "${TMP_DIR}" 2>/dev/null || true' EXIT HUP INT TERM
 
-# 共享 YAML 标量/行内列表函数（唯一事实源 script/yamlib.awk）
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-YAML_LIB="$(cat "${SCRIPT_DIR}/yamlib.awk")"
-
-# guidance 子命令：固化结论回写（distilled 写「落点:」行；dismissed 仅置状态）
+# guidance 子命令：固化结论回写（applied 校验落点后仅置状态；rejected 仅置状态）
 if [ "${SUBCMD}" = "guidance" ]; then
-  # guidance list [raw|all]：跨工作区统一列举（TAB 分隔）
+  # guidance list [pending|all]：列举当前工作区的 guidance 条目（TAB 分隔）
   if [ "${1:-}" = list ]; then
-    GFILTER="${2:-raw}"
+    GFILTER="${2:-pending}"
     case "${GFILTER}" in
-      raw|all) ;;
-      *) echo "work-status: guidance list 过滤值只允许 raw|all: ${GFILTER}" >&2; exit 2 ;;
+      pending|all) ;;
+      *) echo "work-status: guidance list 过滤值只允许 pending|all: ${GFILTER}" >&2; exit 2 ;;
     esac
     # 工作区名：优先 work_dir，缺失时取 status.yaml 所在目录名
     GWORK="$(awk "${YAML_LIB}"'
@@ -146,11 +193,11 @@ if [ "${SUBCMD}" = "guidance" ]; then
     fi
     awk -v WANT="${GFILTER}" -v WS="${GWORK}" "${YAML_LIB}"'
       function flush() {
-          if (cur_id != "" && (WANT == "all" || cur_status == "raw" || cur_status == ""))
-              printf "%s\t%s\t%s\t%s\t%s\t%s\n", WS, cur_id, cur_status, cur_stage, cur_candidate, cur_summary
-          cur_id=""; cur_status=""; cur_stage=""; cur_candidate=""; cur_summary=""
+          if (cur_id != "" && (WANT == "all" || cur_status == "pending" || cur_status == ""))
+              printf "%s\t%s\t%s\t%s\t%s\n", WS, cur_id, cur_status, cur_stage, cur_summary
+          cur_id=""; cur_status=""; cur_stage=""; cur_summary=""
       }
-      BEGIN { in_g=0; cur_id=""; cur_status=""; cur_stage=""; cur_candidate=""; cur_summary="" }
+      BEGIN { in_g=0; cur_id=""; cur_status=""; cur_stage=""; cur_summary="" }
       /^guidance[[:space:]]*:/ { in_g=1; next }
       in_g && /^[A-Za-z_][A-Za-z0-9_]*:/ { flush(); in_g=0 }
       {
@@ -165,7 +212,6 @@ if [ "${SUBCMD}" = "guidance" ]; then
           if (cur_id == "") next
           if ($0 ~ /^[[:space:]]*status[[:space:]]*:/) { cur_status = val($0); next }
           if ($0 ~ /^[[:space:]]*stage[[:space:]]*:/) { cur_stage = val($0); next }
-          if ($0 ~ /^[[:space:]]*candidate[[:space:]]*:/) { cur_candidate = val($0); next }
           if ($0 ~ /^[[:space:]]*guidance[[:space:]]*:/) { cur_summary = val($0); next }
       }
       END { flush() }
@@ -173,34 +219,41 @@ if [ "${SUBCMD}" = "guidance" ]; then
     exit 0
   fi
   if [ $# -lt 2 ]; then
-    echo "work-status: guidance 用法: guidance <id> <distilled|dismissed> [落点路径 ...]" >&2
+    echo "work-status: guidance 用法: guidance <id> <applied|rejected> [落点路径 ...]" >&2
     exit 2
   fi
   GID="$1"
   GSTATE="$2"
   shift 2
   case "${GSTATE}" in
-    distilled|dismissed) ;;
-    *) echo "work-status: guidance 状态只允许 distilled|dismissed: ${GSTATE}" >&2; exit 2 ;;
+    applied|rejected) ;;
+    *) echo "work-status: guidance 状态只允许 applied|rejected: ${GSTATE}" >&2; exit 2 ;;
   esac
-  GLAND=""
-  if [ "${GSTATE}" = "distilled" ]; then
-    [ $# -ge 1 ] || { echo "work-status: distilled 必须提供至少一个落点路径（相对 \$root，多落点空格分隔）" >&2; exit 2; }
-    for _lp in "$@"; do GLAND="${GLAND} ${_lp}"; done
-    GLAND="${GLAND# }"
+  if [ "${GSTATE}" = "applied" ]; then
+    [ $# -ge 1 ] || { echo "work-status: applied 必须提供至少一个落点路径（相对 \$root，多落点空格分隔）" >&2; exit 2; }
+    if [ -z "${SPACE_ROOT}" ] || [ ! -d "${SPACE_ROOT}/harness" ]; then
+      echo "work-status: 无法定位 tack 空间根，不能校验落点路径" >&2
+      exit 2
+    fi
+    for _lp in "$@"; do
+      case "${_lp}" in
+        /*) _path="${_lp}" ;;
+        *)  _path="${SPACE_ROOT}/${_lp}" ;;
+      esac
+      [ -e "${_path}" ] || { echo "work-status: 落点路径不存在: ${_lp}" >&2; exit 2; }
+    done
   else
-    [ $# -eq 0 ] || { echo "work-status: dismissed 不接受落点路径" >&2; exit 2; }
+    [ $# -eq 0 ] || { echo "work-status: rejected 不接受落点路径" >&2; exit 2; }
   fi
-  if awk -v GID="${GID}" -v GSTATE="${GSTATE}" -v GLAND="${GLAND}" -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" "${YAML_LIB}"'
+  if awk -v GID="${GID}" -v GSTATE="${GSTATE}" -v NOW="$(date '+%Y-%m-%d %H:%M:%S')" "${YAML_LIB}"'
     # 目标条目在「下一条目 / 下一顶层键 / EOF」边界结束，补写缺失行
     function finish(   ind) {
         if (!target) { cur = ""; target = 0; return }
         ind = item_ind
         if (!saw_status) print ind "status: \"" GSTATE "\""
-        if (GSTATE == "distilled" && !saw_land) print ind "落点: \"" GLAND "\""
         cur = ""; target = 0
     }
-    BEGIN { in_g = 0; cur = ""; target = 0; saw_status = 0; saw_land = 0; found = 0 }
+    BEGIN { in_g = 0; cur = ""; target = 0; saw_status = 0; found = 0 }
     /^[A-Za-z_][A-Za-z0-9_]*:/ {
         if (in_g) finish()
         in_g = ($0 ~ /^guidance[[:space:]]*:/)
@@ -218,7 +271,7 @@ if [ "${SUBCMD}" = "guidance" ]; then
             match($0, /^[[:space:]]*/)
             item_ind = sprintf("%" (RLENGTH + 2) "s", "")
             target = (cur == GID)
-            if (target) { found = 1; saw_status = 0; saw_land = 0 }
+            if (target) { found = 1; saw_status = 0 }
             print
             next
         }
@@ -226,11 +279,6 @@ if [ "${SUBCMD}" = "guidance" ]; then
             if ($0 ~ /^[[:space:]]*status[[:space:]]*:/) {
                 print item_ind "status: \"" GSTATE "\""
                 saw_status = 1
-                next
-            }
-            if (GSTATE == "distilled" && index($0, "落点:") > 0) {
-                print item_ind "落点: \"" GLAND "\""
-                saw_land = 1
                 next
             }
         }
@@ -522,7 +570,6 @@ if [ "${SUBCMD}" = tasks ]; then
             print "    repo: " esc(trepo[i])
             print "    deps: " inline_list(tdeps[i])
             if (tid[i] in acc) print "    acceptance: " esc(acc[tid[i]])
-            if (tid[i] in par) print "    parallel_with: " inline_list(par[tid[i]])
             print "    status: " esc(tstatus[i])
         }
         BEGIN {
@@ -538,7 +585,7 @@ if [ "${SUBCMD}" = tasks ]; then
                 tstatus[nt] = (f[6] == "" ? "pending" : f[6])
             }
             close(TSV)
-            # 预读旧文件：保留同一 id 的 acceptance / parallel_with
+            # 预读旧文件：保留同一 id 的 acceptance
             in_t = 0; cur = ""; open_item = 0
             while ((getline line < SRC) > 0) {
                 if (line ~ /^tasks[[:space:]]*:/) { in_t = 1; continue }
@@ -549,7 +596,6 @@ if [ "${SUBCMD}" = tasks ]; then
                 }
                 if (!open_item || cur == "") continue
                 if (line ~ /^[[:space:]]*acceptance[[:space:]]*:/) acc[cur] = val(line)
-                else if (line ~ /^[[:space:]]*parallel_with[[:space:]]*:/) par[cur] = norm_csv(val(line))
             }
             close(SRC)
             ARGV[1] = ""

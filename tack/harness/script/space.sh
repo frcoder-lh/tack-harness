@@ -12,7 +12,7 @@
 #
 # Usage:
 #   sh space.sh commit <root> [message]
-#     暂存并提交空间内全部变更（排除 .tack/ 运行时目录与 *.tmp 半成品）；
+#     暂存并提交空间内全部变更（.tack/ 运行时目录已被 .gitignore 排除）；
 #     无变更时跳过，退出码恒为 0（无错误时）。
 #     若本机未配置任何 git 身份，写入【仓库级 local】框架身份兜底
 #     （tack-harness <tack-harness@local>），不触碰用户全局配置，也不触碰代码仓库。
@@ -53,7 +53,7 @@ commit)
     SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
     sh "${SCRIPT_DIR}/scan-secrets.sh" "${ROOT}" --changed
 
-    git add -A -- . ':(exclude).tack' ':(exclude)*.tmp'
+    git add -A -- .
     if git diff --cached --quiet; then
         echo "空间仓库无变更，跳过自动提交"
         exit 0

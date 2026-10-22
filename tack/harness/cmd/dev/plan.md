@@ -81,7 +81,7 @@ summary: 读 spec、input、wiki（root/work）与代码事实，产出 plan.md�
    - 动作: 将任务清单写成规范化 TSV（Tab 分隔，列：`id` / `title` / `module` / `repo` / `deps-csv` / `status`，deps 用逗号分隔），先 `mkdir -p $root/.tack/tmp` 再落 `$root/.tack/tmp/tasks.tsv`；执行
      `sh $root/harness/script/work-status.sh $work/status.yaml tasks replace $root/.tack/tmp/tasks.tsv`
    - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks validate`；退出码 4 时按 `ERROR<TAB>code<TAB>id<TAB>detail` 修复 TSV 后重试，不得绕过
-   - 说明: 脚本按 id 保留已有 `acceptance` / `parallel_with` 字段，任务级状态不再手工编辑 YAML
+   - 说明: 脚本按 id 保留已有 `acceptance` 字段，任务级状态不再手工编辑 YAML
 
 9. **澄清与确认（人类审阅关口）**
    - 动作: 与用户逐条确认**第 4 步选定的实现方案**、技术取舍、模块边界、任务粒度与第 7 步的待决策项；用户确认前不进入 code

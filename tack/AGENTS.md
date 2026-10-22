@@ -79,7 +79,7 @@
 11. **harness 的更新时机（手动更新 + 自进化）**：
    - **手动更新**：用户明确要求记录/沉淀某个技能时走 `record`（更新优化 cmd/workflow/rule/script/template、项目 wiki 或本文件核心约束）；用户手动发起 harness 优化时走 `evolution`
    - **自动采集**：每个任务/环节结束时按第 7 条向 `$work/status.yaml` 的 `guidance` 列表追加原始记录（无需用户要求；只记事实与建议固化点，**不直接改动 harness**）。记录格式与字段见 `harness/template/work-status.yaml`
-   - **自动固化**：执行 `close` 关闭工作区时自动触发一次自进化审查——把 `guidance` 中 `raw` 条目的可复用操作习惯固化到 workflow/cmd/rule（先扫描、能融合则融合），经用户确认后落盘并将条目置 `distilled`；未消化完的 raw 条目不阻塞关闭。用户也可随时手动执行 `evolution` 或 `record` 提前固化
+   - **自动固化**：执行 `close` 关闭工作区时自动触发一次自进化审查——把 `guidance` 中 `pending` 条目的可复用操作习惯固化到 workflow/cmd/rule（先扫描、能融合则融合），经用户确认后落盘并将条目置 `applied`；未消化完的 pending 条目不阻塞关闭。用户也可随时手动执行 `evolution` 或 `record` 提前固化
 12. **markdown 引用可定位**：生成 markdown 文件时，引用文件或代码一律采用 GitHub 风格的可定位行数锚点格式（如 `path/to/file.md#L12-L15`），读者可直接跳到对应行，禁止只给文件名或"某行附近"式模糊指向
 13. **非必要的反向描述不保留（markdown 与代码注释硬约束）**：生成或修改任何 markdown 文件、代码注释时，事实一旦被取消或移除、且没有必须阻止该行为的意图，**直接删除相关描述**——不保留「不再做 X」「X 已废弃」式反向描述，也不追加「不要做 X」「注意别再 X」式否定补丁；旧事实不存在了，文字里就不再出现它。否定表述只用于**真实禁令**：某行为当下仍可能被执行、必须明确阻止时（如「严禁 force push」）。删除前先确认该事实无文档引用、脚本调用等真实消费者，删除后同步清理失效引用；判断不准时不擅自删，提出交用户决定。存量文档按此标准的清理由 `evolution` 的 cleanup 候选承接
 14. **省往返、省上下文**：① 信息收集先 grep/glob 定位、只读命中片段（细则见 `harness/rule/context-loading.md`），彼此独立的读取同一轮并行（见第 4 条）；② list/扫描/日志类脚本输出先在 shell 侧 grep/head 裁剪再入上下文，不接收全量大表；③ 同一文件多处关联改动（步骤重编号、交叉引用）先列映射再整块替换，Edit 返回内容即最新、不全文重读；④ 删除/归档/重命名类需求先连带确认关联面（登记删除还是置状态、数据源、是否顺带校准）再动手
@@ -96,7 +96,7 @@
 | `harness/cmd/` | 命令入口（base/dev/git 分组），定义准入准出 |
 | `harness/agents/` | 可委派角色（code-explorer / code-architect / code-reviewer）：被 cmd 引用后经 Task 子代理在独立上下文执行，可多实例并行；只供发现与委派，不参与命令路由 |
 | `harness/workflow/` | 工作流状态机（development/testing/bugfix/merge-conflict/branch-op） |
-| `harness/script/` | 固定流程脚本（init-tack、space、scan-routes、lint-harness、lint-shell-portability、scan-secrets、check-guidance、harness-diff、harness-backup、run-plan、lint-doc-scripts、common、work-status、project、repo、work、git-facts、git-fetch-helper、git-commit-helper、git-push-helper、git-worktree-helper、git-bug-trace、git-diff-context、branch-op、branch-clean、skill-update、check-update；Windows 统一经 `run.ps1` 启动器调用） |
+| `harness/script/` | 固定流程脚本（init-tack、space、scan-routes、lint-harness、lint-shell-portability、scan-secrets、harness-diff、harness-backup、run-plan、lint-doc-scripts、common、work-status、project、repo、work、git-facts、git-fetch-helper、git-commit-helper、git-push-helper、git-worktree-helper、git-bug-trace、git-diff-context、branch-op、branch-clean、skill-update、check-update；Windows 统一经 `run.ps1` 启动器调用） |
 | `harness/script/hook/` | TRAE/Claude Code Hooks 可选加速层（SessionStart 预载路由、UserPromptSubmit 零往返路由、PreToolUse 观察层；默认不启用、不拦截，删掉整个目录框架仍完整可用） |
 | `harness/rule/` | 业务、代码与安全规则（coding-standards、git-standards、security、git-boundary、context-loading、windows-env、record-* 等；不参与路由，按需加载） |
 | `harness/template/` | 命令/工作流/文档/工作区模板 |

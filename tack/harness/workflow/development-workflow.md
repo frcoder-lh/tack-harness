@@ -51,7 +51,7 @@ initialized → planning → developing → reviewing → merged ──close─�
 | 7 | 按需命令（非主链路，见下表） | `testcode` `test` `run` `code-review` `release-check` | 各命令产物（见下表） | 仅 `progress` 事实记录 |
 | 8 | 拉取/提交/推送 | `fetch` `commit` `push` | 提交与远端分支、mr_url | developing |
 | 9 | 代码审查与合并 | `merge`（委派 code-reviewer 审查，结论三选一分流；冲突转 merge-conflict 工作流） | 审查结论与分流记录、MR/PR 合并 | reviewing → merged |
-| 10 | 关闭工作区 | `close` | 交付摘要、内容提炼入 wiki 四类页面（含 decisions，用户确认）、guidance 自进化固化到 workflow/cmd/rule（check-guidance 校验落点）、worktree 移除、工作区目录删除、AGENTS.md work 条目移除 | 工作区关闭（目录与条目均移除） |
+| 10 | 关闭工作区 | `close` | 交付摘要、内容提炼入 wiki 四类页面（含 decisions，用户确认）、guidance 自进化固化到 workflow/cmd/rule（回写时校验落点）、worktree 移除、工作区目录删除、AGENTS.md work 条目移除 | 工作区关闭（目录与条目均移除） |
 | — | 经验沉淀 | `record` | cmd/workflow/rule/wiki | 任意环节之后 |
 
 ### 按需命令（非主链路环节，用户需要时才触发）
@@ -79,7 +79,7 @@ initialized → planning → developing → reviewing → merged ──close─�
 7. **testcode / test / run（按需命令，见上节）**：均非必经环节，只在用户主动触发时执行，AI 不在 code 完成后主动引导或询问；准入准出与执行细节以各自 `harness/cmd/dev/` 命令文件为唯一权威。testcode 参考 reference：tdd.md、code-review.md；测试凭据落位遵守 `harness/rule/security.md`（入库文档只标来源）
 8. **commit/push**：非 git 目录先 init；未关联远端先引导关联；Git 安全禁令见 `harness/rule/git-boundary.md`
 9. **merge**：合并前审查必选——读取 `harness/agents/code-reviewer.md` 委派审查（小改动单实例，大改动按其三视角并行：规范符合度/bug 与正确性/约定与安全；审查框架为 reference `code-review.md` 双轴，三视角是双轴的执行分解）；审查结论由用户三选一分流：立即修复（回 fix 后复审）/ 记录后续（登记 status.yaml `follow_ups` 或 issue，允许合并）/ 维持现状（用户确认承担风险）；之后优先平台 MR/PR 合并；冲突不静默取舍，进入 solve
-10. **close**：完成态直接收尾，非完成态经用户确认才可关闭；**worktree 移除前输出四段交付摘要（构建内容/关键决策/改动文件/建议后续步骤）**；提炼工作区**原始产物**中的可复用知识（事实/项目级参数/锚点/业务知识/**技术决策与工程约定**四类，后者含 plan 决策记录 → `wiki/<project>/decisions.md`），每条带来源、矛盾保留演变，经用户确认与人工审阅后写入 `$root/wiki/<project>/`；工作区级参数留在 `$work/status.yaml`；**自动触发一次自进化**——消费 status.yaml 的 guidance 中 raw 条目，将可复用操作习惯固化到 workflow/cmd/rule（经用户确认，能融合则融合），回写 distilled/dismissed（distilled 按 `落点: <相对 $root 路径>` 注明并经 `check-guidance.sh` 校验）；移除 worktree 后执行 `work.sh purge` 删除工作区目录、`project.sh work-remove` 移除 AGENTS.md work 条目（过程文档不保留，跨工作区知识已先行入 wiki/harness）
+10. **close**：完成态直接收尾，非完成态经用户确认才可关闭；**worktree 移除前输出四段交付摘要（构建内容/关键决策/改动文件/建议后续步骤）**；提炼工作区**原始产物**中的可复用知识（事实/项目级参数/锚点/业务知识/**技术决策与工程约定**四类，后者含 plan 决策记录 → `wiki/<project>/decisions.md`），每条带来源、矛盾保留演变，经用户确认与人工审阅后写入 `$root/wiki/<project>/`；工作区级参数留在 `$work/status.yaml`；**自动触发一次自进化**——消费 status.yaml 的 guidance 中 pending 条目，将可复用操作习惯固化到 workflow/cmd/rule（经用户确认，能融合则融合），回写 applied/rejected（applied 回写时校验落点文件存在）；移除 worktree 后执行 `work.sh purge` 删除工作区目录、`project.sh work-remove` 移除 AGENTS.md work 条目（过程文档不保留，跨工作区知识已先行入 wiki/harness）
 
 ## 上下文加载原则（spec/plan/code/testcode 共同遵守）
 
@@ -93,8 +93,8 @@ initialized → planning → developing → reviewing → merged ──close─�
 
 - 每个命令开始前经 `harness/script/work-status.sh` 回写 `$work/status.yaml`：`current.stage`（spec/plan/code/fix/...）、`current.task`、`current.next`（updated_at 由脚本自动刷新）
 - 任务级状态通过 `work-status.sh <status.yaml> tasks set <任务ID> <状态>` 流转（pending / in_progress / done / blocked），由 code/testcode/fix 维护；`tasks replace` 用于整表同步，`tasks validate` 阻断悬空/自依赖/循环依赖与非法状态
-- **用户引导采集（自进化素材）**：每个任务/环节结束时，凡用户对 AI 的做法有过引导、纠偏、补充约定，自动向 `guidance` 列表追加一条 raw 记录（字段见 `harness/template/work-status.yaml`）；只记事实，不直接改 harness
+- **用户引导采集（自进化素材）**：每个任务/环节结束时，凡用户对 AI 的做法有过引导、纠偏、补充约定，自动向 `guidance` 列表追加一条 pending 记录（字段见 `harness/template/work-status.yaml`）；只记事实，不直接改 harness
 - 命令完成并经人工确认后：置 `progress` 对应开关为 true，并按上表推进 `status`
 - 受阻时执行 `work-status.sh <status.yaml> tasks set <任务ID> blocked`，在 `current.next` 写明阻塞原因与等待项；解除后用 `tasks set <任务ID> pending|in_progress` 回到受阻前状态
-- `guidance` 的 raw 条目在 `close` 时自动固化（或随时手动 `evolution`/`record` 提前固化），固化后置 distilled 并按 `落点: <相对 $root 路径>` 注明落点（格式见 `harness/template/work-status.yaml`），由 `check-guidance.sh` 校验落点有效
+- `guidance` 的 pending 条目在 `close` 时自动固化（或随时手动 `evolution`/`record` 提前固化），固化后置 applied 并由回写脚本校验落点文件存在（格式见 `harness/template/work-status.yaml`）
 - `close` 后工作区目录与 AGENTS.md work 条目均已移除（工作区列表只以 AGENTS.md 登记为准）

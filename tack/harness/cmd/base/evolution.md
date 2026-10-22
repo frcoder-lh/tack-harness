@@ -39,7 +39,7 @@ summary: 进化 harness——校准 AGENTS.md 工作区登记与 space/ 实际�
 4. **枚举全部指令并收集 guidance 素材**
    - 动作: 执行 `sh $HARNESS_DIR/script/scan-routes.sh commands $HARNESS_DIR`，取得 base/dev/git 全量命令清单与文件路径；逐个重新读取正文（不相信上下文旧内容）
    - AGENTS.md: 重新读取 `$root/AGENTS.md` 全文（核心约束编号条目、环境变量、项目信息等章节）；`<!-- tack:info:start/end -->` 项目信息区块由 project.sh 维护，只读不改（第 3 步校准除外）；源仓库模式无项目信息区块，跳过该区块说明
-   - guidance: 执行 `sh $HARNESS_DIR/script/check-guidance.sh list $root raw` 统一列举全部工作区的 raw 条目（TAB 分隔：workspace / id / status / stage / candidate / summary）；脚本在 stderr 输出 `DUPLICATE` 行，同一引导跨工作区重复出现视为高优先级信号；源仓库模式无 `space/`，跳过
+   - guidance: 执行 `sh $HARNESS_DIR/script/work-status.sh $root guidance all pending` 统一列举全部工作区的 pending 条目（TAB 分隔：workspace / id / status / stage / summary）；脚本在 stderr 输出 `DUPLICATE` 行，同一引导跨工作区重复出现视为高优先级信号；源仓库模式无 `space/`，跳过
    - sh 脚本: 枚举 `$HARNESS_DIR/script/` 下全部 `.sh`，逐个重新读取正文（不相信上下文旧内容）；这些脚本须在 Windows（Git for Windows）、macOS（BSD 工具）、Linux（GNU 工具）三平台均可运行
 
 5. **逐个审查每个指令文件及 `$root/AGENTS.md`**，按以下机会识别候选：
@@ -75,7 +75,7 @@ summary: 进化 harness——校准 AGENTS.md 工作区登记与 space/ 实际�
      - 即修边界: 不符合项**发现后当场原地修正**，不列入候选、不等用户确认——这些是纯机械的合规修正，修正时必须保持脚本行为、参数与退出码语义不变，同一脚本内的存量不符合项一次性全量修正（不限于本次改动附近）；每修一个脚本必跑 `sh -n`，全部修正后在汇报中逐脚本列出修正项。若某问题的修法涉及行为或逻辑选择（非纯合规），立即停止直接修改、降级为 script 候选交用户确认
      - 平台核对: 实际执行环境至少覆盖当前平台，其余平台按 `coding-standards-shell.md` 静态核对——Linux（GNU 工具）/ macOS（BSD 工具）/ Windows（Git for Windows GNU 工具）三平台均须可运行；`sh -n` 只校验 shell 语法，不校验外部命令选项与 sed 表达式，其余细则按该 rule 逐条核对；Windows 上跑 `sh -n` 见 `$HARNESS_DIR/rule/windows-env.md`「Shell 调用」——禁用 PATH 里的 `bash`（可能命中 WSL），须用 Git for Windows `sh.exe`
    - 无机会的命令明确标注「无」，不得为凑数制造候选
-   - **guidance 候选**（实战引导固化）: 对第 4 步收集的 raw 条目，按 `$HARNESS_DIR/rule/record-classification.md` 判据评估——跨工作区可复用的操作习惯/流程修正才入候选，一次性过程信息排除；条目自带的 `candidate`（建议固化点）作为初判，仍需核对目标文件现状决定融合或新建
+   - **guidance 候选**（实战引导固化）: 对第 4 步收集的 pending 条目，按 `$HARNESS_DIR/rule/record-classification.md` 判据评估——跨工作区可复用的操作习惯/流程修正才入候选，一次性过程信息排除；落点按目标文件现状实时判断，决定融合或新建
 
 6. **输出候选清单**
    - 动作: 分两组给出表格——
@@ -92,10 +92,10 @@ summary: 进化 harness——校准 AGENTS.md 工作区登记与 space/ 实际�
    - workflow / cmd / AGENTS.md 候选（guidance 组主要落点）: 直接最小化修改对应文件——只融入该引导要求的流程/判据或仅重排顺序，不重写无关段落；属于新命令/新工作流的按 record 流程新建；项目信息区块的改动只走第 3 步 project.sh 校准
    - script 候选: 实现前向用户说明「新增文件、必要性、为何 AI 直接执行不可靠」，经确认后按最小集合逐个实现；脚本须与 `$HARNESS_DIR/script/` 现有风格一致；第 5 步 sh 脚本三平台兼容审查不符合项已在审查阶段当场修正（不占候选），涉及行为/逻辑选择的 script 候选仍在本步确认后实施
    - 同步: 从对应 cmd 中删除已沉淀内容、替换为引用或脚本调用；保持最小化修改，不重写无关段落
-   - guidance 回写: 每完成一个 B 组候选，执行 `sh $HARNESS_DIR/script/work-status.sh <来源工作区>/status.yaml guidance <id> distilled <落点路径...>`（多落点空格分隔，脚本同步写 `status` 与 `落点:` 行，格式见 `$HARNESS_DIR/template/work-status.yaml`；跨工作区重复条目逐个回写）；用户放弃的执行 `sh $HARNESS_DIR/script/work-status.sh <来源工作区>/status.yaml guidance <id> dismissed`，未选中的保留 `raw`
+   - guidance 回写: 每完成一个 B 组候选，执行 `sh $HARNESS_DIR/script/work-status.sh <来源工作区>/status.yaml guidance <id> applied <落点路径...>`（多落点空格分隔，脚本校验落点文件存在后只置 `status: applied`；跨工作区重复条目逐个回写）；用户放弃的执行 `sh $HARNESS_DIR/script/work-status.sh <来源工作区>/status.yaml guidance <id> rejected`，未选中的保留 `pending`
 
 8. **验证**
-   - 动作: 执行 `sh $HARNESS_DIR/script/lint-harness.sh $HARNESS_DIR` 确认结构自检 0 ERROR（退出码 0），再执行 `sh $HARNESS_DIR/script/lint-shell-portability.sh $HARNESS_DIR` 确认三平台可移植性 0 ERROR，再执行 `sh $HARNESS_DIR/script/scan-routes.sh list $HARNESS_DIR` 确认全部命令与角色正常注册；新增 script 实跑一次最小用例验证退出码；空间模式再执行 `sh $HARNESS_DIR/script/check-guidance.sh $root` 全局核对各工作区 distilled 条目的落点（BROKEN 项修复后再结束，OLDFMT/NOLAND 项提示补正），源仓库模式跳过 check-guidance；人工审阅全部改动后生效
+   - 动作: 执行 `sh $HARNESS_DIR/script/lint-harness.sh $HARNESS_DIR` 确认结构自检 0 ERROR（退出码 0），再执行 `sh $HARNESS_DIR/script/lint-shell-portability.sh $HARNESS_DIR` 确认三平台可移植性 0 ERROR，再执行 `sh $HARNESS_DIR/script/scan-routes.sh list $HARNESS_DIR` 确认全部命令与角色正常注册；新增 script 实跑一次最小用例验证退出码；人工审阅全部改动后生效
 
 ## 框架自动提交（无需用户操作）
 
@@ -108,7 +108,7 @@ summary: 进化 harness——校准 AGENTS.md 工作区登记与 space/ 实际�
 - [ ] 空间模式第 3 步工作区登记校准已执行：MISSING_DIR / UNREGISTERED / STALE_COMPLETED / PATH_MISMATCH 四类差异均经用户确认处理（移除条目/补登记/purge+移除/校准路径），无差异时已明确说明；校准只经 project.sh / work.sh 落盘，未手改项目信息区块；源仓库模式已明确说明跳过
 - [ ] cmd 下每个指令文件均已审查，候选或「无」结论覆盖无遗漏
 - [ ] `$root/AGENTS.md` 已审查（常驻精简性、章节/编号结构、与 rule 重复），项目信息区块未被手改
-- [ ] 各工作区 status.yaml 的 raw guidance 已收集评估，B 组候选或排除结论覆盖无遗漏
+- [ ] 各工作区 status.yaml 的 pending guidance 已收集评估，B 组候选或排除结论覆盖无遗漏
 - [ ] 候选清单含类型、落点、内容摘要、理由与优先级；未在确认前改动文件
 - [ ] 已落盘的 rule/reference 优先融合了已有条目；script 有明确参数与退出码语义且最小用例通过
 - [ ] structure 候选仅重排未改语义，重排后按 `doc-structure.md` 验证无悬空编号引用
@@ -116,8 +116,8 @@ summary: 进化 harness——校准 AGENTS.md 工作区登记与 space/ 实际�
 - [ ] `$HARNESS_DIR/script/` 下每个 `.sh` 已按 `coding-standards-shell.md` 三平台基线逐条审查，`lint-shell-portability.sh` 退出码 0；不符合项已当场修正（行为/退出码语义不变）且 `sh -n` 通过；涉及逻辑选择的已降级为 script 候选，修正项已逐条汇报
 - [ ] 文档中全部脚本调用已与脚本 Usage 及参数解析逐个核对：参数顺序、必填项、占位名一致；不一致项已按 interface 候选修正
 - [ ] 沉淀后的 cmd 只留流程骨架与正确引用，无残留的规则细节重复
-- [ ] 已处理的 guidance 条目回写为 distilled（按 `落点: <相对 $root 路径>` 注明）或 dismissed，未选中保留 raw
-- [ ] 收尾 lint-harness 退出码 0、scan-routes 路由表完整；空间模式 check-guidance 无 BROKEN 项；全部改动经人工审阅确认
+- [ ] 已处理的 guidance 条目回写为 applied 或 rejected，未选中保留 pending
+- [ ] 收尾 lint-harness 退出码 0、scan-routes 路由表完整；全部改动经人工审阅确认
 
 ## 下一步建议
 

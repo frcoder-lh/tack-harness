@@ -99,13 +99,13 @@ awk -v H="${HARNESS_DIR}" '
                 if (NP < 4) warn(file, base, "set 至少需要一对 <key> <value>")
             } else if (sc == "guidance") {
                 if (NP < 3) { warn(file, base, "guidance 缺少 <id> 或 list"); return }
-                if (P[3] == "list") {
-                    if (NP > 3 && P[4] != "raw" && P[4] != "all")
-                        warn(file, base, "guidance list 过滤值只允许 raw|all: " P[4])
+                if (P[3] == "list" || P[3] == "all") {
+                    if (NP > 3 && P[4] != "pending" && P[4] != "all")
+                        warn(file, base, "guidance " P[3] " 过滤值只允许 pending|all: " P[4])
                 } else if (NP < 4) {
-                    warn(file, base, "guidance 需要 <id> <distilled|dismissed>")
-                } else if (P[4] == "distilled" && NP < 5) {
-                    warn(file, base, "guidance distilled 需要至少一个落点")
+                    warn(file, base, "guidance 需要 <id> <applied|rejected>")
+                } else if (P[4] == "applied" && NP < 5) {
+                    warn(file, base, "guidance applied 需要至少一个落点")
                 }
             } else if (sc == "tasks") {
                 if (NP < 3) { warn(file, base, "tasks 缺少子动作"); return }
@@ -167,11 +167,6 @@ awk -v H="${HARNESS_DIR}" '
             if (sc == "rename") { if (NP < 4) warn(file, base, "rename 需要 <root> <old-work-id> <new-work-id>") }
             else if (sc == "purge") { if (NP < 3) warn(file, base, "purge 需要 <root> <workspace>") }
             else if (NP < 3) warn(file, base, "新建工作区至少需要 <root> <project> <branch>")
-            return
-        }
-        if (base == "check-guidance.sh") {
-            if (NP < 1) warn(file, base, "缺少 <root>")
-            else if (P[1] == "list" && NP < 2) warn(file, base, "list 需要 <root>")
             return
         }
         if (base == "git-facts.sh") {

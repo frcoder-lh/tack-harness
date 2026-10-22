@@ -40,7 +40,7 @@ Tack Harness 是一套专为软件研发打造的编程工作流框架：
 | **缺陷溯源** | bugfix 工作流内置 `git-bug-trace`：定位缺陷代码行后一键追溯引入 commit、时间、作者、对应需求/工单 ID 与合并到主干的 MR 链接（GitHub/GitLab/Bitbucket），结果落 `status.yaml` 的 `bug_origin`；区分需求引入与历史遗留，回溯 MR 审查结论与关联改动 |
 | **审查与上线门禁** | `code-review` 以 plan/技术方案为规范、目标分支三点 diff 为事实逐函数审查改动正确性与危害、评估影响接口与场景，产出独立审查报告；`release-check` 产出上线检查清单——数据库变更语句、配置变更模板、接口权限申请、中间件资源申请，逐项打勾后发布 |
 | **命令自创造** | `record` 为 "生成指令的指令"。首先扫描已有命令尝试融合修正；若无合适命令，仅需提供 `command`，其余内容自动生成 |
-| **自进化** | guidance 闭环：任务各环节自动把用户的引导、纠偏、补充约定以原始事实追加到 `status.yaml` 的 `guidance` 列表（raw）；`close` 收尾时自动审查并固化到 workflow/cmd/rule（distilled），落点经 `check-guidance` 校验，形成「采集 → 固化 → 校验」的自进化回路 |
+| **自进化** | guidance 闭环：任务各环节自动把用户的引导、纠偏、补充约定以原始事实追加到 `status.yaml` 的 `guidance` 列表（pending）；`close` 收尾时自动审查并固化到 workflow/cmd/rule（applied/rejected），落点在回写时直接校验，形成「采集 → 固化 → 校验」的自进化回路 |
 | **三平台 shell 门禁** | 全部 harness 脚本按 POSIX sh 与 Linux/macOS/Windows 共有工具选项编写；`lint-shell-portability` 随 `lint-harness` 运行，检出裸 `mktemp`、GNU 专有选项、bashism 与 sed 方言问题，`evolution` 审查时即修 |
 | **自动更新检查** | `close`/`evolution`/`record`/`help` 命令收尾时静默检查新版本（7 天 + 同版本双节流，不在会话开始时抢占任务）；发现新版本时展示本机版本到最新版本之间的全部更新内容，用户确认后说「更新」即可升级 |
 | **角色委派** | `harness/agents/` 内置可委派角色（code-explorer / code-architect / code-reviewer），被 `ask`/`plan`/`tech-design`/`code-review`/`merge` 等命令引用后经 Task 子代理在独立上下文并行执行；只供发现与委派，不参与命令路由 |
@@ -161,7 +161,7 @@ my-project/
 │   ├── cmd/             #   命令：发现、路由、准入准出
 │   ├── agents/          #   可委派角色：独立上下文并行执行（explorer/architect/reviewer）
 │   ├── workflow/        #   工作流：状态机与命令编排
-│   ├── script/          #   固定流程脚本（init-tack 初始化 / scan-routes 路由扫描 / lint-harness 结构自检 / lint-shell-portability 三平台可移植性 / common 安装与升级共享能力（agent 预设/下载/版本/摘要校验） / scan-secrets 凭据扫描 / check-guidance 落点校验 / work-status 状态回写 / space 空间自动提交 / project 项目信息 / repo 仓库 / work 工作区 / git-worktree-helper / git-fetch-helper 远端同步与上游修复 / git-bug-trace 缺陷溯源 / git-diff-context 三点 diff 导出 / branch-op 分支操作 / check-update 更新检查 / skill-update 本机 skill 升级；Windows 统一经 run.ps1 启动器调用）
+│   ├── script/          #   固定流程脚本（init-tack 初始化 / scan-routes 路由扫描 / lint-harness 结构自检 / lint-shell-portability 三平台可移植性 / common 安装与升级共享能力（agent 预设/下载/版本/摘要校验） / scan-secrets 凭据扫描 / work-status 状态回写 / space 空间自动提交 / project 项目信息 / repo 仓库 / work 工作区 / git-worktree-helper / git-fetch-helper 远端同步与上游修复 / git-bug-trace 缺陷溯源 / git-diff-context 三点 diff 导出 / branch-op 分支操作 / check-update 更新检查 / skill-update 本机 skill 升级；Windows 统一经 run.ps1 启动器调用）
 │   │   └── hook/        #   IDE Hook 可选加速层（SessionStart/UserPromptSubmit/PreToolUse，默认不启用、不拦截）
 │   ├── rule/            #   业务、代码与安全规则（coding-standards、security、git-boundary 双层边界、context-loading 上下文加载、windows-env、record-* 沉淀规则；不参与路由，按需加载）
 │   ├── template/        #   命令、工作流、文档、工作区模板
@@ -227,7 +227,7 @@ my-project/
 
 经验沉淀形成三条互补通路：
 
-- **自动采集**：任务各环节凡用户对 AI 的做法有过引导、纠偏、补充约定，自动把原始事实追加到 `status.yaml` 的 `guidance` 列表（raw），`close` 时自动审查固化到 workflow/cmd/rule（distilled），落点由 `check-guidance.sh` 持续校验；
+- **自动采集**：任务各环节凡用户对 AI 的做法有过引导、纠偏、补充约定，自动把原始事实追加到 `status.yaml` 的 `guidance` 列表（pending），`close` 时自动审查固化到 workflow/cmd/rule（applied）或标记不固化（rejected），落点在回写时直接校验；
 - **向内自审**：`/tack evolution` 定期审查全部指令文件，识别可沉淀为 rule/reference/script 的候选，经人工确认后落盘；
 - **向外学习**：`/tack study <skill 名|本地路径|Git 链接>` 通读外部 skill 或仓库，提炼可借鉴点并以新增/融合/优化方式落盘到 harness，统一预览确认后自动提交并触发一次 evolution。
 
@@ -276,7 +276,7 @@ flowchart LR
 
 | 文件 | 产生时机 | 作用 |
 | --- | --- | --- |
-| `status.yaml` | 创建工作区 | 属性 + 日志 + 待办：记录当前处理任务、进度与下一步；`guidance` 列表采集用户引导（raw）并在 close 时固化为 harness 条目（distilled）；唯一有状态文件，字段由 `work-status.sh` 确定性回写 |
+| `status.yaml` | 创建工作区 | 属性 + 日志 + 待办：记录当前处理任务、进度与下一步；`guidance` 列表采集用户引导（pending）并在 close 时固化为 harness 条目（applied/rejected）；唯一有状态文件，字段由 `work-status.sh` 确定性回写 |
 | `input.md` | 创建工作区 | 原始需求、参考链接、需求理解、建议分析链路 |
 | `spec.md` | `/tack spec` | 需求规划（整体设计）：施工图 + 验收合同 |
 | `plan.md` | `/tack plan` | 开发计划（详细设计 + 任务清单）：编码落地细节与任务拆解 |
@@ -388,7 +388,7 @@ sh harness/script/lint-shell-portability.sh harness   # 三平台可移植性机
 | **命令准入准出** | 破坏性 Git 操作被禁用，命令执行受准入准出约束 |
 | **人工审阅关口** | 分析结论、合并均需人工确认后方可生效；提交由用户主动发起 commit 命令触发（发起即确认意图，信息自动生成后直接提交） |
 | **凭据明文拦截** | `scan-secrets.sh` 在空间文档（wiki/、space/）提交前做高置信凭据扫描，命中即阻断自动提交；支持 `tack:allow-secret` 豁免标记与占位值过滤 |
-| **落点证据链校验** | `check-guidance.sh` 校验 guidance distilled 条目的落点文件仍然存在，失效即阻断 close，防止固化证据链悬空 |
+| **固化落点校验** | guidance 固化回写时校验落点文件存在，路径失效即阻断写入，防止固化证据链悬空 |
 | **Hook 边界观察层** | `PreToolUse` Hook 观察 Git 双层边界、`--force`/`--no-verify` 等破坏性操作；默认仅记录不拦截，调用与命中详情随 `TACK_HOOK_LOG=1` 统一写入 `$root/.tack/log/hook.log`（三个 Hook 事件共用）；`TACK_HOOK_ENFORCE=1` 预留 deny 路径，启用前须先用日志校准误判 |
 | **工作区删除门禁** | close 经 `work.sh purge` 删除工作区目录前三道校验：仅接受单层目录名（拒绝分隔符、空白与 `.`/`..`）、物理路径经 `pwd -P` 确认位于 `space/` 内（防 symlink 逃逸）、`repo/` 下无残留 worktree；任一不满足即拒绝删除 |
 

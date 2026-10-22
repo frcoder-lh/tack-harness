@@ -908,7 +908,7 @@ case "${ACTION}" in
     project-set)           cmd_project_set "$@" ;;
     project-keywords)      cmd_project_keywords "$@" ;;
     project-service-repo)  cmd_project_service_repo "$@" ;;
-    project-list)          cmd_project_list "$@" ;;
+    project-list)          NO_COMMIT=1; cmd_project_list "$@" ;;
     skill-version)         cmd_skill_version "$@" ;;
     work-add)              cmd_work_add "$@" ;;
     work-set)              cmd_work_set "$@" ;;

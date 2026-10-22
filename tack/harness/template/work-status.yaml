@@ -67,7 +67,7 @@ progress:
   merged: false       # 已合并
 
 # 任务清单（由 plan 命令生成，code/testcode 推进状态；状态枚举：pending / in_progress / done / blocked）
-# 每条结构：id / title / module / repo / deps(依赖任务) / acceptance / parallel_with(可并行任务) / status
+# 每条结构：id / title / module / repo / deps(依赖任务) / acceptance / status
 tasks: []
 
 # 遗留后续项（merge 审查三选一分流中选择「记录后续」时登记；不阻塞本次合并）
@@ -133,7 +133,7 @@ bug_origin: null
 # 用户引导记录（harness 自进化的原始素材，AGENTS.md 核心约束第 11 条）
 # 采集时机：每个任务/环节结束时，凡用户对 AI 的做法有过引导、纠偏、补充约定，自动追加一条（无需用户要求）
 # 固化时机：close 工作区时自动触发、或手动执行 evolution/record——将可复用的操作习惯固化到
-#           workflow/cmd/rule（能融合则融合，经用户确认后落盘），随后将该条 status 置 distilled
+#           workflow/cmd/rule（能融合则融合，经用户确认后落盘），随后将该条 status 置 applied
 # 边界：只记事实，不直接改动 harness；一次性过程信息也先采集，由固化环节按 record-classification 判据筛选
 guidance: []
 # 每条结构：
@@ -143,7 +143,4 @@ guidance: []
 #     task: ""                # 关联任务 ID（无则留空）
 #     situation: ""           # 场景：当时 AI 原本怎么做 / 遇到什么情况
 #     guidance: ""            # 用户的引导、纠偏或补充约定（原话事实，不演绎）
-#     candidate: ""           # 建议固化点：落到哪个 workflow/cmd/rule、如何改
-#     status: "raw"           # raw 待固化 / distilled 已固化（须补落点行）/ dismissed 评估后不固化
-#     落点: ""                 # 仅 distilled 时填写：相对 $root 的路径（如 harness/cmd/dev/code.md），
-#                             # 多落点空格分隔；close/evolution 后由 check-guidance.sh 校验文件存在
+#     status: "pending"       # pending 待固化 / applied 已固化 / rejected 评估后不固化

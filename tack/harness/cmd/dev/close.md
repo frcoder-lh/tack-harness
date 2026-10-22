@@ -48,12 +48,11 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
    - 落盘: 被采纳条目按 `harness/rule/record-wiki.md` 写入 `$root/wiki/<project>/` 对应文件——文件已存在则融合去重（不重复追加），不存在时按 `harness/template/wiki-*.md` 模板创建（decisions.md 首条采纳时才创建）；每条带来源（`space/<workspace>/<文件>`，`<workspace>` 即当前工作区目录名），与旧条目矛盾时按「矛盾与演变」规则保留轨迹；**必须经人工审阅确认后才生效**；用户放弃则跳过
 
 5. **自进化：消费 guidance，固化操作习惯到 harness**
-   - 输入: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml guidance list raw` 取得本工作区全部 raw 条目（无 raw 条目则向用户一句话说明并跳过本步）
+   - 输入: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml guidance list pending` 取得本工作区全部 pending 条目（无 pending 条目则向用户一句话说明并跳过本步）
    - 动作: 逐条按 `harness/rule/record-classification.md` 判据评估——筛出**跨工作区可复用的操作习惯/流程修正**（应固化为 workflow/cmd/rule 的内容），一次性过程信息标记为不固化；汇总为候选清单：来源条目 id | 场景与用户引导 | 建议落点（workflow/cmd/rule 及具体文件）| 融合或新建
    - 询问: 向用户展示候选清单，可全部采纳、挑选部分或放弃（**落盘必须经用户确认**，本步不擅自改 harness）
    - 落盘: 采纳项走 `record` 流程——先扫描对应 workflow/cmd/rule，**能融合则融合**，确无合适条目才新建；同时遵守核心约束第 10 条，发现确定性固定步骤一并提议固化为 script
-   - 回写: 落盘完成的条目执行 `sh $root/harness/script/work-status.sh $work/status.yaml guidance <id> distilled <相对 $root 的落点路径...>`（多落点空格分隔，脚本同步写 `status` 与 `落点:` 行，格式见 `harness/template/work-status.yaml`）；放弃或评估为不固化的执行 `sh $root/harness/script/work-status.sh $work/status.yaml guidance <id> dismissed`；用户暂缓决断的保留 `raw`（不阻塞关闭，可日后手动 `evolution`/`record` 处理）
-   - 校验: 回写后执行 `sh $root/harness/script/check-guidance.sh $root <workspace>`（`<workspace>` 为工作区目录名，取 `basename "$work"` 或 status.yaml 的 `work_dir`），确认本工作区 distilled 条目引用的落点文件均存在；报失效时先修复（补回文件或更正落点路径）再继续，不删除来源条目
+   - 回写: 落盘完成的条目执行 `sh $root/harness/script/work-status.sh $work/status.yaml guidance <id> applied <相对 $root 的落点路径...>`（多落点空格分隔，脚本校验落点文件存在后只置 `status: applied`），路径不存在时按报错修复后重试；放弃或评估为不固化的执行 `sh $root/harness/script/work-status.sh $work/status.yaml guidance <id> rejected`；用户暂缓决断的保留 `pending`（不阻塞关闭，可日后手动 `evolution`/`record` 处理）
    - 边界: guidance 只作为候选素材，事实存疑、无法从工作区过程证实的不固化；wiki 类知识已在第 4 步处理，本步只面向 workflow/cmd/rule
 
 6. **移除 worktree 并清理分支**
@@ -95,8 +94,7 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
 - [ ] 其他工作流：`branch-clean.sh` 已执行，SUMMARY 无 failed；blocked 项（未合并主分支/保护分支/占用分支/主干不明）已原样告知用户并保留
 - [ ] `$root/space/<workspace>/` 目录已删除（`work.sh purge` 成功），AGENTS.md 项目信息区块中已无该 work 条目
 - [ ] 记入 `wiki/<project>/` 的内容符合 `harness/rule/record-wiki.md` 的边界、文件分工与来源链，且经人工审阅；工作区级参数未误写项目 wiki，用户放弃时未强行写入
-- [ ] guidance 的 raw 条目已逐条处理：固化项经用户确认落盘并置 distilled（按 `落点: <相对 $root 路径>` 注明），不固化项置 dismissed；未确认落盘的条目保留 raw 且不阻塞关闭
-- [ ] `check-guidance.sh` 校验通过：本工作区 distilled 条目无失效落点
+- [ ] guidance 的 pending 条目已逐条处理：固化项经用户确认落盘并置 applied，不固化项置 rejected；未确认落盘的条目保留 pending 且不阻塞关闭
 - [ ] `deploy` 区块无未回收泳道（deploying/deployed），或用户已确认处理方式
 - [ ] `run/local/` 中需保留的本地文件删除前已提醒用户取走；该目录随工作区一并删除
 - [ ] 版本检查已执行；有新版本时已原样转述提醒与更新内容，并建议执行 `update`

@@ -115,7 +115,7 @@ summary: 学习外部 skill 或仓库的设计，提炼可借鉴点并直接优�
 - [ ] scan-routes 路由表完整、无重名；新增触发词唯一命中；脚本通过 `sh -n` 与最小用例；引用路径全部存在
 - [ ] 变更仅在统一预览并经用户确认后提交；提交信息含来源标识；`.tack/tmp/` 下本次临时克隆目录已清理（回滚备份 `backup/study-<timestamp>/` 保留）
 - [ ] 落盘前已执行 `harness-backup.sh backup`；发生回退时已 `restore` 且 `verify` 通过
-- [ ] 提交后已自动执行一次 evolution，其候选已经用户确认或按 evolution 规则保留 raw
+- [ ] 提交后已自动执行一次 evolution，其候选已经用户确认或按 evolution 规则保留 pending
 
 ## 下一步建议
 
