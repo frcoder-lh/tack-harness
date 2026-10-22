@@ -22,7 +22,7 @@ summary: 提交工作区内各仓库的本地改动；非 git 目录先初始化
    - 动作: 若某仓库目录不是 git 仓库，先执行 `git init`，再继续提交流程
 3. **生成提交说明**
    - 输入: 用户参数优先；未提供参数时结合 `git diff --staged`（暂存前可用 `git diff` / `git status`）实际改动与 status.yaml 中 current.task 对应的任务内容
-   - 动作: 按仓库 Conventional Commits 风格生成提交信息（如 `feat(scope): ...`），生成后直接进入下一步提交，**不暂停等待用户确认**
+   - 动作: 按 `harness/rule/git-standards.md` 的 Commit 信息约定（Conventional Commits，如 `feat(scope): ...`）生成提交信息，生成后直接进入下一步提交，**不暂停等待用户确认**
 4. **逐仓库提交**
    - 动作: 按仓库规范暂存本次改动文件后，执行 `sh $root/harness/script/git-commit-helper.sh commit "$work/repo/<repo-name>" "<提交信息>"`；脚本只提交已暂存内容，不自动 add；不推送远端
    - 结果处理: `COMMIT_RESULT=ok` 取 `COMMIT=` 哈希回报；退出码 3（无已暂存内容）回到暂存步骤；10（冲突）先转 `solve`；11（detached）停止并提示用户介入

@@ -98,7 +98,7 @@
 | `harness/workflow/` | 工作流状态机（development/testing/bugfix/merge-conflict/branch-op） |
 | `harness/script/` | 固定流程脚本（init-tack、space、scan-routes、lint-harness、lint-shell-portability、scan-secrets、check-guidance、harness-diff、harness-backup、run-plan、lint-doc-scripts、common、work-status、project、repo、work、git-facts、git-fetch-helper、git-commit-helper、git-push-helper、git-worktree-helper、git-bug-trace、git-diff-context、branch-op、branch-clean、skill-update、check-update；Windows 统一经 `run.ps1` 启动器调用） |
 | `harness/script/hook/` | TRAE/Claude Code Hooks 可选加速层（SessionStart 预载路由、UserPromptSubmit 零往返路由、PreToolUse 观察层；默认不启用、不拦截，删掉整个目录框架仍完整可用） |
-| `harness/rule/` | 业务、代码与安全规则（coding-standards、security、git-boundary、context-loading、windows-env、record-* 等；不参与路由，按需加载） |
+| `harness/rule/` | 业务、代码与安全规则（coding-standards、git-standards、security、git-boundary、context-loading、windows-env、record-* 等；不参与路由，按需加载） |
 | `harness/template/` | 命令/工作流/文档/工作区模板 |
 | `harness/reference/` | 通用方法论与复杂独立能力（随 harness 分发、不接受项目级沉淀，项目做法归 rule/wiki；须被 cmd/workflow/agents/rule 引用后才加载，不参与路由） |
 | `wiki/<project>/` | 按项目隔离的公共知识：业务背景、代码导航锚点（术语→代码入口、接口→场景）、服务清单与代码外事实、技术决策与工程约定（decisions）、项目级参数（环境网关地址等）；`<project>` 与 `projects[].name` 一致；条目带来源、矛盾保留演变；不记易变代码逻辑（人工可读写，AI 蒸馏内容须人工审阅） |

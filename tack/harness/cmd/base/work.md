@@ -49,6 +49,7 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 
 4. **生成并确认分支名**（澄清意图之后才进行命名）
    - 动作: 依据明确后的目的，生成 3 个英文 kebab-case 分支名候选
+   - 边界: 分支命名遵循 `harness/rule/git-standards.md` 的分支命名约定（`<type>-<username>-<description>`）
    - 输入: 用户选择候选或自行输入；展示最终名称并请用户确认
 
 5. **自动推断需要的服务**
@@ -121,7 +122,7 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 
 ### 重命名工作区
 
-1. 输入新的目的描述；描述宽泛时按「新建工作区」第 2 步先澄清意图，再生成并确认新分支名
+1. 输入新的目的描述；描述宽泛时按「新建工作区」第 2 步先澄清意图，再生成并确认新分支名（命名遵循 `harness/rule/git-standards.md`）
 2. **dry-run 展示完整变更计划**：
    `sh $root/harness/script/work.sh rename $root <old-work-id> <new-work-id> [new-branch] --dry-run`
    计划含目录（保留原创建日期前缀）、work_id、分支、各仓库 worktree 分支、status.yaml、AGENTS.md 工作条目与 branches[]；新 ID/目录/分支冲突由脚本以退出码 4 拦截

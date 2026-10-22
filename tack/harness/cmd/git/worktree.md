@@ -19,6 +19,7 @@ summary: 为当前工作区的指定仓库补建 git worktree
 
 1. **确认目标仓库与分支**
    - 输入: 仓库名参数；分支默认取工作区分支（`$work/status.yaml` 的 `branch`，不带日期前缀）；工作区目录名取 `$work/status.yaml` 的 `work_dir`（即 `basename "$work"`）
+   - 边界: 分支不存在由脚本基于默认分支新建；分支命名与提交信息遵循 `harness/rule/git-standards.md`
 2. **创建 worktree**
    - 动作: 执行 `sh $root/harness/script/git-worktree-helper.sh create $root <work_dir> <branch> <repo-name>`，创建到 `$work/repo/<repo-name>`；分支不存在时自动基于默认分支新建
    - 解析输出: 脚本输出结果行 `BRANCH_CREATED=0|1`（0=分支已存在，1=本次新建分支）
