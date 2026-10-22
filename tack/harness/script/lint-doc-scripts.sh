@@ -43,7 +43,9 @@ if [ -d "${HARNESS_DIR}/cmd" ]; then
 fi
 [ -n "${FILES}" ] || { echo "lint-doc-scripts: 未找到待扫描文档" >&2; exit 1; }
 
-awk -v H="${HARNESS_DIR}" '
+# macOS BSD awk 在 UTF-8 locale 下读长中文行会触发 towc 多字节转换失败；
+# 本脚本的签名解析只依赖 ASCII 语法标记，固定 C locale 按字节处理
+LC_ALL=C awk -v H="${HARNESS_DIR}" '
     function trim(s) { sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); return s }
     function rel(file,   r) { r = file; sub("^" H "/", "", r); return r }
     function warn(file, script, msg) {

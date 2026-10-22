@@ -54,7 +54,9 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 YAML_LIB="$(cat "${SCRIPT_DIR}/yamlib.awk")"
 
-awk -v H="${HARNESS_DIR}" "${YAML_LIB}"'
+# macOS BSD awk 在 UTF-8 locale 下读长中文行会触发 towc 多字节转换失败；
+# 本脚本的结构解析只依赖 ASCII 语法标记，固定 C locale 按字节处理
+LC_ALL=C awk -v H="${HARNESS_DIR}" "${YAML_LIB}"'
 function basename(path,   n, a) { n = split(path, a, "/"); return a[n] }
 function parent(path,   n, a)   { n = split(path, a, "/"); return a[n-1] }
 function grandp(path,   n, a)   { n = split(path, a, "/"); return a[n-2] }
