@@ -13,9 +13,11 @@ English | [简体中文](README.md)
 
 Tack Harness is a programming workflow framework purpose-built for software R&D:
 
+It guides and constrains the AI at every stage of software development: requirement analysis, planning and design, generating technical documents from templates, code development, code commit and merge, and code review with applying review feedback. Beyond that, each stage can be customized, added, or modified as needed, evolving into your own programming workflow.
+
 - Along the time dimension it follows the software engineering lifecycle; along the space dimension it organizes the directory structure around development habits;
 - It wraps Git operations and supports worktrees, allowing multiple agents to develop different requirements in parallel;
-- It standardizes the AI development process, crystallizes shared development logic, centrally shares context, and reduces token consumption.
+- It standardizes the AI development process, crystallizes shared development logic, centrally shares context, improves R&D efficiency, and reduces token consumption.
 
 Both small and large projects can benefit from it.
 
@@ -164,7 +166,8 @@ my-project/
 │   ├── rule/            #   Business, code, and security rules (coding-standards, security, git-boundary dual boundary, context-loading, windows-env, record-* distillation rules; not routed, loaded on demand)
 │   ├── template/        #   Command, workflow, document, and workspace templates
 │   └── reference/       #   General methodology and complex standalone capabilities (shipped with the harness; not accepting project distillation; loaded only when referenced by commands/workflows/roles/rules)
-├── wiki/                # Shared knowledge: business background, code navigation anchors (term→entry point, interface→scenario), service inventory and code-external facts, technical decisions and engineering conventions (materialized on demand by init/record/close; entries carry sources and contradictions keep their evolution; starts empty; volatile code logic is never recorded)
+├── wiki/                # Shared knowledge: per-project wikis (materialized on demand by init/record/close; entries carry sources and contradictions keep their evolution; volatile code logic is never recorded)
+│   └── <project>/       #   Project wiki matching a name in AGENTS.md projects: manifest code-external facts and service inventory / code-understanding code navigation anchors (term→entry point, interface→scenario) / business-understanding business background / decisions technical decisions and engineering conventions / analysis long-lived analysis documents
 ├── space/               # Workspaces: one directory per work (<YYYYMMDD>-<branch name>; the date prefix sorts directories by creation time)
 ├── repo/                # Main code repositories: exactly one copy of each, the read-only baseline
 └── .tack/               # Framework-local runtime data (gitignored, never committed, safe to clean anytime): log logs / backup rollback backups / tmp temp files / state local state

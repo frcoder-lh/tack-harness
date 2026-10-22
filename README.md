@@ -13,9 +13,11 @@
 
 Tack Harness 是一套专为软件研发打造的编程工作流框架：
 
+在软件开发的各个环节对 AI 提供引导和约束：需求分析、规划设计、按模板生成技术文档、代码开发、代码提交与合并、CR 与修正 CR 建议；除此之外，还可以根据需要自定义增加或修改每个环节，进化为属于自己的编程工作流。
+
 - 时间维度上遵循软件工程生命周期流转，空间维度上按照研发习惯组织目录结构；
 - 封装了 Git 操作并支持 worktree，允许多个 agent 并行开发不同需求；
-- 规范化 AI 开发流程，沉淀公共开发逻辑，集中共享上下文，降低 token 消耗。
+- 规范化 AI 开发流程，沉淀公共开发逻辑，集中共享上下文，提高研发效率，降低 token 消耗。
 
 因此，无论是小规模项目，还是大型项目，都能从中受益。
 
@@ -164,7 +166,8 @@ my-project/
 │   ├── rule/            #   业务、代码与安全规则（coding-standards、security、git-boundary 双层边界、context-loading 上下文加载、windows-env、record-* 沉淀规则；不参与路由，按需加载）
 │   ├── template/        #   命令、工作流、文档、工作区模板
 │   └── reference/       #   通用方法论与复杂独立能力（随 harness 分发、不接受项目沉淀；被命令/工作流/角色/规则引用后才加载）
-├── wiki/                # 公共知识：业务背景、代码导航锚点（术语→入口、接口→场景）、服务清单与代码外事实、技术决策与工程约定（init/record/close 按需物化，条目带来源、矛盾保留演变；空目录起步，不记易变代码逻辑）
+├── wiki/                # 公共知识：按项目隔离的项目 wiki（init/record/close 按需物化，条目带来源、矛盾保留演变；不记易变代码逻辑）
+│   └── <project>/       #   项目 wiki，<project> 与 AGENTS.md projects 名称一致：manifest 代码外事实与服务清单 / code-understanding 代码导航锚点（术语→入口、接口→场景）/ business-understanding 业务背景 / decisions 技术决策与工程约定 / analysis 长期保留的分析文档
 ├── space/               # 工作空间：每个工作一个目录（<YYYYMMDD>-<分支名>，日期前缀便于按创建时间排序）
 ├── repo/                # 代码主仓库：只保留一份，只读基准
 └── .tack/               # 框架本地运行时数据（gitignore，不入库、可随时清理）：log 日志 / backup 回滚备份 / tmp 临时文件 / state 本机状态
