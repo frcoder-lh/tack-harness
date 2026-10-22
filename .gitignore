@@ -11,3 +11,7 @@ desktop.ini
 .idea/
 *.swp
 .trae/
+
+# 临时文件
+.tack/
+tmp/
