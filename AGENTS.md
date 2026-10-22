@@ -75,6 +75,14 @@
 - 不 amend、不 reset 历史、不 force push（与 fast-forward 安全模型一致）；commit message 概括任务意图，多行正文用多个 `-m`（PowerShell 宿主不支持 heredoc）
 - 例外：用户明确要求"先不提交/攒着"时遵从；拿不准任务是否已完成（验证未过、等待用户确认）时先问再提
 
+## CI 结果检查（推送/发布后）
+
+push 或 release（含 tag 推送）完成后，必须查询本次提交的 CI 运行结果并处理，不以本地 lint 通过替代远端验证：
+
+- 查询：`gh run list --limit 5` 找到本次提交的 run，`gh run view <run-id> --log-failed` 拉取失败步骤日志；`gh` 未加入 PATH 时用其安装绝对路径，未安装/未登录时用 GitHub Actions 页面或 `curl` 调 `actions/runs`、`jobs`（job 日志接口需认证）
+- 等待：CI 仍为 in_progress 时用 `gh run watch <run-id> --exit-status` 等到结束，不提前下结论
+- 判定与修复：三平台矩阵任一失败即视为任务未完成——按失败日志定位并修复，重新本地验证、提交、推送，直到三平台 CI 全绿再汇报；不得只改工作区不提交，也不得以「预期会通过」结束
+
 ## Windows（PowerShell 宿主）执行要点
 
 通用纪律统一见 [tack/harness/rule/windows-env.md](tack/harness/rule/windows-env.md)（bash 完整路径、禁止内联含 `$`/引号/正则的命令、stderr 噪音识别、LF 换行），此处只保留本仓库特化：
