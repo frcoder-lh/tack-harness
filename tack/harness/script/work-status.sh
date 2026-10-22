@@ -653,18 +653,37 @@ if [ "${SUBCMD}" = deploy ]; then
             print "    url: " esc(URL)
             print "    status: " esc(STATUS)
         }
+        # 条目边界收口：缓冲整条，命中 (repo, env, lane) 复合键时原位替换为新值，
+        # 未命中则原样输出；缓冲让字段顺序不影响匹配
+        function flush_entry(   i, key) {
+            if (!in_entry) return
+            repo = ""; env = ""; lane = ""
+            for (i = 1; i <= nbuf; i++) {
+                key = buf[i]
+                sub(/^[[:space:]]*-[[:space:]]*/, "", key)
+                sub(/^[[:space:]]*/, "", key)
+                sub(/:.*/, "", key)
+                if (key == "repo") repo = vof(buf[i])
+                else if (key == "env") env = vof(buf[i])
+                else if (key == "lane") lane = vof(buf[i])
+            }
+            if (repo == REPO && env == ENV && lane == LANE) { emit_new(); replaced = 1 }
+            else for (i = 1; i <= nbuf; i++) print buf[i]
+            in_entry = 0; nbuf = 0
+        }
         function flush() {
-            if (in_b && !emitted && block_seen) { emit_new(); emitted = 1 }
+            flush_entry()
+            if (in_b && block_seen && !replaced) { emit_new(); replaced = 1 }
             in_b = 0
         }
-        BEGIN { in_b = 0; block_seen = 0; emitted = 0; skip = 0; cur_repo = ""; cur_env = ""; cur_lane = "" }
+        BEGIN { in_b = 0; block_seen = 0; replaced = 0; in_entry = 0; nbuf = 0 }
         /^[A-Za-z_][A-Za-z0-9_]*:/ {
             flush()
             if ($0 ~ /^deploy[[:space:]]*:/) {
                 block_seen = 1
                 if ($0 ~ /\[\][[:space:]]*$/) {
                     print "deploy:"
-                    emit_new(); emitted = 1
+                    emit_new(); replaced = 1
                     in_b = 1; next
                 }
                 in_b = 1; print; next
@@ -674,26 +693,25 @@ if [ "${SUBCMD}" = deploy ]; then
         }
         {
             if (!in_b) { print; next }
-            if ($0 ~ /^[[:space:]]*-[[:space:]]*repo[[:space:]]*:/) {
-                if (skip) skip = 0
-                cur_repo = vof($0); cur_env = ""; cur_lane = ""
-                skip = 0
+            # 注释/空行不并入条目：先收口，避免替换条目时误删注释
+            if ($0 ~ /^[[:space:]]*#/ || $0 ~ /^[[:space:]]*$/) {
+                flush_entry()
                 print; next
             }
-            if ($0 ~ /^[[:space:]]*env[[:space:]]*:/) { if (skip) next; cur_env = vof($0); print; next }
-            if ($0 ~ /^[[:space:]]*lane[[:space:]]*:/) {
-                if (skip) next
-                cur_lane = vof($0)
-                if (cur_repo == REPO && cur_env == ENV && cur_lane == LANE) skip = 1
-                print; next
+            if ($0 ~ /^[[:space:]]*-[[:space:]]*(repo|env|lane|route|build|url|status)[[:space:]]*:/) {
+                flush_entry()
+                in_entry = 1; nbuf = 1; buf[1] = $0
+                next
             }
-            if (skip) next
-            print
+            if (!in_entry) { print; next }
+            nbuf++; buf[nbuf] = $0
         }
         END {
-            flush()
+            flush_entry()
             if (!block_seen) {
                 print "deploy:"
+                emit_new()
+            } else if (in_b && !replaced) {
                 emit_new()
             }
         }
