@@ -21,10 +21,10 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
    - 动作: 若版本一致且无本地差异（见第 3 步），提示"已是最新"并结束
 
 2. **更新本机 skill**（远端有新版本时执行）
-   - 动作: 执行固定流程脚本把本机已安装 skill 更新到最新版本（定位本机 skill 安装目录 → 下载该版本 release 源码 → 完整备份旧目录后整体清空覆盖（SKILL.md/README.md/README.en.md/CHANGELOG.md/CHANGELOG.en.md/install.sh/tack/，旧版残留文件一并清除）→ 校验版本号）：
+   - 动作: 执行固定流程脚本把本机已安装 skill 更新到最新版本（定位本机 skill 安装目录 → 下载该版本 release 源码 → 完整备份旧目录后按 `harness/script/common.sh` 的 `TACK_SKILL_FILES` 分发包清单整体清空覆盖（旧版残留文件一并清除）→ 校验版本号）：
      `sh $root/harness/script/skill-update.sh <skill_update_url> <最新tag> --tack-root $root/.tack`
    - 临时产物边界：下载解压目录落 `$root/.tack/tmp/` 下、脚本结束自动清理；旧版 skill 完整备份落 `$root/.tack/backup/skill-<时间戳>/`（回滚用，保留不自动删除，与第 6 步的 `harness-<时间戳>/` 备份同级）
-   - `--skill-root <path>` 可省略：脚本按 install.sh 的 agent 预设路径自动探测；探测到多个或零个时脚本报错，向用户询问本机 tack skill 安装目录后以 `--skill-root` 重试
+   - `--skill-root <path>` 可省略：脚本按 `harness/script/common.sh` 的 agent 预设路径自动探测；探测到多个或零个时脚本报错，向用户询问本机 tack skill 安装目录后以 `--skill-root` 重试
    - **失败即中止**：下载失败/无网络时提示可手动安装最新 skill 后重试，不继续后续步骤——本机 skill 未更新到最新版时，第 3 步的文件对比会拿到旧版内容
    - 版本一致时跳过本步
 

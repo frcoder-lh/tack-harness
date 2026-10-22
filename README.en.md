@@ -104,6 +104,8 @@ curl -fsSL https://raw.githubusercontent.com/frcoder-lh/tack-harness/master/inst
 > On Windows Git Bash, if curl reports a `CRYPT_E_NO_REVOCATION_CHECK` revocation error (the schannel backend cannot reach the certificate revocation service), add `--ssl-no-revoke`:
 > `curl -fsSL --ssl-no-revoke https://raw.githubusercontent.com/frcoder-lh/tack-harness/master/install.sh | sh -s`
 
+> The default installs the latest GitHub Release: it downloads `tack-harness-<tag>.tar.gz` and enforces SHA-256 verification. To install a development branch, explicitly add `--branch master` (skips checksum verification).
+
 ### Option 3: Clone then install
 
 ```bash
@@ -114,6 +116,7 @@ sh install.sh                              # Interactive install (recommended)
 sh install.sh --agent trae                 # Install for TRAE
 sh install.sh --list                       # List all supported agents
 sh install.sh --agent trae --dry-run       # Preview what would be installed
+sh install.sh --branch master              # Install the master development branch (skips checksum)
 ```
 
 > Windows users should run these commands in the "Git Bash" terminal; or run in PowerShell:
@@ -122,7 +125,7 @@ sh install.sh --agent trae --dry-run       # Preview what would be installed
 
 ### Option 4: Download an archive from Releases
 
-If you cannot use Git clone, or want to pin a specific version, download an archive from the [Releases page](https://github.com/frcoder-lh/tack-harness/releases) (e.g. `tack-harness-V0.0.1.zip`; it contains the repository-root files with no outer directory), unzip it, and run the install script:
+If you cannot use Git clone, or want to pin a specific version, download an archive from the [Releases page](https://github.com/frcoder-lh/tack-harness/releases) (e.g. `tack-harness-V0.0.1.zip` or `tack-harness-V0.0.1.tar.gz`; the zip contains the repository-root files with no outer directory, while the tar.gz has a same-named outer directory), unzip/extract it, and run the install script:
 
 ```bash
 mkdir tack-harness
@@ -156,7 +159,7 @@ my-project/
 │   ├── cmd/             #   Commands: discovery, routing, entry/exit gates
 │   ├── agents/          #   Delegatable roles: parallel execution in isolated contexts (explorer/architect/reviewer)
 │   ├── workflow/        #   Workflows: state machines and command orchestration
-│   ├── script/          #   Fixed-flow scripts (init-tack initialization / scan-routes route scanning / lint-harness structure self-check / lint-shell-portability three-platform portability / scan-secrets credential scanning / check-guidance landing-point verification / work-status state writeback / space auto-commit / project project info / repo repositories / work workspaces / git-worktree-helper / git-fetch-helper remote sync & upstream repair / git-bug-trace defect tracing / git-diff-context three-dot diff export / branch-op branch operations / check-update update checks / skill-update local skill upgrade; on Windows all are invoked via the run.ps1 launcher)
+│   ├── script/          #   Fixed-flow scripts (init-tack initialization / scan-routes route scanning / lint-harness structure self-check / lint-shell-portability three-platform portability / common shared install-upgrade capabilities (agent presets / downloads / versions / checksums) / scan-secrets credential scanning / check-guidance landing-point verification / work-status state writeback / space auto-commit / project project info / repo repositories / work workspaces / git-worktree-helper / git-fetch-helper remote sync & upstream repair / git-bug-trace defect tracing / git-diff-context three-dot diff export / branch-op branch operations / check-update update checks / skill-update local skill upgrade; on Windows all are invoked via the run.ps1 launcher)
 │   │   └── hook/        #   Optional IDE Hook acceleration layer (SessionStart/UserPromptSubmit/PreToolUse; disabled and non-intercepting by default)
 │   ├── rule/            #   Business, code, and security rules (coding-standards, security, git-boundary dual boundary, context-loading, windows-env, record-* distillation rules; not routed, loaded on demand)
 │   ├── template/        #   Command, workflow, document, and workspace templates

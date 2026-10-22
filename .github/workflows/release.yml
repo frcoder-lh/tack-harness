@@ -21,13 +21,20 @@ jobs:
 
       - name: Package
         run: |
+          VERSION="${{ steps.version.outputs.version }}"
           mkdir -p dist
-          zip -r dist/tack-harness-${{ steps.version.outputs.version }}.zip . \
+          zip -r "dist/tack-harness-${VERSION}.zip" . \
             -x '.git/*' \
             -x '.github/*' \
             -x 'dist/*' \
             -x '.gitattributes' \
             -x '.gitignore'
+          # 安装脚本按 releases/download/<tag>/tack-harness-<tag>.tar.gz 下载并核验
+          # 同名 .sha256；包内保留单层 tack-harness-<tag>/ 目录，解压路径与分支归档一致
+          git archive --format=tar.gz \
+            --prefix="tack-harness-${VERSION}/" \
+            -o "dist/tack-harness-${VERSION}.tar.gz" HEAD
+          (cd dist && sha256sum "tack-harness-${VERSION}.tar.gz" > "tack-harness-${VERSION}.tar.gz.sha256")
 
       - name: Extract changelog section
         shell: bash
@@ -60,5 +67,8 @@ jobs:
           name: Tack Harness ${{ steps.version.outputs.version }}
           tag_name: ${{ steps.version.outputs.version }}
           body_path: release-notes.md
-          files: dist/tack-harness-*.zip
+          files: |
+            dist/tack-harness-*.zip
+            dist/tack-harness-*.tar.gz
+            dist/tack-harness-*.tar.gz.sha256
           generate_release_notes: true

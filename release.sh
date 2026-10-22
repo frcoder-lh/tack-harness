@@ -62,6 +62,8 @@ done
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
     echo "错误：当前目录不在 Git 仓库内" >&2; exit 1
 }
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "${SCRIPT_DIR}/tack/harness/script/common.sh"
 cd "${repo_root}"
 
 if [ -n "$(git status --porcelain)" ]; then
@@ -154,7 +156,7 @@ if [ ! -f "${SKILL_FILE}" ]; then
     echo "错误：未找到 ${SKILL_FILE}，无法同步 version 字段" >&2
     exit 1
 fi
-current_version=$(sed -n '2,/^---$/ s/^version:[[:space:]]*"\(.*\)"[[:space:]]*$/\1/p' "${SKILL_FILE}" | head -1)
+current_version=$(tack_skill_version ".")
 if [ -z "${current_version}" ]; then
     echo "错误：${SKILL_FILE} front matter 中未找到 version 字段（应为 version: \"Vx.y.z\" 形式）" >&2
     exit 1

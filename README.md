@@ -104,6 +104,8 @@ curl -fsSL https://raw.githubusercontent.com/frcoder-lh/tack-harness/master/inst
 > Windows Git Bash 下若报 `CRYPT_E_NO_REVOCATION_CHECK` 吊销检查错误（schannel 后端无法访问证书吊销服务），加 `--ssl-no-revoke` 即可：
 > `curl -fsSL --ssl-no-revoke https://raw.githubusercontent.com/frcoder-lh/tack-harness/master/install.sh | sh -s`
 
+> 默认安装最新 GitHub Release：下载 `tack-harness-<tag>.tar.gz` 并强制核验 SHA-256；安装开发版需显式加 `--branch master`（跳过摘要校验）。
+
 ### 方式三：克隆后安装
 
 ```bash
@@ -114,6 +116,7 @@ sh install.sh                              # 交互式安装（推荐）
 sh install.sh --agent trae                 # 安装到 TRAE
 sh install.sh --list                       # 查看支持的所有 agent
 sh install.sh --agent trae --dry-run       # 预览安装内容
+sh install.sh --branch master              # 安装 master 开发版（跳过摘要校验）
 ```
 
 > Windows 用户请在「Git Bash」终端中执行上述命令；或在 PowerShell 中执行：
@@ -122,7 +125,7 @@ sh install.sh --agent trae --dry-run       # 预览安装内容
 
 ### 方式四：从 Releases 下载压缩包
 
-无法使用 Git 克隆，或希望安装某个固定版本时，可从 [Releases 页面](https://github.com/frcoder-lh/tack-harness/releases)下载压缩包（如 `tack-harness-V0.0.1.zip`，包内为仓库根目录文件、无外层目录），解压后执行安装脚本：
+无法使用 Git 克隆，或希望安装某个固定版本时，可从 [Releases 页面](https://github.com/frcoder-lh/tack-harness/releases)下载压缩包（如 `tack-harness-V0.0.1.zip` 或 `tack-harness-V0.0.1.tar.gz`；zip 包内为仓库根目录文件、无外层目录，tar.gz 含同名外层目录），解压后执行安装脚本：
 
 ```bash
 mkdir tack-harness
@@ -156,7 +159,7 @@ my-project/
 │   ├── cmd/             #   命令：发现、路由、准入准出
 │   ├── agents/          #   可委派角色：独立上下文并行执行（explorer/architect/reviewer）
 │   ├── workflow/        #   工作流：状态机与命令编排
-│   ├── script/          #   固定流程脚本（init-tack 初始化 / scan-routes 路由扫描 / lint-harness 结构自检 / lint-shell-portability 三平台可移植性 / scan-secrets 凭据扫描 / check-guidance 落点校验 / work-status 状态回写 / space 空间自动提交 / project 项目信息 / repo 仓库 / work 工作区 / git-worktree-helper / git-fetch-helper 远端同步与上游修复 / git-bug-trace 缺陷溯源 / git-diff-context 三点 diff 导出 / branch-op 分支操作 / check-update 更新检查 / skill-update 本机 skill 升级；Windows 统一经 run.ps1 启动器调用）
+│   ├── script/          #   固定流程脚本（init-tack 初始化 / scan-routes 路由扫描 / lint-harness 结构自检 / lint-shell-portability 三平台可移植性 / common 安装与升级共享能力（agent 预设/下载/版本/摘要校验） / scan-secrets 凭据扫描 / check-guidance 落点校验 / work-status 状态回写 / space 空间自动提交 / project 项目信息 / repo 仓库 / work 工作区 / git-worktree-helper / git-fetch-helper 远端同步与上游修复 / git-bug-trace 缺陷溯源 / git-diff-context 三点 diff 导出 / branch-op 分支操作 / check-update 更新检查 / skill-update 本机 skill 升级；Windows 统一经 run.ps1 启动器调用）
 │   │   └── hook/        #   IDE Hook 可选加速层（SessionStart/UserPromptSubmit/PreToolUse，默认不启用、不拦截）
 │   ├── rule/            #   业务、代码与安全规则（coding-standards、security、git-boundary 双层边界、context-loading 上下文加载、windows-env、record-* 沉淀规则；不参与路由，按需加载）
 │   ├── template/        #   命令、工作流、文档、工作区模板

@@ -20,7 +20,7 @@
 #   非零退出              -> 内部异常，AI 忽略，不向用户报错
 #
 # 版本事实源（依次回退）: AGENTS.md 项目信息区块 skill_version（project.sh 维护）->
-#   本机已安装 skill 的 SKILL.md front matter version（探测逻辑与 skill-update.sh 一致）。
+#   本机已安装 skill 的 SKILL.md front matter version（agent 预设与提取逻辑由 common.sh 统一维护）。
 # 检查目标: <update-url>/releases/latest 的 302 重定向地址尾段（单次 HEAD 请求，
 #   不走 GitHub API、无响应体）。变更说明同时取 <update-url>/raw/master/CHANGELOG.md
 #   与 CHANGELOG.en.md 中「本机版本(不含)→最新版本」区间的全部版本段落，中英双语分别展示
@@ -32,17 +32,14 @@
 
 set -eu
 
-# --ssl-no-revoke 是 Git for Windows（schannel）专有回退，仅 Windows 使用
-IS_WINDOWS=0
-case "$(uname -s 2>/dev/null)" in
-    MINGW*|MSYS*|CYGWIN*) IS_WINDOWS=1 ;;
-esac
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "${SCRIPT_DIR}/common.sh"
 
 CHECK_INTERVAL=604800   # 节流间隔：7 天（秒）
 DEFAULT_UPDATE_URL="https://github.com/frcoder-lh/tack-harness"
 
 usage() {
-    sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 [ $# -eq 1 ] || { usage >&2; exit 1; }
@@ -95,16 +92,20 @@ space_version() {
 # 探测失败（零个/多个安装）返回非零，调用方静默放弃
 local_skill_version() {
     _found=""
-    for _agent in .trae-cn .trae .cursor .windsurf .cline .codeium .aider .devbox; do
-        _dir="${HOME}/${_agent}/skills/tack"
-        [ -f "${_dir}/SKILL.md" ] || continue
+    _dirs="$(tack_find_skill_dirs)"
+    _old_ifs="${IFS}"
+    IFS='
+'
+    for _dir in ${_dirs}; do
         if [ -n "${_found}" ]; then
+            IFS="${_old_ifs}"
             return 1
         fi
         _found="${_dir}"
     done
+    IFS="${_old_ifs}"
     [ -n "${_found}" ] || return 1
-    sed -n '2,/^---$/ s/^version:[[:space:]]*"\(.*\)"[[:space:]]*$/\1/p' "${_found}/SKILL.md" | head -n 1
+    tack_skill_version "${_found}"
 }
 
 # seg_num — 取版本段的前导数字（容错 "9-beta" 类尾巴；非数字段计为 0）
@@ -130,42 +131,6 @@ version_gt() {
     if [ "${_a2}" -gt "${_b2}" ]; then return 0; fi
     if [ "${_a2}" -lt "${_b2}" ]; then return 1; fi
     [ "${_a3}" -gt "${_b3}" ]
-}
-
-# latest_tag — 取 releases/latest 的 302 重定向地址尾段 tag；失败返回非零
-# curl 不带 -L（不跟随重定向），用 -w redirect_url 拿 302 目标；
-# Windows Git Bash schannel 受限网络回退 --ssl-no-revoke；再回退 wget --spider
-latest_tag() {
-    _loc=""
-    if command -v curl >/dev/null 2>&1; then
-        _loc="$(curl -fsSI -o /dev/null -w '%{redirect_url}' "${UPDATE_URL}/releases/latest" 2>/dev/null || true)"
-        if [ -z "${_loc}" ] && [ "${IS_WINDOWS}" -eq 1 ]; then
-            _loc="$(curl -fsSI --ssl-no-revoke -o /dev/null -w '%{redirect_url}' "${UPDATE_URL}/releases/latest" 2>/dev/null || true)"
-        fi
-    fi
-    if [ -z "${_loc}" ] && command -v wget >/dev/null 2>&1; then
-        _loc="$(wget -q --spider --server-response -O /dev/null "${UPDATE_URL}/releases/latest" 2>&1 | sed -n 's/^[[:space:]]*[Ll]ocation:[[:space:]]*//p' | tail -n 1 || true)"
-    fi
-    [ -n "${_loc}" ] || return 1
-    # 地址形如 .../releases/tag/V0.1.0，取最后一段且须为版本 tag
-    _tag=${_loc%%[[:space:]]*}
-    _tag=${_tag##*/}
-    case "${_tag}" in
-        V*|v*) printf '%s' "${_tag}"; return 0 ;;
-        *) return 1 ;;
-    esac
-}
-
-# fetch_url <url> <outfile> — 三下载器回退：curl → curl --ssl-no-revoke（Git Bash
-# schannel 受限网络）→ wget；全部失败返回非零
-fetch_url() {
-    if curl -fsSL "$1" -o "$2" 2>/dev/null; then
-        return 0
-    fi
-    if [ "${IS_WINDOWS}" -eq 1 ] && curl -fsSL --ssl-no-revoke "$1" -o "$2" 2>/dev/null; then
-        return 0
-    fi
-    wget -q -O "$2" "$1" 2>/dev/null
 }
 
 # cl_section <file> <new-tag> <old-tag> — 抽取「## <new-tag>」至「## <old-tag>」（不含）
@@ -203,7 +168,7 @@ if [ -z "${_ver}" ]; then
 fi
 
 # —— 3. 远端最新 tag（失败也记录检查时间，避免断网环境每次会话都重试） ——
-if ! _tag="$(latest_tag)"; then
+if ! _tag="$(tack_latest_release_tag "${UPDATE_URL}")"; then
     write_state last_check "${_now}"
     exit 0
 fi
@@ -227,14 +192,14 @@ case "${_old}" in V*|v*) ;; *) _old="V${_old}" ;; esac
 
 _changes_zh=""
 _tmp_zh="${TMP_DIR}/changelog.zh"
-if fetch_url "${UPDATE_URL%/}/raw/master/CHANGELOG.md" "${_tmp_zh}"; then
+if tack_download_to "${UPDATE_URL%/}/raw/master/CHANGELOG.md" "${_tmp_zh}"; then
     _changes_zh="$(cl_section "${_tmp_zh}" "${_tag}" "${_old}")"
 fi
 rm -f "${_tmp_zh}"
 
 _changes_en=""
 _tmp_en="${TMP_DIR}/changelog.en"
-if fetch_url "${UPDATE_URL%/}/raw/master/CHANGELOG.en.md" "${_tmp_en}"; then
+if tack_download_to "${UPDATE_URL%/}/raw/master/CHANGELOG.en.md" "${_tmp_en}"; then
     _changes_en="$(cl_section "${_tmp_en}" "${_tag}" "${_old}")"
 fi
 rm -f "${_tmp_en}"

@@ -29,7 +29,7 @@
 #
 # 工作区结构（扁平，工作区级文档放 wiki/）：
 #   space/<YYYYMMDD>-<branch>/
-#   ├── status.yaml        # 工作区状态（属性 + 当前任务/进度/下一步），由模板复制 + sed 替换
+#   ├── status.yaml        # 工作区状态（属性 + 当前任务/进度/下一步），由模板复制 + 占位替换
 #   ├── input.md           # 原始需求输入
 #   ├── wiki/              # 工作区级代码理解产物（ask 命令产出，如 <repo>-analysis.md、问答文档）
 #   └── repo/<repo-name>/  # 各仓库的 git worktree（无仓库时为占位目录）
@@ -364,7 +364,7 @@ if [ -z "${PROJECT}" ] || [ -z "${BRANCH}" ]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-# 工作区模板位于 harness/template/（文件复制 + sed 占位替换，不做字符串拼接）
+# 工作区模板位于 harness/template/（文件复制 + 占位替换，不做字符串拼接）
 TEMPLATE_DIR="${SCRIPT_DIR}/../template"
 
 # 项目必须已在 AGENTS.md projects 数组中登记（workspace 的 project 字段与项目 wiki 依据）
@@ -435,15 +435,38 @@ if [ "${WORKTREE_CREATED}" -eq 0 ]; then
     fi
 fi
 
-# 5. status.yaml + input.md（模板复制 + sed 占位替换）
+# 5. status.yaml + input.md（模板复制 + 占位替换）
 CREATED_AT=$(date '+%Y-%m-%d %H:%M:%S')
 if [ -f "${TEMPLATE_DIR}/work-status.yaml" ]; then
     cp "${TEMPLATE_DIR}/work-status.yaml" "${BRANCH_DIR}/status.yaml"
-    # sed 分隔符用 | ：目录名/分支名允许含 /（如 feature/x），用 / 作分隔符会误伤替换值；
-    # 就地改写走临时文件 + mv（兼容 GNU/BSD，不依赖 sed -i）
-    sed "s|{{WORK_DIR}}|${WORK_BASENAME}|g; s|{{PROJECT}}|${PROJECT}|g; s|{{BRANCH}}|${SAFE_BRANCH}|g; s|{{CREATED_AT}}|${CREATED_AT}|g" \
-        "${BRANCH_DIR}/status.yaml" > "${BRANCH_DIR}/status.yaml.tmp" \
-        && mv "${BRANCH_DIR}/status.yaml.tmp" "${BRANCH_DIR}/status.yaml"
+    # 占位替换按字面量拼接（awk index/substr），项目名/分支名含 | & 等 sed 元字符也不会破坏表达式；
+    # 临时文件放 .tack/tmp（gitignore 已排除），失败或中断不会在空间仓库留下半成品
+    mkdir -p ".tack/tmp"
+    STATUS_TMP="$(mktemp ".tack/tmp/work-status.XXXXXX")"
+    trap 'rm -f "${STATUS_TMP}"' EXIT HUP INT TERM
+    awk -v work_dir="${WORK_BASENAME}" -v project="${PROJECT}" -v branch="${SAFE_BRANCH}" -v created_at="${CREATED_AT}" '
+        function rep(s, from, to,    out, i) {
+            out = ""
+            while ((i = index(s, from)) > 0) {
+                out = out substr(s, 1, i - 1) to
+                s = substr(s, i + length(from))
+            }
+            return out s
+        }
+        {
+            line = $0
+            line = rep(line, "{{WORK_DIR}}", work_dir)
+            line = rep(line, "{{PROJECT}}", project)
+            line = rep(line, "{{BRANCH}}", branch)
+            line = rep(line, "{{CREATED_AT}}", created_at)
+            print line
+        }
+    ' "${BRANCH_DIR}/status.yaml" > "${STATUS_TMP}"
+    if grep -q '{{[A-Z_]*}}' "${STATUS_TMP}"; then
+        echo "Error: status.yaml 仍含未替换的模板占位符，请检查模板与入参" >&2
+        exit 1
+    fi
+    mv "${STATUS_TMP}" "${BRANCH_DIR}/status.yaml"
     echo "已创建: status.yaml"
 else
     echo "Warn: 未找到 work-status.yaml，status.yaml 未生成" >&2

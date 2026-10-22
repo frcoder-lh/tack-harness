@@ -60,6 +60,16 @@ if [ ! -f "${AGENTS}" ]; then
     exit 1
 fi
 
+# 临时文件统一落空间运行时目录 .tack/tmp（.gitignore 已排除）：脚本内任意步骤
+# 失败或中断都不会把半成品留在 AGENTS.md 同目录，被空间仓库自动提交带走
+mkdir -p "${ROOT}/.tack/tmp"
+TMP_DIR="$(mktemp -d "${ROOT}/.tack/tmp/project.XXXXXX")"
+cleanup_tmp() { rm -rf "${TMP_DIR}"; }
+trap cleanup_tmp EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+new_tmp() { mktemp "${TMP_DIR}/f.XXXXXX"; }
+
 # --no-commit 可出现在任意动作的参数尾部：复合流程（init-tack、update）
 # 自行统一收尾提交时，抑制本脚本尾部的单次自动提交
 NO_COMMIT=0
@@ -94,7 +104,7 @@ extract_body() {
 # 用临时文件中的新 body 重写区块（区块外内容、标记行本身保持不变）
 rewrite_block() {
     body="$1"
-    tmp="${AGENTS}.tmp"
+    tmp="$(new_tmp)"
     awk -v bodyfile="${body}" -v s="${START_MARK}" -v e="${END_MARK}" '
         index($0, s) == 1 { print; while ((getline line < bodyfile) > 0) print line; inblock=1; next }
         index($0, e) == 1 { inblock=0; print; next }
@@ -141,7 +151,7 @@ cmd_ensure() {
         fi
         require_projects
     fi
-    tmp_body="${AGENTS}.body.$$"
+    tmp_body="$(new_tmp)"
     cat > "${tmp_body}" <<'EOF'
 skill_version: ""
 skill_update_url: "https://github.com/frcoder-lh/tack-harness"
@@ -171,8 +181,8 @@ cmd_project_add() {
     [ "${DESC}" = "--no-commit" ] && DESC=""
     [ -n "${NAME}" ] || { echo "Usage: project.sh project-add <root> <name> [description]" >&2; exit 1; }
     case "${NAME}" in
-        */*|*'\'*|*" "*|.|..)
-            echo "Error: 非法项目名 '${NAME}'（仅接受单层目录名，不得含分隔符或空白）" >&2
+        */*|*'\'*|*" "*|*'|'*|*'&'*|.|..)
+            echo "Error: 非法项目名 '${NAME}'（仅接受单层目录名，不得含分隔符、空白或 sed 元字符 | &）" >&2
             exit 1
             ;;
     esac
@@ -183,9 +193,9 @@ cmd_project_add() {
         exit 1
     fi
 
-    tmp_body="${AGENTS}.body.$$"
+    tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
-    tmp_entry="${AGENTS}.entry.$$"
+    tmp_entry="$(new_tmp)"
     cat > "${tmp_entry}" <<EOF
   - name: "$(esc "${NAME}")"
     keywords: []
@@ -195,7 +205,7 @@ cmd_project_add() {
     service_repo_mapping: []
 EOF
 
-    tmp_new="${AGENTS}.new.$$"
+    tmp_new="$(new_tmp)"
     if grep -qE '^projects:[[:space:]]*\[\][[:space:]]*(#.*)?$' "${tmp_body}"; then
         awk -v entryfile="${tmp_entry}" '
             /^projects:[[:space:]]*\[\][[:space:]]*(#.*)?$/ {
@@ -237,9 +247,9 @@ cmd_project_set() {
     require_projects
     project_exists "${NAME}" || { echo "Error: 项目 '${NAME}' 不存在" >&2; exit 1; }
 
-    tmp_body="${AGENTS}.body.$$"
+    tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
-    tmp_new="${AGENTS}.new.$$"
+    tmp_new="$(new_tmp)"
     awk -v want="$(esc "${NAME}")" -v field="${FIELD}" -v value="$(esc "${VALUE}")" '
         BEGIN { inproj=0; cur=""; done=0 }
         /^projects:/ { inproj=1; print; next }
@@ -306,7 +316,7 @@ cmd_skill_version() {
     fi
     has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
 
-    tmp_body="${AGENTS}.body.$$"
+    tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
 
     if [ "${IF_EMPTY}" -eq 1 ]; then
@@ -328,7 +338,7 @@ cmd_skill_version() {
         fi
     fi
 
-    tmp_new="${AGENTS}.new.$$"
+    tmp_new="$(new_tmp)"
     awk -v ver="$(esc "${NEWVER}")" '
         BEGIN { done=0 }
         /^skill_version:[[:space:]]*/ {
@@ -358,7 +368,7 @@ cmd_work_add() {
     require_projects
     project_exists "${PROJECT}" || { echo "Error: 项目 '${PROJECT}' 不存在，先执行 project.sh project-add" >&2; exit 1; }
 
-    tmp_body="${AGENTS}.body.$$"
+    tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
 
     # 同 work_id 已存在则拒绝（幂等保护）
@@ -379,7 +389,7 @@ cmd_work_add() {
     TRIG_LIST=$(csv_to_yaml "${TRIGGERS}")
     CREATED_AT=$(date '+%Y-%m-%d %H:%M:%S')
 
-    tmp_entry="${AGENTS}.entry.$$"
+    tmp_entry="$(new_tmp)"
     cat > "${tmp_entry}" <<EOF
   - work_id: "$(esc "${ID}")"
     project: "$(esc "${PROJECT}")"
@@ -392,7 +402,7 @@ cmd_work_add() {
     created_at: "${CREATED_AT}"
 EOF
 
-    tmp_new="${AGENTS}.new.$$"
+    tmp_new="$(new_tmp)"
     # 若 work 还是空列表，替换为 work: + 首条；否则插入到区块末尾
     if grep -qE '^work:[[:space:]]*\[\][[:space:]]*(#.*)?$' "${tmp_body}"; then
         awk -v entryfile="${tmp_entry}" '
@@ -421,9 +431,9 @@ cmd_work_set() {
     [ -n "${ID}" ] && [ -n "${STATUS}" ] || { echo "Usage: project.sh work-set <root> <id> <status>" >&2; exit 1; }
     has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
 
-    tmp_body="${AGENTS}.body.$$"
+    tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
-    tmp_new="${AGENTS}.new.$$"
+    tmp_new="$(new_tmp)"
     awk -v want="$(esc "${ID}")" -v st="$(esc "${STATUS}")" '
         BEGIN { inwork=0; cur=""; updated=0 }
         /^work:/ { inwork=1; print; next }
@@ -456,9 +466,9 @@ cmd_work_remove() {
     [ -n "${ID}" ] || { echo "Usage: project.sh work-remove <root> <id>" >&2; exit 1; }
     has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
 
-    tmp_body="${AGENTS}.body.$$"
+    tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
-    tmp_new="${AGENTS}.new.$$"
+    tmp_new="$(new_tmp)"
     awk -v want="$(esc "${ID}")" '
         BEGIN { inwork=0; cur=""; skip=0; removed=0 }
         /^work:/ { inwork=1; print; next }
@@ -492,9 +502,9 @@ cmd_work_path() {
     [ -n "${ID}" ] && [ -n "${WPATH}" ] || { echo "Usage: project.sh work-path <root> <id> <work_path>" >&2; exit 1; }
     has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
 
-    tmp_body="${AGENTS}.body.$$"
+    tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
-    tmp_new="${AGENTS}.new.$$"
+    tmp_new="$(new_tmp)"
     awk -v want="$(esc "${ID}")" -v wp="$(esc "${WPATH}")" '
         BEGIN { inwork=0; cur=""; updated=0 }
         /^work:/ { inwork=1; print; next }
@@ -530,7 +540,7 @@ cmd_work_rename() {
     }
     has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
 
-    tmp_body="${AGENTS}.body.$$"
+    tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
 
     # 新 work_id 已被其他条目占用时拒绝
@@ -546,7 +556,7 @@ cmd_work_rename() {
         rm -f "${tmp_body}"; exit 1
     fi
 
-    tmp_new="${AGENTS}.new.$$"
+    tmp_new="$(new_tmp)"
     awk -v want="$(esc "${ID}")" -v nid="$(esc "${NEWID}")" \
         -v nbr="$(esc "${NEWBR}")" -v nwp="$(esc "${NEWPATH}")" '
         function clean(v) { gsub(/"/,"",v); gsub(/^[[:space:]]+|[[:space:]]+$/,"",v); return v }
@@ -625,9 +635,9 @@ status_summary() {
 cmd_work_reconcile() {
     has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
 
-    tmp_body="${AGENTS}.body.$$"
-    tmp_entries="${AGENTS}.entries.$$"
-    tmp_seen="${AGENTS}.seen.$$"
+    tmp_body="$(new_tmp)"
+    tmp_entries="$(new_tmp)"
+    tmp_seen="$(new_tmp)"
     extract_body "${tmp_body}"
     : > "${tmp_seen}"
 
@@ -719,9 +729,9 @@ cmd_project_keywords() {
     project_exists "${NAME}" || { echo "Error: 项目 '${NAME}' 不存在" >&2; exit 1; }
 
     KW_LIST=$(csv_to_yaml "${KW}")
-    tmp_body="${AGENTS}.body.$$"
+    tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
-    tmp_new="${AGENTS}.new.$$"
+    tmp_new="$(new_tmp)"
     awk -v want="$(esc "${NAME}")" -v list="${KW_LIST}" '
         BEGIN { inproj=0; cur=""; inkw=0; done=0 }
         /^projects:/ { inproj=1; print; next }
@@ -760,9 +770,9 @@ cmd_project_service_repo() {
     require_projects
     project_exists "${NAME}" || { echo "Error: 项目 '${NAME}' 不存在" >&2; exit 1; }
 
-    tmp_body="${AGENTS}.body.$$"
+    tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
-    tmp_new="${AGENTS}.new.$$"
+    tmp_new="$(new_tmp)"
     awk -v want="$(esc "${NAME}")" -v svc="$(esc "${SVC}")" -v rn="$(esc "${RN}")" -v rg="$(esc "${RG}")" -v rp="$(esc "${RP}")" '
         function emit() {
             print "      - service_name: \"" svc "\""
@@ -820,9 +830,9 @@ cmd_work_services() {
     has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
 
     SVC_LIST=$(csv_to_yaml "${SVC}")
-    tmp_body="${AGENTS}.body.$$"
+    tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
-    tmp_new="${AGENTS}.new.$$"
+    tmp_new="$(new_tmp)"
     awk -v want="$(esc "${ID}")" -v list="${SVC_LIST}" '
         BEGIN { inwork=0; cur=""; updated=0 }
         /^work:/ { inwork=1; print; next }
@@ -871,7 +881,7 @@ cmd_work_trigger() {
     [ -n "${ID}" ] && [ -n "${KWS}" ] || { echo "Usage: project.sh work-trigger <root> <id> <kw1,kw2,...>" >&2; exit 1; }
     has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
 
-    tmp_body="${AGENTS}.body.$$"
+    tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
 
     # 提取目标条目的现有 trigger_words 与 branch（用 sed 范围匹配，兼容有无 trigger_words 字段的条目）
@@ -907,7 +917,7 @@ cmd_work_trigger() {
     }')
 
     MERGED_LIST=$(csv_to_yaml "${MERGED}")
-    tmp_new="${AGENTS}.new.$$"
+    tmp_new="$(new_tmp)"
     awk -v want="$(esc "${ID}")" -v list="${MERGED_LIST}" '
         BEGIN { inwork=0; cur=""; inserted=0 }
         /^work:/ { inwork=1; print; next }

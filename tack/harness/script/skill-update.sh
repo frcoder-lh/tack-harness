@@ -2,8 +2,8 @@
 # skill-update.sh — 把本机已安装的 tack skill 更新到指定版本
 #
 # update 命令的固定流程脚本：定位本机 skill 安装目录 → 下载指定版本源码 →
-# 整体覆盖本机 skill 目录（先完整备份旧目录，再清空后复制
-# SKILL.md / README.md / README.en.md / CHANGELOG.md / CHANGELOG.en.md / install.sh / tack/，旧版残留文件一并清除）→ 校验版本号。
+# 整体覆盖本机 skill 目录（先完整备份旧目录，再清空后按 common.sh 的分发包清单
+# TACK_SKILL_FILES 复制，旧版残留文件一并清除）→ 校验版本号。
 # 只有覆盖动作，不做版本对比（对比由 update 命令负责）。
 #
 # Usage:
@@ -22,16 +22,13 @@
 #
 # 退出码: 0 成功；非 0 失败（本机 skill 未被改动，可安全重试）
 #
-# 注意: 下载源码压缩包为 <update-url>/archive/refs/tags/<tag>.tar.gz，
-#       下载兼容性处理与 install.sh 一致（Windows 上 curl 失败回退 --ssl-no-revoke，再回退 wget）。
+# 注意: 下载源码压缩包为 <update-url>/archive/refs/tags/<tag>.tar.gz；
+#       下载回退、版本提取与分发清单统一由同目录 common.sh 提供。
 
 set -eu
 
-# --ssl-no-revoke 是 Git for Windows（schannel）专有回退，仅 Windows 使用
-IS_WINDOWS=0
-case "$(uname -s 2>/dev/null)" in
-    MINGW*|MSYS*|CYGWIN*) IS_WINDOWS=1 ;;
-esac
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "${SCRIPT_DIR}/common.sh"
 
 UPDATE_URL=""
 TAG=""
@@ -39,7 +36,7 @@ SKILL_ROOT_ARG=""
 TACK_ROOT_ARG=""
 
 usage() {
-    sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 while [ $# -gt 0 ]; do
@@ -76,22 +73,17 @@ case "${UPDATE_URL}" in
 esac
 
 # —— 1. 定位本机 skill 安装目录 ——
-# 未指定时按 install.sh 的 agent 预设路径探测（HOME 下 <agent>/skills/tack）
+# 未指定时按 common.sh 的 agent 预设路径探测（HOME 下 <agent>/skills/tack）
 locate_skill_root() {
-    candidates=""
-    for agent_dir in .trae-cn .trae .cursor .windsurf .cline .codeium .aider .devbox; do
-        dir="${HOME}/${agent_dir}/skills/tack"
-        [ -f "${dir}/SKILL.md" ] && candidates="${candidates}${dir}
-"
-    done
+    candidates="$(tack_find_skill_dirs)"
     if [ -z "${candidates}" ]; then
         echo "错误：未在常见 agent 路径探测到 tack skill，请用 --skill-root 指定安装目录（须含 SKILL.md）" >&2
         exit 1
     fi
-    count=$(printf '%s' "${candidates}" | grep -c . )
+    count=$(printf '%s\n' "${candidates}" | grep -c . )
     if [ "${count}" -gt 1 ]; then
         echo "错误：探测到多个 tack skill 安装目录，请用 --skill-root 指定其一:" >&2
-        printf '%s' "${candidates}" >&2
+        printf '%s\n' "${candidates}" >&2
         exit 1
     fi
     printf '%s' "${candidates}"
@@ -107,7 +99,7 @@ else
     SKILL_ROOT="$(locate_skill_root)"
 fi
 
-OLD_VER=$(sed -n '2,/^---$/ s/^version:[[:space:]]*"\(.*\)"[[:space:]]*$/\1/p' "${SKILL_ROOT}/SKILL.md" | head -1)
+OLD_VER=$(tack_skill_version "${SKILL_ROOT}")
 echo ">> 本机 skill: ${SKILL_ROOT}（当前 ${OLD_VER:-未知版本}）"
 
 # —— 2. 下载指定版本源码 ——
@@ -128,20 +120,7 @@ trap 'exit 143' TERM
 
 echo ">> 下载源码: ${ARCHIVE_URL}"
 ARCHIVE="${TMP_SRC}/src.tar.gz"
-DOWNLOAD_OK=0
-if command -v curl >/dev/null 2>&1; then
-    if curl -fsSL "${ARCHIVE_URL}" -o "${ARCHIVE}"; then
-        DOWNLOAD_OK=1
-    elif [ "${IS_WINDOWS}" -eq 1 ] && curl -fsSL --ssl-no-revoke "${ARCHIVE_URL}" -o "${ARCHIVE}"; then
-        # Windows Git Bash 的 schannel 后端在受限网络下需关闭证书吊销检查
-        DOWNLOAD_OK=1
-    fi
-elif command -v wget >/dev/null 2>&1; then
-    if wget -q -O "${ARCHIVE}" "${ARCHIVE_URL}"; then
-        DOWNLOAD_OK=1
-    fi
-fi
-if [ "${DOWNLOAD_OK}" -ne 1 ]; then
+if ! tack_download_to "${ARCHIVE_URL}" "${ARCHIVE}"; then
     echo "错误: 源码下载失败（需要可用的 curl 或 wget）: ${ARCHIVE_URL}" >&2
     echo "提示: 可手动安装最新 skill 后重新执行 update" >&2
     exit 1
@@ -152,7 +131,7 @@ SRC_SKILL="$(find "${TMP_SRC}" -mindepth 2 -maxdepth 2 -name SKILL.md | head -n 
 [ -n "${SRC_SKILL}" ] || { echo "错误: 下载包中未找到 SKILL.md" >&2; exit 1; }
 SRC_ROOT="$(dirname "${SRC_SKILL}")"
 
-SRC_VER=$(sed -n '2,/^---$/ s/^version:[[:space:]]*"\(.*\)"[[:space:]]*$/\1/p' "${SRC_ROOT}/SKILL.md" | head -1)
+SRC_VER=$(tack_skill_version "${SRC_ROOT}")
 if [ "${SRC_VER}" != "${TAG}" ]; then
     echo "错误: 下载包 SKILL.md 版本 (${SRC_VER}) 与目标 tag (${TAG}) 不一致，中止" >&2
     exit 1
@@ -183,14 +162,14 @@ case "${SKILL_ROOT}" in
 esac
 rm -rf "${SKILL_ROOT}"
 mkdir -p "${SKILL_ROOT}"
-for item in SKILL.md README.md README.en.md CHANGELOG.md CHANGELOG.en.md install.sh tack; do
+for item in ${TACK_SKILL_FILES}; do
     if [ -e "${SRC_ROOT}/${item}" ]; then
         cp -R "${SRC_ROOT}/${item}" "${SKILL_ROOT}/${item}"
     fi
 done
 
 # —— 5. 校验 ——
-NEW_VER=$(sed -n '2,/^---$/ s/^version:[[:space:]]*"\(.*\)"[[:space:]]*$/\1/p' "${SKILL_ROOT}/SKILL.md" | head -1)
+NEW_VER=$(tack_skill_version "${SKILL_ROOT}")
 [ "${NEW_VER}" = "${TAG}" ] || { echo "错误: 覆盖后 SKILL.md 版本 (${NEW_VER}) 与目标 (${TAG}) 不一致" >&2; exit 1; }
 
 echo "✅ 本机 skill 已更新: ${OLD_VER:-未知} → ${NEW_VER}"

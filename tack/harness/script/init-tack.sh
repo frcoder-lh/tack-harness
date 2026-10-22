@@ -79,6 +79,7 @@ ROOT="${1:-.}"
 
 # 解析脚本所在目录，定位 tack 骨架根目录（本脚本位于 <tack>/harness/script/ 下）
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "${SCRIPT_DIR}/common.sh"
 TACK_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 if [ ! -d "${TACK_DIR}" ]; then
@@ -135,7 +136,7 @@ sh "${ABS_ROOT}/harness/script/hook/install-hooks.sh" "${ABS_ROOT}" || true
 # --no-commit 抑制单次提交，交由下方首次提交统一入库。
 SKILL_VER=""
 if [ -f "${SKILL_ROOT}/SKILL.md" ]; then
-    SKILL_VER=$(sed -n '2,/^---$/ s/^version:[[:space:]]*"\(.*\)"[[:space:]]*$/\1/p' "${SKILL_ROOT}/SKILL.md" | head -1)
+    SKILL_VER=$(tack_skill_version "${SKILL_ROOT}")
 fi
 if [ -n "${SKILL_VER}" ]; then
     sh "${ABS_ROOT}/harness/script/project.sh" skill-version "${ABS_ROOT}" "${SKILL_VER}" --if-empty --no-commit

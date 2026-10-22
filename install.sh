@@ -11,57 +11,19 @@
 # 交互式安装时，若目标已存在 tack，会询问覆盖方式
 # （全部覆盖 / 全部跳过 / 逐个选择）；非交互环境请用 --force 控制。
 #
-# 支持的 agent 预设：
-#   trae-cn    TRAE 国内版 (~/.trae-cn)
-#   trae       TRAE 国际版 (~/.trae)
-#   cursor     Cursor
-#   windsurf   Windsurf
-#   cline      Cline
-#   codeium    Codeium
-#   aider      Aider
-#   devbox     DevBox
-#   claude     Claude Code (~/Library/Application Support/...)
+# 默认安装最新 GitHub Release：下载 tar.gz 并强制核验 SHA-256；
+# --branch <name> 安装指定分支源码（开发版，仅锁定分支、不做摘要校验）。
+# 支持的 agent 预设与分发包清单由 tack/harness/script/common.sh 统一维护，
+# 安装、升级、版本检查三条链路共用同一份事实源。
 
 set -e
 
-# --ssl-no-revoke 是 Git for Windows（schannel）专有回退，仅 Windows 使用
-IS_WINDOWS=0
-case "$(uname -s 2>/dev/null)" in
-    MINGW*|MSYS*|CYGWIN*) IS_WINDOWS=1 ;;
-esac
-
-SKILL_NAME="tack"
-SKILL_FILES="SKILL.md README.md README.en.md CHANGELOG.md CHANGELOG.en.md install.sh tack"
-
-# 管道安装（curl | sh）时下载源码压缩包的地址
-REPO_ARCHIVE_URL="https://github.com/frcoder-lh/tack-harness/archive/refs/heads/master.tar.gz"
-
-# —— 预设 agent 目录 ——
-# 格式: "agent_name|检测目录|skill 安装目录"
-# 检测目录存在即视为该 agent 已安装
-AGENTS=""
-AGENTS="${AGENTS}
-trae-cn|${HOME}/.trae-cn|${HOME}/.trae-cn/skills/${SKILL_NAME}"
-AGENTS="${AGENTS}
-trae|${HOME}/.trae|${HOME}/.trae/skills/${SKILL_NAME}"
-AGENTS="${AGENTS}
-cursor|${HOME}/.cursor|${HOME}/.cursor/skills/${SKILL_NAME}"
-AGENTS="${AGENTS}
-windsurf|${HOME}/.windsurf|${HOME}/.windsurf/skills/${SKILL_NAME}"
-AGENTS="${AGENTS}
-cline|${HOME}/.cline|${HOME}/.cline/skills/${SKILL_NAME}"
-AGENTS="${AGENTS}
-codeium|${HOME}/.codeium|${HOME}/.codeium/skills/${SKILL_NAME}"
-AGENTS="${AGENTS}
-aider|${HOME}/.aider|${HOME}/.aider/skills/${SKILL_NAME}"
-AGENTS="${AGENTS}
-devbox|${HOME}/.devbox|${HOME}/.devbox/skills/${SKILL_NAME}"
-AGENTS="${AGENTS}
-claude|${HOME}/Library/Application Support/Code/User/globalStorage|${HOME}/Library/Application Support/Code/User/globalStorage/skills/${SKILL_NAME}"
+UPDATE_URL="https://github.com/frcoder-lh/tack-harness"
 
 # —— 解析参数 ——
 AGENT=""
 TARGET=""
+BRANCH_ARG=""
 DRY_RUN=0
 DO_LIST=0
 FORCE=0
@@ -72,15 +34,17 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --agent)   AGENT="$2"; shift 2 ;;
         --target)  TARGET="$2"; shift 2 ;;
+        --branch)  BRANCH_ARG="$2"; shift 2 ;;
         --list)    DO_LIST=1; shift ;;
         --dry-run) DRY_RUN=1; shift ;;
         --force)   FORCE=1; shift ;;
         --help|-h)
-            echo "Usage: sh install.sh [--agent <name> | --target <path>] [--dry-run] [--force] [--list]"
+            echo "Usage: sh install.sh [--agent <name> | --target <path>] [--branch <name>] [--dry-run] [--force] [--list]"
             echo ""
             echo "  （无参数）       自动检测已安装的 agent，交互选择安装目标"
             echo "  --agent <name>   安装到预设 agent（多个用逗号分隔，如 trae,cursor）"
             echo "  --target <path>  安装到自定义目录"
+            echo "  --branch <name>  安装指定分支源码（开发版，不做摘要校验；默认安装最新 Release）"
             echo "  --list           列出所有支持的 agent"
             echo "  --dry-run        预览，不实际复制"
             echo "  --force          覆盖已存在的文件（交互模式下不指定则会询问）"
@@ -90,10 +54,73 @@ while [ $# -gt 0 ]; do
             echo "  sh install.sh --agent trae"
             echo "  sh install.sh --agent cursor,trae --dry-run"
             echo "  sh install.sh --target ~/my-custom-agent/skills/tack"
+            echo "  sh install.sh --branch master"
             exit 0 ;;
         *) echo "未知参数: $1 (使用 --help 查看帮助)"; exit 1 ;;
     esac
 done
+
+# —— 定位源码并加载 common.sh ——
+# 本地仓库直接加载；curl | sh 时先取回 common.sh，再按版本下载完整源码
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+TMP_SRC=""
+
+cleanup_tmp() {
+    if [ -n "${TMP_SRC}" ] && [ -d "${TMP_SRC}" ]; then
+        rm -rf "${TMP_SRC}"
+    fi
+}
+trap cleanup_tmp EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+# 引导下载：仅在加载 common.sh 之前使用一次；此后一律复用 common.sh 的下载与校验能力
+bootstrap_fetch() {
+    _bootstrap_url="$1"
+    _bootstrap_out="$2"
+    if command -v curl >/dev/null 2>&1; then
+        if curl -fsSL "${_bootstrap_url}" -o "${_bootstrap_out}" 2>/dev/null; then
+            return 0
+        fi
+        # Windows Git Bash 的 schannel 后端在受限网络下需关闭证书吊销检查
+        case "$(uname -s 2>/dev/null)" in
+            MINGW*|MSYS*|CYGWIN*)
+                if curl -fsSL --ssl-no-revoke "${_bootstrap_url}" -o "${_bootstrap_out}" 2>/dev/null; then
+                    return 0
+                fi
+                ;;
+        esac
+    fi
+    if command -v wget >/dev/null 2>&1; then
+        if wget -q -O "${_bootstrap_out}" "${_bootstrap_url}" 2>/dev/null; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+LOCAL_SOURCE=0
+if [ -f "${SCRIPT_DIR}/SKILL.md" ] && [ -f "${SCRIPT_DIR}/tack/harness/script/common.sh" ]; then
+    LOCAL_SOURCE=1
+fi
+
+if [ "${LOCAL_SOURCE}" -eq 1 ]; then
+    . "${SCRIPT_DIR}/tack/harness/script/common.sh"
+else
+    # 开发版按所选分支取 common.sh；默认取 master（一键安装脚本自身即来自 master）
+    COMMON_REF="${BRANCH_ARG:-master}"
+    TMP_SRC="$(mktemp -d "${TMPDIR:-/tmp}/tack-install.XXXXXX")"
+    COMMON_FILE="${TMP_SRC}/common.sh"
+    echo "==> 正在获取安装器公共能力（${COMMON_REF}）..."
+    if ! bootstrap_fetch "${UPDATE_URL}/raw/${COMMON_REF}/tack/harness/script/common.sh" "${COMMON_FILE}"; then
+        echo "错误: 无法获取 tack/harness/script/common.sh（需要可用的 curl 或 wget）"
+        exit 1
+    fi
+    . "${COMMON_FILE}"
+fi
+
+SKILL_FILES="${TACK_SKILL_FILES}"
+AGENTS="$(tack_agent_presets)"
 
 # —— 列出支持的 agent ——
 if [ "${DO_LIST}" -eq 1 ]; then
@@ -120,52 +147,59 @@ if [ "${DO_LIST}" -eq 1 ]; then
     exit 0
 fi
 
-# —— 解析脚本所在目录（管道安装时自动下载源码） ——
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-TMP_SRC=""
-
-cleanup_tmp() {
-    if [ -n "${TMP_SRC}" ] && [ -d "${TMP_SRC}" ]; then
-        rm -rf "${TMP_SRC}"
+# —— 管道安装：下载源码 ——
+if [ "${LOCAL_SOURCE}" -ne 1 ]; then
+    if [ -n "${BRANCH_ARG}" ]; then
+        ARCHIVE_URL="${UPDATE_URL}/archive/refs/heads/${BRANCH_ARG}.tar.gz"
+        echo "==> 安装开发版分支 ${BRANCH_ARG}（不做摘要校验）"
+    else
+        if ! RELEASE_TAG="$(tack_latest_release_tag "${UPDATE_URL}")"; then
+            echo "错误: 无法解析最新 Release 版本；如需安装开发版，请用 --branch <分支名>"
+            exit 1
+        fi
+        ARCHIVE_URL="${UPDATE_URL}/releases/download/${RELEASE_TAG}/tack-harness-${RELEASE_TAG}.tar.gz"
+        CHECKSUM_URL="${ARCHIVE_URL}.sha256"
+        echo "==> 安装最新 Release ${RELEASE_TAG}"
     fi
-}
-trap cleanup_tmp EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
 
-if [ ! -f "${SCRIPT_DIR}/SKILL.md" ]; then
-    # 经 curl | sh 等方式运行时脚本脱离仓库，本地没有源码，自动下载压缩包到临时目录
-    echo "==> 未检测到本地源码，正在下载 tack-harness ..."
-    TMP_SRC="$(mktemp -d "${TMPDIR:-/tmp}/tack-install.XXXXXX")"
     ARCHIVE="${TMP_SRC}/src.tar.gz"
-    DOWNLOAD_OK=0
-    if command -v curl >/dev/null 2>&1; then
-        if curl -fsSL "${REPO_ARCHIVE_URL}" -o "${ARCHIVE}"; then
-            DOWNLOAD_OK=1
-        elif [ "${IS_WINDOWS}" -eq 1 ] && curl -fsSL --ssl-no-revoke "${REPO_ARCHIVE_URL}" -o "${ARCHIVE}"; then
-            # Windows Git Bash 的 schannel 后端在受限网络下需关闭证书吊销检查
-            DOWNLOAD_OK=1
-        fi
-    elif command -v wget >/dev/null 2>&1; then
-        if wget -q -O "${ARCHIVE}" "${REPO_ARCHIVE_URL}"; then
-            DOWNLOAD_OK=1
-        fi
-    fi
-    if [ "${DOWNLOAD_OK}" -ne 1 ]; then
-        echo "错误: 源码下载失败（需要可用的 curl 或 wget）: ${REPO_ARCHIVE_URL}"
+    echo "==> 正在下载源码: ${ARCHIVE_URL}"
+    if ! tack_download_to "${ARCHIVE_URL}" "${ARCHIVE}"; then
+        echo "错误: 源码下载失败（需要可用的 curl 或 wget）: ${ARCHIVE_URL}"
         exit 1
     fi
+
+    if [ -z "${BRANCH_ARG}" ]; then
+        CHECKSUM_FILE="${TMP_SRC}/src.tar.gz.sha256"
+        if ! tack_download_to "${CHECKSUM_URL}" "${CHECKSUM_FILE}"; then
+            echo "错误: 校验文件下载失败: ${CHECKSUM_URL}"
+            exit 1
+        fi
+        if ! tack_verify_sha256 "${ARCHIVE}" "${CHECKSUM_FILE}"; then
+            echo "错误: 源码 SHA-256 校验失败，安装中止"
+            exit 1
+        fi
+        echo "    SHA-256 校验通过"
+    fi
+
     if ! tar -xzf "${ARCHIVE}" -C "${TMP_SRC}"; then
         echo "错误: 源码压缩包解压失败"
         exit 1
     fi
-    # GitHub 压缩包解压后为 <repo>-<branch>/ 单层目录
+    # 压缩包解压后为 <repo>-<ref>/ 单层目录
     SRC_SKILL="$(find "${TMP_SRC}" -mindepth 2 -maxdepth 2 -name SKILL.md | head -n 1)"
     if [ -z "${SRC_SKILL}" ]; then
         echo "错误: 下载包中未找到 SKILL.md"
         exit 1
     fi
     SCRIPT_DIR="$(dirname "${SRC_SKILL}")"
+
+    # 以安装版本自带的 common.sh 为准刷新预设与清单（引导阶段仅保证脚本可运行）
+    if [ -f "${SCRIPT_DIR}/tack/harness/script/common.sh" ]; then
+        . "${SCRIPT_DIR}/tack/harness/script/common.sh"
+        SKILL_FILES="${TACK_SKILL_FILES}"
+        AGENTS="$(tack_agent_presets)"
+    fi
     echo "    源码已下载至临时目录，安装结束后自动清理"
     echo ""
 fi

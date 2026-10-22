@@ -17,11 +17,25 @@ if [ -z "${ACTION}" ] || [ -z "${ROOT}" ]; then
     exit 1
 fi
 
-# 解析仓库名：路径末段，去掉 .git
+# 解析仓库名：路径末段，去掉尾部斜杠与 .git
 get_repo_name() {
-    name="${1##*/}"
+    name="$1"
+    while [ "${name}" != "${name%/}" ]; do
+        name="${name%/}"
+    done
+    name="${name##*/}"
     name="${name%.git}"
     echo "${name}"
+}
+
+# 仓库名必须是单层目录名；空名、.、.. 会把目标退化为 <root>/repo，直接拒绝
+require_repo_name() {
+    case "$1" in
+        ''|.|..)
+            echo "Error: 无法解析有效仓库名: $2" >&2
+            exit 1
+            ;;
+    esac
 }
 
 # link_dir <src> <target> — 目录链接：Windows 用 junction（Git Bash 的 ln -s
@@ -62,6 +76,7 @@ case "${ACTION}" in
             [ -d "${src}" ] || { echo "跳过（目录不存在）: ${src}"; continue; }
             abs="$(cd "${src}" && pwd)"
             name=$(get_repo_name "${abs}")
+            require_repo_name "${name}" "${src}"
             target="${ROOT}/repo/${name}"
             if [ -e "${target}" ]; then
                 echo "已存在，跳过: repo/${name}"
@@ -93,7 +108,12 @@ case "${ACTION}" in
             [ "${repo}" = "-force" ] || [ "${repo}" = "--force" ] && continue
 
             repo_name=$(get_repo_name "${repo}")
+            require_repo_name "${repo_name}" "${repo}"
             target_dir="${ROOT}/repo/${repo_name}"
+            if [ "${target_dir}" = "${ROOT}/repo" ]; then
+                echo "Error: 目标目录不能是 ${ROOT}/repo" >&2
+                exit 1
+            fi
 
             if [ -d "${target_dir}" ]; then
                 if [ "${FORCE}" -eq 1 ]; then
