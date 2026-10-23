@@ -7,11 +7,12 @@
 #   sh harness-diff.sh <incoming-harness> <local-harness> --profile update
 #
 # 输出（TAB 分隔，按路径排序）:
-#   ADDED      incoming 有、local 无
-#   CHANGED    两者都有且内容不同
+#   ADDED      incoming 有、local 无（含新增的 rule/ 文件）
+#   CHANGED    两者都有且内容不同（rule/ 下文件同样分类，由 update 逐文件交用户裁决）
 #   SAME       两者都有且内容一致
 #   LOCAL_ONLY local 有、incoming 无
-#   PROTECTED  profile=update 下 rule/ 内的文件（永不自动覆盖）
+#
+# 说明: 本脚本只分类、不做任何覆盖决策；rule/ 下的文件不特殊跳过，必须由 update 列入候选并经用户选择。
 #
 # 退出码: 0 分类完成；1 目录无效或读取失败；2 用法错误
 
@@ -44,16 +45,9 @@ trap 'rm -f "${TMP_A}" "${TMP_B}" "${TMP_ALL}"' EXIT HUP INT TERM
 ( cd "${LOCAL}" && find . -type f -print ) | sed 's|^\./||' | sort > "${TMP_B}"
 sort -u "${TMP_A}" "${TMP_B}" > "${TMP_ALL}"
 
-n_added=0; n_changed=0; n_same=0; n_local=0; n_protected=0
+n_added=0; n_changed=0; n_same=0; n_local=0
 while IFS= read -r rel; do
     [ -n "${rel}" ] || continue
-    case "${rel}" in
-        rule/*)
-            printf 'PROTECTED\t%s\n' "${rel}"
-            n_protected=$((n_protected + 1))
-            continue
-            ;;
-    esac
     if [ -f "${INCOMING}/${rel}" ] && [ -f "${LOCAL}/${rel}" ]; then
         if cmp -s "${INCOMING}/${rel}" "${LOCAL}/${rel}"; then
             printf 'SAME\t%s\n' "${rel}"
@@ -71,5 +65,5 @@ while IFS= read -r rel; do
     fi
 done < "${TMP_ALL}"
 
-echo "harness-diff: added=${n_added} changed=${n_changed} same=${n_same} local_only=${n_local} protected=${n_protected}" >&2
+echo "harness-diff: added=${n_added} changed=${n_changed} same=${n_same} local_only=${n_local}" >&2
 exit 0
