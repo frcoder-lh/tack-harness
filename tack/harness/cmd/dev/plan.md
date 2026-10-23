@@ -3,20 +3,22 @@ command: plan
 short: p
 triggers: 详细设计, 开发计划, 任务拆解, plan, detailed design, development plan, task breakdown
 params: 无
-summary: 读 spec、input、wiki（root/work）与代码事实，产出 plan.md——复杂任务先做多方案对比与用户选定，再做低耦合模块划分、依赖关系与任务清单，任务同步写入 status.yaml 的 tasks
+summary: 读 spec、input、wiki（root/work）与代码事实，产出详细设计与施工图 plan.md——复杂任务先做多方案对比与用户选定，再落到代码/接口/SQL 细节、上线流程、模块划分与任务依赖，任务同步写入 status.yaml 的 tasks
 ---
 
-# plan 开发计划（详细设计 + 任务拆解）
+# plan 开发计划（详细设计 + 施工图）
 
-> development 工作流 planning 环节：把已确认的 spec 落成「先做什么、再做什么、每环节怎么编码」，并拆解为模块与任务。
+> development 工作流 planning 环节：把已确认的 spec 落成「怎么实施、先做什么、每步怎么验证」，具体到代码、接口、SQL 等可直接施工的细节。
 > 细节集中在 plan.md；任务状态流转记在 status.yaml 的 `tasks` 列表。
-> **关键目标**：所有需要用户决断的问题必须在本环节解决，让后续 code 阶段尽量不打扰用户。
+> 对应技术方案中的详细设计与上线流程；别人拿到本文件可直接落实到代码。
+> **关键目标**：所有需要用户决断的技术问题必须在本环节解决，让后续 code 阶段尽量不打扰用户。
 
 ## 前置准入条件
 
 - 已确定当前工作区 `$work`
-- `$work/spec.md` 存在且已经用户确认（`progress.spec: true`）
+- `$work/spec.md` 存在且已经用户确认（`progress.spec: true`），其中产品/测试相关决策已全部关闭
 - 执行前重新读取 `$work/status.yaml` 与 spec.md，尊重本地最新内容
+- spec 之外的业务决策不在本环节自行决定：发现缺失时走 `fix` 回到 spec 补充
 
 ## 输入源与加载
 
@@ -38,11 +40,12 @@ summary: 读 spec、input、wiki（root/work）与代码事实，产出 plan.md�
      - 需求理解（关键约束与假设）
      - 开发环节与顺序（环节、仓库/模块、依赖、产出）
      - 业务整体逻辑（流程、状态、规则分支）
-     - 数据层：实体对象、配置项（如 TCC/配置中心/特性开关）、数据变更
+     - 数据层：实体对象、配置项（如 TCC/配置中心/特性开关）、数据变更与 SQL（DDL/DML、迁移/刷数脚本、执行顺序与回滚语句）
      - 逻辑层：领域服务、关键算法、事务一致性、异常分支
-     - 接口层：接口/方法、入参出参、上下游调用
+     - 接口层：接口/方法签名、入参出参、错误码、上下游调用、幂等与鉴权
      - 逐环节编码落地：改动文件范围、实现要点、自测方式、风险与回滚
      - 测试策略提要
+   - 纪律: 施工图粒度——文件路径、接口签名、SQL 语句、配置键、执行顺序与验证方式齐备，别人拿到即可直接编码
 
 4. **方案对比与选定（复杂任务门禁）**
    - 复杂度判定:
@@ -68,7 +71,7 @@ summary: 读 spec、input、wiki（root/work）与代码事实，产出 plan.md�
 
 6. **逐级拆解任务**
    - 动作: 按「模块 → 特性 → 任务」拆到可独立开发、可独立验证的粒度；按 `$root/harness/template/plan.md` 的「任务清单」章节在 plan.md 末尾成稿（拆解方法按需参考 `reference/to-tickets.md`）
-   - 每个任务标注：ID（建议按模块分组，如 `A-01`）、标题、所属模块/仓库、**依赖任务（deps）**、验收标准、是否可与其他任务并行
+   - 每个任务标注：ID（建议按模块分组，如 `A-01`）、标题、所属模块/仓库、**依赖任务（deps）**、验收标准、**验证方式（自测命令/测试用例/人工步骤）**、是否可与其他任务并行
    - 无依赖的任务可并行；同模块内任务通常串行
 
 7. **决策点前置（必须在本环节关闭）**
@@ -77,17 +80,21 @@ summary: 读 spec、input、wiki（root/work）与代码事实，产出 plan.md�
    - 约定：code 阶段若再遇本清单外的多方案选择，AI 自动按工程最优解实现并在提交说明中记录，不中断开发
    - 分工: 架构级路线已在第 4 步关闭，本步骤只收实现级局部选择，不重复方案对比
 
-8. **同步任务清单到 status.yaml**
+8. **设计上线流程**
+   - 动作: 在 plan.md「上线流程」小节输出可执行步骤——发布顺序（服务/仓库/依赖）、数据库变更执行顺序与兼容窗口、配置项上线顺序、灰度/分批与开关策略、回滚步骤与判定、上线前检查项
+   - 边界: 上线前检查项的逐项核对由 `release-check` 按需承接；本环节只给流程、顺序与回滚方案
+
+9. **同步任务清单到 status.yaml**
    - 动作: 将任务清单写成规范化 TSV（Tab 分隔，列：`id` / `title` / `module` / `repo` / `deps-csv` / `status`，deps 用逗号分隔），先 `mkdir -p $root/.tack/tmp` 再落 `$root/.tack/tmp/tasks.tsv`；执行
      `sh $root/harness/script/work-status.sh $work/status.yaml tasks replace $root/.tack/tmp/tasks.tsv`
    - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks validate`；退出码 4 时按 `ERROR<TAB>code<TAB>id<TAB>detail` 修复 TSV 后重试，不得绕过
-   - 说明: 脚本按 id 保留已有 `acceptance` 字段，任务级状态不再手工编辑 YAML
+   - 说明: 脚本按 id 保留已有 `acceptance` 字段，任务级状态不再手工编辑 YAML；验证方式保留在 plan.md 任务条目中
 
-9. **澄清与确认（人类审阅关口）**
-   - 动作: 与用户逐条确认**第 4 步选定的实现方案**、技术取舍、模块边界、任务粒度与第 7 步的待决策项；用户确认前不进入 code
+10. **澄清与确认（人类审阅关口）**
+   - 动作: 与用户逐条确认**第 4 步选定的实现方案**、技术取舍、模块边界、任务粒度、上线流程与第 7 步的待决策项；用户确认前不进入 code
 
-10. **回写完成状态**
-   - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml set progress.plan true next "执行 tech-design（或直接 code）"`
+11. **回写完成状态**
+   - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml set progress.plan true next "执行 code 开始逐任务开发（需要正式评审时先执行 tech-design）"`
 
 ## 框架自动提交（无需用户操作）
 
@@ -96,15 +103,17 @@ summary: 读 spec、input、wiki（root/work）与代码事实，产出 plan.md�
 
 ## 后置完成检验
 
-- [ ] plan.md 覆盖业务逻辑、数据层、逻辑层、接口层、逐环节编码落地
+- [ ] plan.md 覆盖业务逻辑、数据层（含 SQL 与迁移）、逻辑层、接口层、上线流程、逐环节编码落地
+- [ ] 施工图粒度达标：文件路径、接口签名、SQL 语句、配置键、执行顺序与验证方式齐备
 - [ ] 方案门禁已履行：复杂任务有 ≥2 个方案、对比表与明确推荐，且用户已选定；简单任务已记录跳过理由与最终方案
 - [ ] 模块划分低耦合、边界清晰，依赖关系无环
-- [ ] 每个任务有明确交付物、deps 与验收标准
+- [ ] 每个任务有明确交付物、deps、验收标准与验证方式
 - [ ] status.yaml 的 `tasks` 与 plan.md 任务清单一致（经 `tasks replace` 写入且 `tasks validate` 通过），初始均为 pending
 - [ ] 「决策记录」中需用户决断的事项已全部关闭
+- [ ] 上线流程包含发布顺序、数据与配置上线顺序、灰度策略与回滚步骤
 - [ ] 已标注可复用资产；用户已审阅确认；未修改代码文件
 - [ ] status.yaml 已同步（progress.plan=true）
 
 ## 下一步建议
 
-- 执行 `tech-design` 产出技术评审文档（跳过需用户明确确认），然后 `code`
+- 需要正式评审时执行 `tech-design` 生成评审文档，否则直接执行 `code`

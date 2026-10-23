@@ -28,13 +28,13 @@ summary: 自动执行当前工作流剩余环节直到终态——开始前一�
 
      | 工作流 | 剩余链路（从当前环节起） | 默认终态 |
      |--------|--------------------------|----------|
-     | development | spec → plan → tech-design → code → commit → push → merge（push 遇 non-fast-forward 转 fetch/solve；merge 自带 fetch 与冲突处理） | merged |
+     | development | spec → plan →（需要正式评审时）tech-design → code → commit → push → merge（push 遇 non-fast-forward 转 fetch/solve；merge 自带 fetch 与冲突处理） | merged |
      | testing | testcode → test → run（按需）→ commit → push | completed |
      | bugfix | 复现 → 诊断/缺陷溯源 → code → 验证 → commit → push →（按需 merge） | completed |
      | merge-conflict | fetch → merge → solve（冲突时）→ 验证 → push | completed |
      | branch-op | prepare → integrate → solve（冲突时）→ push | completed |
 
-   - 用户参数或后续确认可调整链路（如「跳过 tech-design」「带上 testcode」「到 merge 为止」「一并 close」），以调整后的链路为准
+   - 用户参数或后续确认可调整链路（如「带上 tech-design」「带上 testcode」「到 merge 为止」「一并 close」），以调整后的链路为准
    - 断点续跑: 上次 auto 中断时，从 `current.next` 与未完成环节继续，不重复已完成环节
 
 2. **一次性补齐后续流程缺失的信息**
@@ -43,7 +43,7 @@ summary: 自动执行当前工作流剩余环节直到终态——开始前一�
 
      | 工作流 | 必问项（事实缺失时） |
      |--------|----------------------|
-     | development | 原始需求与验收标准（input.md 为空或含糊）；涉及仓库是否就绪、缺失时是否新建；远端关联与 push 权限；源分支引用（本地/远端，仅两侧内容不同时必须确认）；目标分支无法自动判定时的取值；保护分支是否走平台 MR 及由谁合并；是否执行 tech-design（默认执行）；按需命令是否纳入（testcode / test / run / code-review / release-check，默认不纳入）；是否一并 close（默认不）；是否需要 deploy 登记 |
+     | development | 原始需求与验收标准（input.md 为空或含糊）；涉及仓库是否就绪、缺失时是否新建；远端关联与 push 权限；源分支引用（本地/远端，仅两侧内容不同时必须确认）；目标分支无法自动判定时的取值；保护分支是否走平台 MR 及由谁合并；是否需要正式评审（决定是否执行 tech-design，默认不执行）；按需命令是否纳入（testcode / test / run / code-review / release-check，默认不纳入）；是否一并 close（默认不）；是否需要 deploy 登记 |
      | testing | 测试范围或任务 ID；覆盖率门槛（默认 90%）；测试环境与凭据；是否需要系统测试与脚本执行；提交、推送与是否合并 |
      | bugfix | 现象、期望与实际；复现环境与步骤；日志/账号等必需输入；根因判定与修复授权（按证据确认后直接修复）；是否补回归测试；是否 merge |
      | merge-conflict | 源分支、目标分支与本地/远端引用；冲突取舍原则（业务优先级、保留哪侧）；验证命令；是否推送 |
