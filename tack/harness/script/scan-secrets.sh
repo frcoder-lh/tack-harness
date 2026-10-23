@@ -21,6 +21,8 @@
 #     --changed 覆盖新增/修改的 cmd、workflow、rule、reference、run/*.sh、
 #     .ps1/.py 等入库脚本与其他文本变更文件；忽略 run/local/、.tack/、
 #     repo/ 与 space/*/repo/（以及 Git 已忽略路径）
+#     Git 状态记录按 NUL 分隔读取，文件名含中文、空格、引号时不会丢路径；
+#     rename 只取新的目标路径
 # Windows: powershell -ExecutionPolicy Bypass -File run.ps1 scan-secrets <root> [--changed]
 # 退出码: 0 无命中（或显式跳过）/ 1 命中凭据明文 / 2 用法错误
 
@@ -46,9 +48,11 @@ fi
 # 临时文件统一放空间 .tack/tmp/（不写系统 temp），退出即清；目录空时顺手移除
 TMP_DIR="${ROOT}/.tack/tmp"
 mkdir -p "${TMP_DIR}"
-TMP_HITS="${TMP_DIR}/scan-secrets.$$.txt"
-trap 'rm -f "${TMP_HITS}"; rmdir "${TMP_DIR}" 2>/dev/null || true' EXIT INT TERM
+TMP_HITS="${TMP_DIR}/scan-secrets.$$.hits"
+TMP_FILES="${TMP_DIR}/scan-secrets.$$.files"
+trap 'rm -f "${TMP_HITS}" "${TMP_FILES}"; rmdir "${TMP_DIR}" 2>/dev/null || true' EXIT INT TERM
 : > "${TMP_HITS}"
+: > "${TMP_FILES}"
 
 # 高置信凭据模式（ERE；两侧显式边界字符类，兼容 GNU/BSD grep）
 P_PEM='-----BEGIN [A-Z ]*PRIVATE KEY-----'
@@ -63,74 +67,78 @@ P_ASSIGN='(password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key)["]?[[:sp
 # 白名单（占位符/示例/中文模板语）——命中后二次过滤
 WHITELIST='sk-xxx|your[-_]|example|sample|dummy|fake|xxxx|\*\*\*|\$\{|<[^>]*>|占位|待补充|获取方式|凭据.*方式|redacted|REDACTED'
 
-# 单文件扫描：命中高置信模式并经豁免/占位过滤后写入 TMP_HITS
-scan_file() {
-    f="$1"
-    [ -f "${f}" ] || return 0
-    grep -EnH \
-        -e "${P_PEM}" -e "${P_AWS}" -e "${P_GH}" -e "${P_OPENAI}" \
-        -e "${P_GOOG}" -e "${P_SLACK}" -e "${P_ASSIGN}" \
-        "${f}" 2>/dev/null |
-    while IFS= read -r hit; do
-        case "${hit}" in
-            *tack:allow-secret*) continue ;;
-        esac
-        if printf '%s' "${hit}" | grep -qiE "${WHITELIST}"; then
-            continue
-        fi
-        # 截断超长内容，避免整段文档刷屏
-        if [ "${#hit}" -gt 160 ]; then
-            hit="$(printf '%s' "${hit}" | cut -c1-160)..."
-        fi
-        printf 'SECRET_HIT %s\n' "${hit}"
-    done
-}
-
 if [ "${MODE}" = "--changed" ]; then
     if [ ! -d "${ROOT}/.git" ]; then
         echo "Error: ${ROOT} 不是 Git 仓库，无法使用 --changed" >&2
         exit 1
     fi
-    # 本次变更文件（含未跟踪）+ 根 AGENTS.md；忽略 run/local/、.tack/、repo 工作区
-    {
-        git -C "${ROOT}" status --porcelain --untracked-files=all 2>/dev/null || true
-    } | while IFS= read -r line; do
-        [ -n "${line}" ] || continue
-        p="$(printf '%s' "${line}" | cut -c4-)"
-        case "${p}" in
-            *" -> "*) p="${p#* -> }" ;;
-        esac
-        case "${p}" in
-            repo/*|space/*/repo/*|.tack/*|*/run/local/*|run/local/*) continue ;;
-        esac
-        case "/${p}/" in
-            */run/local/*) continue ;;
-        esac
-        case "${p}" in
-            *.md|*.yaml|*.yml|*.sh|*.ps1|*.py|*.js|*.ts|*.json|*.toml|*.ini|*.conf|*.txt|*.bat|*.cmd|\
-            *.go|*.java|*.kt|*.rs|*.rb|*.php|*.c|*.h|*.cpp|*.hpp|*.sql|*.html|*.css) ;;
-            *) continue ;;
-        esac
-        scan_file "${ROOT}/${p}"
-    done >> "${TMP_HITS}"
-    scan_file "${ROOT}/AGENTS.md" >> "${TMP_HITS}"
+    # 本次变更文件（含未跟踪）+ 根 AGENTS.md；忽略 run/local/、.tack/、repo 工作区。
+    # -z 输出为 NUL 分隔记录：文件名中的中文、空格、引号原样保留，不按空白拆词；
+    # 每条记录独立解析，rename 的第二条记录是源路径（无状态前缀），自动跳过
+    git -C "${ROOT}" -c core.quotePath=false status --porcelain -z \
+        --untracked-files=all 2>/dev/null |
+    xargs -0 sh -c '
+        root="$1"
+        shift
+        for rec in "$@"; do
+            [ -n "${rec}" ] || continue
+            # 记录形态：两位状态码 + 空格；rename 的第二条记录（源路径）不满足
+            c1="${rec%"${rec#?}"}"
+            rest="${rec#?}"
+            c2="${rest%"${rest#?}"}"
+            c3="${rest#?}"
+            c3="${c3%"${c3#?}"}"
+            case "${c1}" in
+                M|A|D|R|C|U|T|X|"?"|"!"|" ") ;;
+                *) continue ;;
+            esac
+            case "${c2}" in
+                M|A|D|R|C|U|T|X|"?"|"!"|" ") ;;
+                *) continue ;;
+            esac
+            [ "${c3}" = " " ] || continue
+            p="${rec#???}"
+            case "${p}" in
+                repo/*|space/*/repo/*|.tack/*|run/local/*|*/run/local/*) continue ;;
+            esac
+            case "${p##*.}" in
+                md|yaml|yml|sh|ps1|py|js|ts|json|toml|ini|conf|txt|bat|cmd|go|java|kt|rs|rb|php|c|h|cpp|hpp|sql|html|css) ;;
+                *) continue ;;
+            esac
+            [ -f "${root}/${p}" ] || continue
+            printf "%s\0" "${root}/${p}"
+        done
+    ' sh "${ROOT}" >> "${TMP_FILES}"
+    [ -f "${ROOT}/AGENTS.md" ] && printf '%s\0' "${ROOT}/AGENTS.md" >> "${TMP_FILES}"
 else
     # 待扫描目录（均为空间文档目录；不存在则跳过）
-    SCAN_DIRS=""
-    [ -d "${ROOT}/wiki" ]  && SCAN_DIRS="${SCAN_DIRS} ${ROOT}/wiki"
-    [ -d "${ROOT}/space" ] && SCAN_DIRS="${SCAN_DIRS} ${ROOT}/space"
-    if [ -z "${SCAN_DIRS}" ]; then
+    set --
+    [ -d "${ROOT}/wiki" ]  && set -- "$@" "${ROOT}/wiki"
+    [ -d "${ROOT}/space" ] && set -- "$@" "${ROOT}/space"
+    if [ "$#" -eq 0 ]; then
         echo "scan-secrets: 无 wiki/space 文档目录，跳过"
         exit 0
     fi
-    # 枚举空间文档：修剪 .git 与所有 repo/ 工作区目录
-    find $SCAN_DIRS \
+    # 枚举空间文档：修剪 .git 与所有 repo/ 工作区目录；-print0 支持特殊文件名
+    find "$@" \
         \( -type d \( -name .git -o -name repo \) -prune \) -o \
-        -type f \( -name '*.md' -o -name '*.yaml' -o -name '*.yml' \) -print 2>/dev/null |
-    while IFS= read -r f; do
-        scan_file "${f}"
-    done >> "${TMP_HITS}"
+        -type f \( -name '*.md' -o -name '*.yaml' -o -name '*.yml' \) -print0 2>/dev/null >> "${TMP_FILES}"
 fi
+
+# 批量扫描：文件清单 NUL 分隔直接交给 grep，文件名含空格/引号/中文时不被拆词或转义
+xargs -0 grep -EnH \
+    -e "${P_PEM}" -e "${P_AWS}" -e "${P_GH}" -e "${P_OPENAI}" \
+    -e "${P_GOOG}" -e "${P_SLACK}" -e "${P_ASSIGN}" \
+    -- < "${TMP_FILES}" 2>/dev/null |
+grep -v 'tack:allow-secret' |
+grep -viE "${WHITELIST}" |
+while IFS= read -r hit; do
+    # 截断超长内容，避免整段文档刷屏
+    if [ "${#hit}" -gt 160 ]; then
+        hit="$(printf '%s' "${hit}" | cut -c1-160)..."
+    fi
+    printf 'SECRET_HIT %s\n' "${hit}"
+done >> "${TMP_HITS}"
 
 CNT=$(grep -c '^SECRET_HIT' "${TMP_HITS}" 2>/dev/null || true)
 CNT=${CNT:-0}

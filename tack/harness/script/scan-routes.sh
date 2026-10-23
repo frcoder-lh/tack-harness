@@ -37,6 +37,7 @@
 
 ACTION="${1:-list}"
 HARNESS_DIR="$2"
+KEYWORD="${3:-}"
 
 if [ -z "${HARNESS_DIR}" ] || [ ! -d "${HARNESS_DIR}" ]; then
     echo "Error: harness dir not found: ${HARNESS_DIR}" >&2
@@ -52,29 +53,33 @@ YAML_LIB="$(cat "${SCRIPT_DIR}/yamlib.awk")"
 GROUP_ORDER="base dev git"
 
 # 按「workflow → base/dev/git → 其余自定义分组」的顺序构造文件列表
-FILES=""
+# 文件清单放在位置参数里（POSIX sh 无数组）：分组目录与文件名可含空格/中文，
+# 不能拼成一个空格分隔的变量再展开
+set --
 # 1) 工作流
 for f in "${HARNESS_DIR}/workflow"/*.md; do
-    [ -f "${f}" ] && FILES="${FILES} ${f}"
+    [ -f "${f}" ] && set -- "$@" "${f}"
 done
 # 2) 命令：固定分组
 for g in $GROUP_ORDER; do
     [ -d "${HARNESS_DIR}/cmd/${g}" ] || continue
     for f in "${HARNESS_DIR}/cmd/${g}"/*.md; do
-        [ -f "${f}" ] && FILES="${FILES} ${f}"
+        [ -f "${f}" ] && set -- "$@" "${f}"
     done
 done
-# 3) 命令：自定义分组
-for g in $(ls -1 "${HARNESS_DIR}/cmd" 2>/dev/null); do
-    [ -d "${HARNESS_DIR}/cmd/${g}" ] || continue
+# 3) 命令：自定义分组（glob 直接枚举目录，不解析 ls 输出）
+for gd in "${HARNESS_DIR}"/cmd/*/; do
+    [ -d "${gd}" ] || continue
+    gd="${gd%/}"
+    g="${gd##*/}"
     echo "${GROUP_ORDER}" | tr ' ' '\n' | grep -qx "${g}" && continue
-    for f in "${HARNESS_DIR}/cmd/${g}"/*.md; do
-        [ -f "${f}" ] && FILES="${FILES} ${f}"
+    for f in "${gd}"/*.md; do
+        [ -f "${f}" ] && set -- "$@" "${f}"
     done
 done
 # 4) 可委派角色（只供 list/agents 发现，不参与 resolve）
 for f in "${HARNESS_DIR}/agents"/*.md; do
-    [ -f "${f}" ] && FILES="${FILES} ${f}"
+    [ -f "${f}" ] && set -- "$@" "${f}"
 done
 
 AWK_PROG='
@@ -266,22 +271,20 @@ END {
 AWK_PROG="${YAML_LIB}${AWK_PROG}"
 
 # 无任何文件时给 awk 喂 /dev/null，避免其挂起读 stdin
-if [ -z "${FILES}" ]; then
-    FILES="/dev/null"
-fi
+[ "$#" -gt 0 ] || set -- /dev/null
 
 if [ "${ACTION}" = "resolve" ]; then
     # awk 以退出码表达命中结果（0/1/2），需绕开 set -e
     set +e
-    awk -v MODE=resolve -v H="${HARNESS_DIR}" -v KEYWORD="$3" "${AWK_PROG}" $FILES
+    awk -v MODE=resolve -v H="${HARNESS_DIR}" -v KEYWORD="${KEYWORD}" "${AWK_PROG}" "$@"
     rc=$?
     exit "${rc}"
 fi
 
 case "${ACTION}" in
-    list)      awk -v MODE=list      -v H="${HARNESS_DIR}" "${AWK_PROG}" $FILES ;;
-    workflows) awk -v MODE=workflows -v H="${HARNESS_DIR}" "${AWK_PROG}" $FILES ;;
-    commands)  awk -v MODE=commands  -v H="${HARNESS_DIR}" "${AWK_PROG}" $FILES ;;
-    agents)    awk -v MODE=agents    -v H="${HARNESS_DIR}" "${AWK_PROG}" $FILES ;;
+    list)      awk -v MODE=list      -v H="${HARNESS_DIR}" "${AWK_PROG}" "$@" ;;
+    workflows) awk -v MODE=workflows -v H="${HARNESS_DIR}" "${AWK_PROG}" "$@" ;;
+    commands)  awk -v MODE=commands  -v H="${HARNESS_DIR}" "${AWK_PROG}" "$@" ;;
+    agents)    awk -v MODE=agents    -v H="${HARNESS_DIR}" "${AWK_PROG}" "$@" ;;
     *) echo "Error: 未知动作 '${ACTION}'（支持 list / workflows / commands / agents / resolve）" >&2; exit 1 ;;
 esac

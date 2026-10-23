@@ -54,10 +54,11 @@ if [ "${1:-}" = "purge" ]; then
             exit 1
             ;;
     esac
-    if [ ! -d "${ROOT}" ]; then
-        echo "Error: tack 空间根不存在: ${ROOT}" >&2
+    # 根目录先归一为物理绝对路径：本分支中途 cd 后，相对路径会指向错误位置
+    ROOT="$(cd "${ROOT}" 2>/dev/null && pwd -P)" || {
+        echo "Error: tack 空间根不存在: ${2}" >&2
         exit 1
-    fi
+    }
     if [ ! -d "${ROOT}/space" ]; then
         echo "Error: ${ROOT}/space 不存在，不是有效的 tack 空间" >&2
         exit 1
@@ -86,9 +87,14 @@ if [ "${1:-}" = "purge" ]; then
         done
     fi
 
-    # 离开目标目录后删除（Windows 上 cwd 在目标内会导致删除失败；脚本此前未 cd，此处置保险）
-    cd "${ROOT}"
-    rm -rf "${TARGET}"
+    # 离开目标目录后删除（Windows 上 cwd 在目标内会导致删除失败）
+    cd "${ROOT}" || exit 1
+    rm -rf "${TARGET}" || { echo "Error: 工作区删除失败: ${TARGET}" >&2; exit 1; }
+    # rm -rf 对不存在的错误路径也可能返回成功，删除后必须校验目标确实消失
+    if [ -e "${TARGET}" ]; then
+        echo "Error: 工作区删除失败: ${TARGET}" >&2
+        exit 1
+    fi
     echo "已删除工作区目录: space/${WORKSPACE}"
     echo "PURGED=${WORKSPACE}"
     exit 0
@@ -137,7 +143,12 @@ if [ "${1:-}" = "rename" ]; then
             exit 2
             ;;
     esac
-    if [ ! -d "${ROOT}" ] || [ ! -d "${ROOT}/space" ]; then
+    # 根目录先归一为物理绝对路径，避免相对路径在不同 cwd 下二次解析
+    ROOT="$(cd "${ROOT}" 2>/dev/null && pwd -P)" || {
+        echo "Error: tack 空间根无效: ${1}" >&2
+        exit 1
+    }
+    if [ ! -d "${ROOT}/space" ]; then
         echo "Error: tack 空间根无效: ${ROOT}" >&2
         exit 1
     fi
@@ -361,6 +372,12 @@ if [ -z "${PROJECT}" ] || [ -z "${BRANCH}" ]; then
     echo "Usage: sh work.sh <root> <project> <branch> [repo-name ...]" >&2
     exit 1
 fi
+
+# 根目录先归一为物理绝对路径：后续 cd 与子脚本调用都以同一绝对路径为准
+ROOT="$(cd "${ROOT}" 2>/dev/null && pwd -P)" || {
+    echo "Error: 无法解析根目录: ${1:-.}" >&2
+    exit 1
+}
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # 工作区模板位于 harness/template/（文件复制 + 占位替换，不做字符串拼接）

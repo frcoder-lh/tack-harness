@@ -34,21 +34,23 @@ if [ -z "${HARNESS_DIR}" ] || [ ! -d "${HARNESS_DIR}" ]; then
     exit 2
 fi
 
-FILES=""
+# 文件清单放在位置参数里（POSIX sh 无数组）：分组目录与文件名可含空格/中文，
+# 不能拼成一个空格分隔的变量再展开
+set --
 for f in "${HARNESS_DIR}/workflow"/*.md "${HARNESS_DIR}/agents"/*.md \
          "${HARNESS_DIR}/reference"/*.md "${HARNESS_DIR}/rule"/*.md; do
-    [ -f "${f}" ] && FILES="${FILES} ${f}"
+    [ -f "${f}" ] && set -- "$@" "${f}"
 done
 if [ -d "${HARNESS_DIR}/cmd" ]; then
-    for g in $(ls -1 "${HARNESS_DIR}/cmd" 2>/dev/null); do
-        [ -d "${HARNESS_DIR}/cmd/${g}" ] || continue
-        for f in "${HARNESS_DIR}/cmd/${g}"/*.md; do
-            [ -f "${f}" ] && FILES="${FILES} ${f}"
+    for gd in "${HARNESS_DIR}"/cmd/*/; do
+        [ -d "${gd}" ] || continue
+        for f in "${gd}"*.md; do
+            [ -f "${f}" ] && set -- "$@" "${f}"
         done
     done
 fi
 
-[ -z "${FILES}" ] && FILES="/dev/null"
+[ "$#" -gt 0 ] || set -- /dev/null
 
 # 共享 YAML 标量/行内列表函数（唯一事实源 script/yamlib.awk）
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -186,7 +188,7 @@ END {
     if (n_err > 0) exit 1
     exit 0
 }
-' $FILES
+' "$@"
 awk_exit=$?
 [ "${awk_exit}" -eq 0 ] || exit "${awk_exit}"
 
@@ -199,7 +201,7 @@ fi
 # 带真实扩展名的路径；含 < > * $ {} 的占位/通配写法不匹配，避免误报
 ROOT_DIR="$(cd "${HARNESS_DIR}/.." && pwd)"
 REF_WARN=0
-for f in $FILES "${ROOT_DIR}/AGENTS.md"; do
+for f in "$@" "${ROOT_DIR}/AGENTS.md"; do
     [ -f "${f}" ] || continue
     hits="$(grep -oE 'harness/(rule|reference|script|template)/[A-Za-z0-9._/-]+\.(md|sh|ps1|yaml|yml|tmpl|json)' "${f}" 2>/dev/null | sort -u || true)"
     [ -n "${hits}" ] || continue
