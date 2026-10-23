@@ -40,11 +40,7 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
    - 输入: 用户选定后固化为明确的目的描述；一次澄清仍不明确则继续追问，直到问题边界可判断
 
 3. **提取触发词（从目的描述分词）**
-   - 动作: 对上一步固化的目的描述做关键词提取，产出触发词列表（用于后续切换工作区时的模糊匹配）
-   - 分词规则:
-     - 中文：提取有意义的词/短语，去掉停用词（的/了/在/是/和/与/及等）；同时保留整体短语和核心词（如「用户登录功能」→ `用户登录,登录,用户`）
-     - 英文：按空格/标点分割转小写，去掉常见停用词（the/a/an/is/are/of/to/for 等）
-     - 中英文混合：分别处理后合并
+   - 动作: 执行 `sh $root/harness/script/trigger-extract.sh "<目的描述>"` 取得候选触发词（逗号分隔，已去停用词与单字、中英文分别处理后合并去重），再按语义筛选并补充遗漏的核心词
    - 边界: 触发词用于切换匹配，宁多勿漏但不堆砌单字；最终以逗号分隔字符串形式传入 work-add
 
 4. **生成并确认分支名**（澄清意图之后才进行命名）
@@ -55,13 +51,14 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 5. **自动推断需要的服务**
    - 输入: 工作区目的 + AGENTS.md 当前项目条目的 service_repo_mapping（主数据源，必然存在）
    - `wiki/<project>/manifest.md` 存在时一并读取，补充职责等上下文；不存在不影响推断（wiki 文件按需物化）
-   - 动作: 根据目的关键词推断涉及的服务/仓库，列出推断结果由用户多选确认（可全部取消）
+   - 动作: 根据目的关键词推断涉及的服务/仓库，列出推断结果由用户多选确认（可全部取消；全部取消时第 6 步用 `--no-worktree` 只建骨架）
 
 6. **创建工作区**
    - 动作: 执行
-     `sh $root/harness/script/work.sh $root <project> <branch> <已选仓库名...>`
+     `sh $root/harness/script/work.sh [--no-worktree] $root <project> <branch> [已选仓库名...]`
+     选中仓库时逐个传仓库名（不传仓库名会被脚本解释为「`repo/` 下全部仓库」）；全部取消时加 `--no-worktree` 只建骨架，后续可用 `worktree` 补建
      脚本自动取当天日期生成工作区目录 `space/<YYYYMMDD>-<branch>/` 扁平骨架（status.yaml 含 project、input.md、repo/），并为每个仓库创建 git worktree 到 `space/<YYYYMMDD>-<branch>/repo/<repo-name>`（worktree 检出分支仍为 `<branch>`）
-   - 解析输出: 脚本末尾输出结果行 `WORKSPACE=<工作区目录名>`、`BRANCH=<git 分支名（保留 /）>`、`NEW_BRANCHES=<逗号分隔的仓库名>`（worktree 新建主分支的仓库，已存在分支的仓库不在内；工作区已存在时为空），第 7 步一律使用 `WORKSPACE` 值拼路径，不得自行按分支名猜目录
+   - 解析输出: 脚本末尾输出结果行 `WORKSPACE=<工作区目录名>`、`BRANCH=<git 分支名（保留 /）>`、`NEW_BRANCHES=<逗号分隔的仓库名>`（worktree 新建主分支的仓库，已存在分支的仓库不在内；工作区已存在时脚本提前返回，只输出 `WORKSPACE` 与 `BRANCH` 两行），第 7 步一律使用 `WORKSPACE` 值拼路径，不得自行按分支名猜目录
 
 7. **登记并切换上下文**
    - 动作: 用上一步的 `WORKSPACE` 值执行
@@ -160,7 +157,7 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 ## 后置完成检验
 
 - [ ] `space/<YYYYMMDD>-<branch>/status.yaml`（含正确的 project、work_dir、branch）、`input.md` 已生成
-- [ ] 已选仓库在 `space/<YYYYMMDD>-<branch>/repo/` 下有可用 worktree（检出分支为 `<branch>`）
+- [ ] 已选仓库在 `space/<YYYYMMDD>-<branch>/repo/` 下有可用 worktree（检出分支为 `<branch>`）；全部取消时为占位目录
 - [ ] AGENTS.md 项目信息区块的 work 列表与磁盘一致，且每条 work 条目的 `project` 与 status.yaml 一致
 - [ ] 常规建区：已输出开场知识清单（roster）——wiki 页面与相关分析文档（含新鲜度），冷仓库已建议 ask；未向上下文塞入 wiki 全文
 - [ ] 常规建区：NEW_BRANCHES 中的仓库已登记到 status.yaml 的 branches 列表（role=main, source=work）

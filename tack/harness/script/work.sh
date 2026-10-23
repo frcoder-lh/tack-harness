@@ -17,7 +17,7 @@
 #   sh work.sh purge <root> <workspace>
 #     删除已关闭工作区目录 space/<workspace>（close 收尾用）。
 #     安全门禁：workspace 必须是单层目录名；目标物理路径必须位于 <root>/space/ 内；
-#     目录内 repo/ 下不得残留有效 git worktree（须先经 close 第 6 步 / branch-op cleanup 移除）。
+#     目录内 repo/ 下不得残留有效 git worktree（须先经 close 第 8 步 / branch-op cleanup 移除）。
 #     本动作只删目录，AGENTS.md 工作条目的移除由 project.sh work-remove 负责；不自动提交
 #     （由 close 收尾的 space.sh commit 统一记录删除）。
 #
@@ -77,7 +77,7 @@ if [ "${1:-}" = "purge" ]; then
         echo "Error: 目标物理路径不在 space/ 内，拒绝删除: ${TARGET}" >&2
         exit 1
     fi
-    # 门禁 3：repo/ 下不得残留有效 git worktree（须先经 close 第 6 步移除）
+    # 门禁 3：repo/ 下不得残留有效 git worktree（须先经 close 第 8 步移除）
     if [ -d "${TARGET}/repo" ]; then
         for wt in "${TARGET}/repo"/*; do
             [ -d "${wt}" ] || continue

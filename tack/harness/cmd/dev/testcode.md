@@ -66,8 +66,8 @@ summary: 按需命令（非开发必经环节，用户需要时触发）——�
 
 6. **部署验证登记（按需）**
    - 输入: 用户是否需要部署到环境泳道做联调/验证（部署动作在外部平台执行，本命令不代为部署，只登记事实）
-   - 动作: 部署完成后执行 `sh $root/harness/script/work-status.sh $work/status.yaml deploy upsert <repo> <env> <lane> <route> <build> <url> <status>` 登记泳道事实（lane 建议从 work_id 派生）；状态变化用 `deploy mark <repo> <env> <lane> <status>`，查询用 `deploy list`；环境拓扑与泳道申请方式不明时查 `$root/wiki/<project>/manifest.md`「部署环境与泳道」，缺失则提示用户补充并经 `record` 沉淀
-   - 边界: 只登记事实与链接，不臆造环境信息；`deploying/deployed` 状态的泳道在 `close` 时会检查回收
+   - 动作: 部署完成后按 `harness/rule/deploy.md` 执行 `sh $root/harness/script/work-status.sh $work/status.yaml deploy upsert <repo> <env> <lane> <route> <build> <url> <status>` 登记泳道事实；状态变化用 `deploy mark`、查询用 `deploy list`
+   - 边界: 只登记事实与链接，不臆造环境信息；静态环境事实落点与回收约定见 `harness/rule/deploy.md`
 
 ## 框架自动提交（无需用户操作）
 

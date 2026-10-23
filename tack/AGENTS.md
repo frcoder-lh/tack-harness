@@ -28,17 +28,7 @@
 
 ## Hook 可选加速层（TRAE / Claude Code）
 
-`tack/harness/script/hook/` 提供三个 IDE Hook 的可选加速层，**仅做确定性事实搬运，不承载语义判断，AGENTS.md 与 `scan-routes.sh` 始终是唯一事实源**。Hook 需在 IDE「设置 > Hooks」中手动启用后才生效；不启用或删除整个目录，框架行为不变。
-
-| 事件 | 加速内容 | 对会话的影响 |
-|------|----------|--------------|
-| SessionStart | 注入命令/工作流路由全表、`$root`/`$work` 路径、工作区快照（cwd 在工作区内则精确命中，否则取最近活跃并提示确认） | 省去首轮 `scan-routes list` 往返 |
-| UserPromptSubmit | 以当次 cwd 实时解析空间根与工作区（cwd 在 `space/<name>/` 内精确命中，支持多工作区并行；之外回退最近活跃）；对用户输入做 `scan-routes resolve`，唯一命中时直接注入对应 cmd/workflow 正文与状态快照，多命中列候选，无命中给全表 | 省去路由解析往返与重复的空间/工作区扫描 |
-| PreToolUse | 观察模式：命令执行类工具（RunCommand/Bash）调用与 Git 双层边界、`--force`/`--no-verify` 等规则命中情况经统一日志记录；`TACK_HOOK_ENFORCE=1` 才输出 deny（**当前预留，默认不拦截**） | 默认零输出、零拦截 |
-
-统一日志：设置环境变量 `TACK_HOOK_LOG=1` 后，三个 Hook **每次被调用**都把一条完整记录追加到 `$root/.tack/log/hook.log`——时间、事件名、pid、`$root`/`$work`、cwd、环境变量、输入 payload 全文、注入/拦截输出全文、退出码与耗时（并发调用按整块串行写入、互不交错）；非 tack 空间回退系统临时目录。默认关闭，关闭时 Hook 的 stdout 与不启用日志时逐字节一致；`.tack/` 不入库、日志可随时清理。
-
-降级：删除 `$root/.trae/hooks.json` 与 `$root/.claude/settings.json` 即完全回退到「AI 主动调用 `scan-routes.sh`」的原有路径。
+`harness/script/hook/` 提供三个 IDE Hook 的可选加速层，**仅做确定性事实搬运，不承载语义判断，AGENTS.md 与 `scan-routes.sh` 始终是唯一事实源**；需在 IDE「设置 > Hooks」中手动启用后生效。事件表、日志开关、路径解析与降级路径见 `harness/rule/hooks.md`。
 
 ## 命令路由
 
@@ -96,7 +86,7 @@
 | `harness/cmd/` | 命令入口（base/dev/git 分组），定义准入准出 |
 | `harness/agents/` | 可委派角色（code-explorer / code-architect / code-reviewer）：被 cmd 引用后经 Task 子代理在独立上下文执行，可多实例并行；只供发现与委派，不参与命令路由 |
 | `harness/workflow/` | 工作流状态机（development/testing/bugfix/merge-conflict/branch-op） |
-| `harness/script/` | 固定流程脚本（init-tack、space、scan-routes、lint-harness、lint-shell-portability、scan-secrets、harness-diff、harness-backup、run-plan、lint-doc-scripts、common、work-status、project、repo、work、git-facts、git-fetch-helper、git-commit-helper、git-push-helper、git-worktree-helper、git-bug-trace、git-diff-context、branch-op、branch-clean、skill-update、check-update；Windows 统一经 `run.ps1` 启动器调用） |
+| `harness/script/` | 固定流程脚本（init-tack、space、scan-routes、lint-harness、lint-shell-portability、scan-secrets、harness-diff、harness-backup、run-plan、lint-doc-scripts、common、work-status、project、repo、work、git-facts、git-fetch-helper、git-commit-helper、git-push-helper、git-worktree-helper、git-bug-trace、git-diff-context、branch-op、branch-clean、trigger-extract、skill-update、check-update；Windows 统一经 `run.ps1` 启动器调用） |
 | `harness/script/hook/` | TRAE/Claude Code Hooks 可选加速层（SessionStart 预载路由、UserPromptSubmit 零往返路由、PreToolUse 观察层；默认不启用、不拦截，删掉整个目录框架仍完整可用） |
 | `harness/rule/` | 业务、代码与安全规则（coding-standards、git-standards、security、git-boundary、context-loading、windows-env、record-* 等；不参与路由，按需加载） |
 | `harness/template/` | 命令/工作流/文档/工作区模板 |

@@ -50,7 +50,7 @@ initialized → preparing → integrating → pushing → completed
 | completed | 结果已推回原分支 | push 成功 |
 | blocked | 受阻 | 远端不可达、分支不存在、授权被拒等 |
 
-> 临时 worktree 与两个临时分支在 completed 后仍保留，`close` 第 6 步统一清理。
+> 临时 worktree 与两个临时分支在 completed 后仍保留，`close` 第 8 步统一清理。
 
 ## 各环节与动作映射
 

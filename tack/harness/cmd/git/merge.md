@@ -55,7 +55,7 @@ summary: 分支合并——fetch 最新后把源分支合入目标分支；当�
 6. **合并后回写**
    - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml set status merged stage merge progress.merged true`（就地合并时写当前工作区；新建工作区合并时写原工作区，新工作区按 branch-op 流程保持 `completed`）
    - 关联工作区保留到 `close`，由 `close` 随当前工作区一并关闭；本命令不删除合并工作区
-   - 合并 ≠ 上线: 用户需要在 PPE/PROD 等环境继续验证或上线时，执行 `sh $root/harness/script/work-status.sh $work/status.yaml deploy upsert <repo> <env> <lane> <route> <build> <url> <status>` 登记各环境上线计划与泳道/版本事实；BOE 验证泳道不再使用时执行 `deploy mark <repo> <env> <lane> recycled`
+   - 合并 ≠ 上线: 用户需要在 PPE/PROD 等环境继续验证或上线时，按 `harness/rule/deploy.md` 登记各环境上线计划与泳道/版本事实；BOE 验证泳道用完即置 `recycled`
 
 ## 后置完成检验
 

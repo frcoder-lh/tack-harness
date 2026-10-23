@@ -174,7 +174,7 @@ if [ -n "${REMOTE_URL}" ]; then
         esac
 
         # MR/PR 链接：从 merge_subject 提取编号（如 !123 / #123 / PR #123）
-        MR_NUM="$(printf '%s' "${MERGE_SUBJECT}" | grep -oE '(!|#)[0-9]+' | head -1 | sed 's/^[!#]//' || true)"
+        MR_NUM="$(printf '%s' "${MERGE_SUBJECT}" | grep -oE '(!|#)[0-9]+' | head -n 1 | sed 's/^[!#]//' || true)"
         if [ -n "${MR_NUM}" ] && [ -n "${MERGE_COMMIT}" ]; then
             case "${HOST}" in
                 *gitlab*|*jihulab*|*gitlab.*)

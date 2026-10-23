@@ -45,7 +45,7 @@ summary: 上线前检查清单——以 plan.md/tech-design.md 与目标分支�
    - 头部: `> 审查范围: <target_ref>...HEAD（merge-base: <short-hash>）　仓库: <清单>　生成时间: <日期>`
    - 每类检查项一节，统一表格：`| # | 检查项 | 来源锚点 | 变更语句/模板/申请内容 | 环境 | 状态 |`（状态列留 `[ ]` 供上线时逐项打勾）
    - 末尾「上线顺序建议」：按依赖排序（资源申请 → 数据库变更 → 配置下发 → 代码发布 → 验证与灰度）；多仓库时标注发布顺序
-   - 向用户呈现清单并请确认；有上线计划时提示登记 `$work/status.yaml` 的 `deploy` 区块（结构见 `harness/template/work-status.yaml`）
+   - 向用户呈现清单并请确认；有上线计划时按 `harness/rule/deploy.md` 提示登记 `$work/status.yaml` 的 `deploy` 区块
 
 6. **回写完成状态**
    - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml set progress.release_check true next "按清单完成上线准备；未合并先 merge，收尾走 close"`
