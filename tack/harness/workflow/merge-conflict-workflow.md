@@ -12,7 +12,8 @@ summary: fetch → merge → solve → 验证 → push 的分支合并与冲突�
 
 ## 适用场景
 
-- 把主干或目标分支合入当前工作区分支、或在平台发起合并
+- 当前工作区分支为目标分支时，`merge` 命令就地合入源分支
+- 当前工作区为源分支时，`merge` 命令派生关联工作区按 branch-op 工作流执行；冲突解决同样走 `solve`
 - 合并/变基出现冲突，需要引导式解决
 - 边界：日常功能开发走 development；本工作流不负责功能编码
 
@@ -39,9 +40,9 @@ initialized → fetching → merging → resolving → verifying → pushing →
 
 | # | 环节 | 命令 | 动作 | 完成后状态 |
 |---|------|------|------|------------|
-| 1 | 确认合并方向 | — | 逐仓库确认当前分支与目标分支（默认 master/main，用户确认） | initialized |
+| 1 | 确认合并方向 | — | 逐仓库确认源分支引用（本地/远程）与目标分支（默认 master/main，用户确认） | initialized |
 | 2 | 拉取最新 | `fetch` | `git fetch --all --prune`，查看 ahead/behind | fetching |
-| 3 | 合并 | `merge` | 优先平台 MR/PR；本地 `git merge <目标>` | merging |
+| 3 | 合并 | `merge` | 当前工作区为目标分支时执行 `git merge <本地源分支|origin/源分支>`；当前工作区为源分支时由 `merge` 派生关联工作区按 branch-op 执行 | merging |
 | 4 | 解决冲突 | `solve` | 列冲突文件→展示双方差异→按用户决定修改→add | resolving |
 | 5 | 验证 | 构建/测试命令 | 构建通过、相关测试通过 | verifying |
 | 6 | 继续/推送 | `git merge --continue`（或 rebase --continue）→ `push` | 回填 mr_url | pushing → completed |

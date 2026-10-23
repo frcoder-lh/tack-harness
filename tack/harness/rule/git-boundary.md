@@ -22,4 +22,4 @@
 
 - git 组命令（commit / fetch / merge / push / solve / worktree）在「前置准入条件」中引用本文件。
 - 各命令的「框架自动提交」边界行可补充特有说明，但必须以「遵守 `harness/rule/git-boundary.md`」开头。
-- 分支命名、提交信息与合并前评审约定统一见 `git-standards.md`；新建/重命名工作区、补建 worktree、本地提交、合并等需要分支的环节按其约定加载。
+- 分支命名与提交信息约定统一见 `git-standards.md`；新建/重命名工作区、补建 worktree、本地提交、合并等需要分支的环节按其约定加载。

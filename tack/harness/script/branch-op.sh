@@ -18,8 +18,10 @@
 #   - 退出码 10 表示出现合并/变基冲突，调用方应据此转 solve（merge-conflict/branch-op 工作流）。
 #
 # Usage:
-#   sh branch-op.sh prepare <root> <workspace> <repo> <op> <source> <target>
+#   sh branch-op.sh prepare <root> <workspace> <repo> <op> <source> <target> [source-ref] [target-ref]
 #       workspace 为相对 root 的工作区目录（space/<YYYYMMDD>-<branch>）；输出 KEY=VALUE 结果行
+#       source-ref / target-ref: auto（默认，远端优先、本地兜底）/ local（只取本地分支）/ remote（只取远端分支）
+#       用于区分「合并本地分支」与「合并远程分支」：local 保留未推送提交，remote 只取已推送提交
 #   sh branch-op.sh integrate <root> <workspace> <repo> <op> <source-tmp> <target-tmp>
 #   sh branch-op.sh continue <root> <workspace> <repo> <op>
 #   sh branch-op.sh abort <root> <workspace> <repo> <op>
@@ -54,6 +56,7 @@ paths() {
 
 run_prepare() {
     ROOT="$1"; WS="$2"; REPO="$3"; OP="$4"; SRC="$5"; TGT="$6"
+    SRC_REF="${7:-auto}"; TGT_REF="${8:-auto}"
     [ "${OP}" = merge ] || [ "${OP}" = rebase ] || fail "op 必须是 merge 或 rebase: ${OP}"
     [ -n "${SRC}" ] && [ -n "${TGT}" ] || fail "source/target 分支名不能为空"
     paths "${ROOT}" "${WS}" "${REPO}"
@@ -61,19 +64,39 @@ run_prepare() {
 
     git -C "${REPO_PATH}" fetch origin --prune || fail "fetch origin 失败（远端不可达？）"
 
-    # 基准解析：优先远端最新，远端无此分支则引用本地分支（只读引用，不占用其 worktree）
+    # 基准解析（只读引用，不占用其 worktree）：
+    #   local  只取本地分支（含未推送提交）
+    #   remote 只取远端分支（仅已推送提交）
+    #   auto   远端优先、本地兜底
     resolve_base() {
-        b="$1"
-        if git -C "${REPO_PATH}" rev-parse --verify -q "origin/${b}" >/dev/null; then
-            echo "origin/${b}"
-        elif git -C "${REPO_PATH}" rev-parse --verify -q "${b}" >/dev/null; then
-            echo "${b}"
-        else
-            fail "分支在远端与本地均不存在: ${b}（仓库 ${REPO}）"
-        fi
+        b="$1"; mode="$2"
+        case "${mode}" in
+            local)
+                git -C "${REPO_PATH}" rev-parse --verify -q "refs/heads/${b}" >/dev/null \
+                    || fail "本地分支不存在: ${b}（仓库 ${REPO}）"
+                echo "${b}"
+                ;;
+            remote)
+                git -C "${REPO_PATH}" rev-parse --verify -q "refs/remotes/origin/${b}" >/dev/null \
+                    || fail "远端分支不存在: origin/${b}（仓库 ${REPO}）"
+                echo "origin/${b}"
+                ;;
+            auto)
+                if git -C "${REPO_PATH}" rev-parse --verify -q "origin/${b}" >/dev/null; then
+                    echo "origin/${b}"
+                elif git -C "${REPO_PATH}" rev-parse --verify -q "${b}" >/dev/null; then
+                    echo "${b}"
+                else
+                    fail "分支在远端与本地均不存在: ${b}（仓库 ${REPO}）"
+                fi
+                ;;
+            *)
+                fail "ref 取值必须是 auto|local|remote: ${mode}"
+                ;;
+        esac
     }
-    SRC_BASE="$(resolve_base "${SRC}")"
-    TGT_BASE="$(resolve_base "${TGT}")"
+    SRC_BASE="$(resolve_base "${SRC}" "${SRC_REF}")"
+    TGT_BASE="$(resolve_base "${TGT}" "${TGT_REF}")"
 
     TS="$(date +%Y%m%d%H%M%S)"
     SRC_TMP="${SRC}-${TS}"

@@ -84,7 +84,8 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 > 不录入需求、不做 ask/spec/plan、不做审查与测试（跳过项以工作流文件为准）。
 
 1. **解析分支操作参数**
-   - 动作: 从原始输入解析 op（「合并」→merge，「变基」→rebase）、源分支 A、目标分支 B
+   - 动作: 从原始输入解析 op（「合并」→merge，「变基」→rebase）、源分支 A、目标分支 B，以及源分支引用（本地分支 / 远程分支）
+   - 源分支引用: `local` 取本地 A（含未推送提交）、`remote` 取 `origin/A`（仅已推送提交）；未指定时用 `auto`（远端优先、本地兜底）。由 `merge` 命令派生时使用 merge 流程已确认的取值
    - 边界: 无法同时解析出两个分支、或操作词有歧义（如只说「处理一下 A 和 B」）时，追问补齐，不得带模糊参数建区
 
 2. **确认涉及仓库**
@@ -103,18 +104,19 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 
 5. **prepare：临时分支与工作 worktree**
    - 动作: 逐仓库执行
-     `sh $root/harness/script/branch-op.sh prepare $root space/<WORKSPACE> <repo> <op> <A> <B>`
-     fetch 后创建 `A-<时间戳>`、`B-<时间戳>` 临时分支，并为工作分支（merge 取 B-ts，rebase 取 A-ts）创建 worktree 到 `space/<WORKSPACE>/repo/<repo>`
+     `sh $root/harness/script/branch-op.sh prepare $root space/<WORKSPACE> <repo> <op> <A> <B> [auto|local|remote]`
+     fetch 后按源分支引用创建 `A-<时间戳>`、`B-<时间戳>` 临时分支，并为工作分支（merge 取 B-ts，rebase 取 A-ts）创建 worktree 到 `space/<WORKSPACE>/repo/<repo>`
    - 解析输出: `BRANCH_OP_TS`、`BRANCH_OP_SOURCE_TMP`、`BRANCH_OP_TARGET_TMP`、`BRANCH_OP_WORKING`
 
 6. **登记并切换上下文**
    - 动作: 执行
      `sh $root/harness/script/project.sh work-add $root <project> <branch> "branch-op: <op> <A> → <B>" "$root/space/<WORKSPACE>" <branch> "<repo1,repo2>" "<触发词1,触发词2>"`
-     触发词从 "branch-op: <op> <A> → <B>" 提取（如 `merge,rebase,branch-op,<A>,<B>`，op/A/B 取实际值）；并直接编辑 `$work/status.yaml`：`workflow` 改为 `branch-op`、`status` 置 `preparing`、`services` 写入选定仓库，且按 `harness/template/work-status.yaml` 的结构写入 `branch_op` 区块（每仓库的临时分支名与 pushed: false）
+     触发词从 "branch-op: <op> <A> → <B>" 提取（如 `merge,rebase,branch-op,<A>,<B>`，op/A/B 取实际值）；并直接编辑 `$work/status.yaml`：`workflow` 改为 `branch-op`、`status` 置 `preparing`、`services` 写入选定仓库，且按 `harness/template/work-status.yaml` 的结构写入 `branch_op` 区块（`source_ref`、每仓库的临时分支名与 pushed: false）
    - **登记临时分支**: 对每个涉及仓库执行
      `sh $root/harness/script/work-status.sh $work/status.yaml branch register <repo> <source_tmp> tmp branch-op`
      `sh $root/harness/script/work-status.sh $work/status.yaml branch register <repo> <target_tmp> tmp branch-op`
      把两个临时分支登记到 branches 列表（与 branch_op 区块并存：branch_op 留 source/target/working/pushed 细节，branches 作统一索引供 close 遍历标记清理）
+   - **关联来源**: 由 `merge` 命令派生时，merge 流程另行执行 `sh $root/harness/script/work-status.sh $root/space/<WORKSPACE>/status.yaml set parent_workspace "<来源工作区目录名>"`，把新工作区关联到来源工作区；本命令不推断来源
    - 为上下文赋值 `$work=$root/space/<WORKSPACE>`
 
 7. **跳过常规开场动作**
@@ -162,7 +164,7 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 - [ ] AGENTS.md 项目信息区块的 work 列表与磁盘一致，且每条 work 条目的 `project` 与 status.yaml 一致
 - [ ] 常规建区：已输出开场知识清单（roster）——wiki 页面与相关分析文档（含新鲜度），冷仓库已建议 ask；未向上下文塞入 wiki 全文
 - [ ] 常规建区：NEW_BRANCHES 中的仓库已登记到 status.yaml 的 branches 列表（role=main, source=work）
-- [ ] branch-op：op/A/B 已解析且仓库经用户确认；prepare 成功，status.yaml 已置 `workflow: branch-op`、`status: preparing` 并写入 `branch_op` 区块（临时分支名齐全），两个临时分支已登记到 branches 列表（role=tmp, source=branch-op）
+- [ ] branch-op：op/A/B 与源分支引用（本地/远端）已解析且仓库经用户确认；prepare 成功，status.yaml 已置 `workflow: branch-op`、`status: preparing` 并写入 `branch_op` 区块（临时分支名齐全），两个临时分支已登记到 branches 列表（role=tmp, source=branch-op）
 - [ ] 重命名：dry-run 计划经用户确认；apply 输出 `RENAME_RESULT=applied` 且 `RECONCILE=ok`（失败时 `ROLLBACK=complete|incomplete` 已如实汇报）
 
 ## 下一步建议

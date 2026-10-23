@@ -8,7 +8,11 @@
 #     progress.<名称>   progress 区块下的布尔开关（值 true/false）
 #     updated_at        顶层 updated_at（一般不显式传；每次执行自动刷新为当前时间）
 #     mr_url|meego|tech_doc_url  顶层工作区链接字段
-#     work_id|work_dir|branch    顶层工作区标识（work.sh rename 使用）
+#     work_id|work_dir|branch|parent_workspace  顶层工作区标识与关联关系
+#
+# 用法: sh work-status.sh <root> related children <work_dir>
+#   - 跨工作区查询 parent_workspace 指向 <work_dir> 的关联工作区（close 级联关闭依据）
+#   - 每行一条，TAB 分隔：workspace / status / workflow
 #
 # 用法: sh work-status.sh <status.yaml> guidance <id> <applied|rejected> [落点路径 ..]
 #   - applied: 置该条 status，并校验落点文件存在（须给 ≥1 个落点，相对 $root，空格分隔）
@@ -101,9 +105,9 @@ FILE="$1"
 SUBCMD="$2"
 shift 2
 case "${SUBCMD}" in
-  set|guidance|tasks|deploy|branch) ;;
+  set|guidance|tasks|deploy|branch|related) ;;
   *)
-    echo "work-status: 未知子命令: ${SUBCMD}（支持 set / guidance / tasks / deploy / branch）" >&2
+    echo "work-status: 未知子命令: ${SUBCMD}（支持 set / guidance / tasks / deploy / branch / related）" >&2
     usage
     exit 2
     ;;
@@ -148,6 +152,38 @@ if [ "${SUBCMD}" = "guidance" ] && [ "${1:-}" = "all" ]; then
               printf "DUPLICATE\t%d\t%s\t%s\n", cnt[k], stage[k], summary[k]
       }
   ' "${TMP_LIST}" >&2
+  exit 0
+fi
+
+# related children <root> <work_dir>：查询以 <work_dir> 为上游的关联工作区（close 级联收尾）
+if [ "${SUBCMD}" = "related" ]; then
+  RACT="${1:-}"
+  case "${RACT}" in
+    children) ;;
+    *) echo "work-status: related 子动作只支持 children: ${RACT}" >&2; exit 2 ;;
+  esac
+  [ $# -ge 2 ] || { echo "work-status: related children 需要 <root> <work_dir>" >&2; exit 2; }
+  ROOT="${FILE}"
+  PARENT="$2"
+  if [ ! -d "${ROOT}/space" ]; then
+    echo "work-status: ${ROOT}/space 不存在，不是有效的 tack 空间" >&2
+    exit 2
+  fi
+  for _sf in "${ROOT}/space"/*/status.yaml; do
+    [ -f "${_sf}" ] || continue
+    _pp="$(awk "${YAML_LIB}"'
+      /^parent_workspace[[:space:]]*:/ { v=val($0); if (v!="") { print v; exit } }
+    ' "${_sf}")"
+    [ "${_pp}" = "${PARENT}" ] || continue
+    _ws="$(basename "$(dirname "${_sf}")")"
+    _st="$(awk "${YAML_LIB}"'
+      /^status[[:space:]]*:/ { print val($0); exit }
+    ' "${_sf}")"
+    _wf="$(awk "${YAML_LIB}"'
+      /^workflow[[:space:]]*:/ { print val($0); exit }
+    ' "${_sf}")"
+    printf '%s\t%s\t%s\n' "${_ws}" "${_st}" "${_wf}"
+  done
   exit 0
 fi
 
@@ -1005,9 +1041,9 @@ HAS_UPDATED_AT=0
 while [ $# -gt 0 ]; do
   k="$1"; v="$2"; shift 2
   case "${k}" in
-    status|stage|task|next|updated_at|mr_url|meego|tech_doc_url|work_id|work_dir|branch) ;;
+    status|stage|task|next|updated_at|mr_url|meego|tech_doc_url|work_id|work_dir|branch|parent_workspace) ;;
     progress.*) ;;
-    *) echo "work-status: 未知 key: ${k}（允许 status|stage|task|next|updated_at|mr_url|meego|tech_doc_url|work_id|work_dir|branch|progress.<名称>）" >&2; exit 3 ;;
+    *) echo "work-status: 未知 key: ${k}（允许 status|stage|task|next|updated_at|mr_url|meego|tech_doc_url|work_id|work_dir|branch|parent_workspace|progress.<名称>）" >&2; exit 3 ;;
   esac
   if [ "${k}" = "updated_at" ]; then HAS_UPDATED_AT=1; fi
   printf '%s\t%s\n' "${k}" "${v}" >> "${PAIRS}"
@@ -1024,7 +1060,7 @@ fi==1 {
   n++
   pval[n] = $2
   if ($1 == "status" || $1 == "updated_at" || $1 == "mr_url" || $1 == "meego" || $1 == "tech_doc_url" \
-      || $1 == "work_id" || $1 == "work_dir" || $1 == "branch") { blk[n] = ""; fld[n] = $1 }
+      || $1 == "work_id" || $1 == "work_dir" || $1 == "branch" || $1 == "parent_workspace") { blk[n] = ""; fld[n] = $1 }
   else if (substr($1, 1, 9) == "progress.") { blk[n] = "progress"; fld[n] = substr($1, 10) }
   else { blk[n] = "current"; fld[n] = $1 }
   next

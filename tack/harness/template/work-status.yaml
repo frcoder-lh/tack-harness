@@ -15,6 +15,8 @@ work_id: "{{BRANCH}}"
 project: "{{PROJECT}}"
 # 工作区目录名（$root/space/ 下的目录 = 创建日期 YYYYMMDD + 分支名，便于按时间排序；与 branch 解耦）
 work_dir: "{{WORK_DIR}}"
+# 关联的上游工作区（由 merge 等命令派生的合并工作区填写来源工作区目录名；上游工作区关闭时一并关闭）
+parent_workspace: ""
 # 工作状态（取值见 harness/workflow/ 所属工作流）
 status: "initialized"
 # 所属工作流（development / testing / bugfix / merge-conflict / branch-op，或项目自定义工作流）
@@ -70,13 +72,13 @@ progress:
 # 每条结构：id / title / module / repo / deps(依赖任务) / acceptance / status
 tasks: []
 
-# 遗留后续项（merge 审查三选一分流中选择「记录后续」时登记；不阻塞本次合并）
+# 遗留后续项（用户或按需审查登记的待办；不阻塞当前流程）
 follow_ups: []
 # 每条结构：
 #   - id: "F-01"
 #     issue: ""            # 问题描述
 #     location: ""         # 位置（文件:行号 或模块）
-#     source: "review"     # 来源：merge 审查 / 用户补充
+#     source: "review"     # 来源：按需审查 / 用户补充
 #     severity: ""         # 严重度：critical / warning / suggestion
 #     plan: ""             # 计划处理时间或承接 issue 链接
 #     status: "open"       # open / done / wontdo
@@ -101,6 +103,7 @@ branch_op: null
 #   op: "merge"               # merge / rebase
 #   source: "feature-a"       # 源分支 A
 #   target: "release-x"       # 目标分支 B
+#   source_ref: "auto"        # 源分支引用：auto / local（含未推送提交）/ remote（仅已推送提交）
 #   ts: "20260928183000"      # 时间戳（临时分支后缀）
 #   repos:
 #     - repo: "repo-name"

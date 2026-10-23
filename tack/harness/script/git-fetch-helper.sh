@@ -1,13 +1,15 @@
 #!/bin/sh
 # git-fetch-helper.sh — 仓库远端同步辅助脚本
 #
-# 单仓库内顺序执行：fetch -> 检查并修复上游跟踪 -> pull -> 汇报状态
+# fetch: 只执行 git fetch --all --prune，不改工作区（merge 等命令在合并前拉取最新）
+# sync:  单仓库内顺序执行 fetch -> 检查并修复上游跟踪 -> pull -> 汇报状态
 # 上游目标固定为 origin/<同当前分支名>：
 #   - 已正确跟踪同名分支：直接通过
 #   - 缺失上游 / 跟踪了不同名分支：远端同名分支存在时自动改为跟踪同名分支
 #   - 远端无同当前分支名：停止并列出候选分支（避免从错误的上游 pull）
 #
 # Usage:
+#   sh git-fetch-helper.sh fetch <repo-path>
 #   sh git-fetch-helper.sh sync <repo-path>
 #
 # 结果行（stdout 末尾）：FETCH_RESULT=ok|conflict|detached|no-remote|no-upstream|failed
@@ -19,8 +21,8 @@ set -e
 ACTION="$1"
 REPO_PATH="$2"
 
-if [ "${ACTION}" != "sync" ] || [ -z "${REPO_PATH}" ]; then
-    echo "Usage: $0 sync <repo-path>" >&2
+if { [ "${ACTION}" != "fetch" ] && [ "${ACTION}" != "sync" ]; } || [ -z "${REPO_PATH}" ]; then
+    echo "Usage: $0 <fetch|sync> <repo-path>" >&2
     exit 2
 fi
 
@@ -32,6 +34,17 @@ fi
 # 必须是 git 仓库（worktree 或普通仓库）
 if ! git -C "${REPO_PATH}" rev-parse --git-dir >/dev/null 2>&1; then
     echo "Error: not a git repository: ${REPO_PATH}" >&2
+    exit 1
+fi
+
+# fetch：仅拉取远端引用，不改工作区
+if [ "${ACTION}" = "fetch" ]; then
+    echo "=== ${REPO_PATH} ==="
+    if git -C "${REPO_PATH}" fetch --all --prune; then
+        echo "FETCH_RESULT=ok"
+        exit 0
+    fi
+    echo "FETCH_RESULT=failed"
     exit 1
 fi
 

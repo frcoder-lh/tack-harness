@@ -3,7 +3,7 @@ command: merge
 short: m
 triggers: 合并, merge
 params: [目标分支（默认主干）]
-summary: 将目标分支合并进当前工作区分支（或在平台上发起合并）
+summary: 分支合并——fetch 最新后把源分支合入目标分支；当前工作区为源分支时新建关联工作区执行，冲突转 solve，提交并推送
 ---
 
 # merge 合并分支
@@ -11,51 +11,63 @@ summary: 将目标分支合并进当前工作区分支（或在平台上发起�
 ## 前置准入条件
 
 - 已确定当前工作区 `$work`
-- 当前分支改动已 `commit`；建议先执行 `fetch` 获取最新远端
+- 源分支改动已 `commit`；未提交改动不进入合并范围
 - **Git 作用域**：遵守 `harness/rule/git-boundary.md`——只允许在 `$work/repo/<repo-name>/` 工作区代码仓库内执行 Git 操作
 
 ## 指令内容
 
-1. **确认合并方向与目标分支**
-   - 输入: 目标分支参数（默认仓库主干 master/main，由用户确认）
-   - 动作: 在每个涉及的仓库执行 `sh $root/harness/script/git-facts.sh status "$work/repo/<repo-name>"` 确认当前分支，目标分支用 `sh $root/harness/script/git-facts.sh default-branch "$work/repo/<repo-name>"` 取得（退出码 11 时由用户指定）
+1. **拉取最新并确认合并方向**
+   - 动作: 逐仓库执行 `sh $root/harness/script/git-fetch-helper.sh fetch "$work/repo/<repo-name>"` 拉取最新远端引用，再执行 `sh $root/harness/script/git-facts.sh status "$work/repo/<repo-name>"` 确认当前分支、upstream、ahead/behind
+   - 源分支: 默认当前工作区分支（用户指定时以其为准）
+   - 目标分支: 用户参数；缺省时执行 `sh $root/harness/script/git-facts.sh default-branch "$work/repo/<repo-name>"`（退出码 11 时由用户指定）
+   - **确认合并哪一侧的源分支**:
+     - 本地分支：以本地 `<源分支>` 为合并内容（含未推送提交）
+     - 远程分支：以 fetch 后的 `origin/<源分支>` 为合并内容（仅已推送提交）
+     - 按 ahead/behind 事实区分：本地 ahead > 0 时两侧内容不同，必须让用户明确选择；只有一侧存在时直接使用该侧；拿不准时展示事实并询问
+   - 边界: 合并方向、源引用、目标分支三者须在动手前明确，不按上下文猜测
 
-2. **变更审查（审查必选，禁止跳过）**
-   - 动作:
-     - 读取 `$root/harness/agents/code-reviewer.md`，按其委派方式发起审查；审查方法论遵循 `harness/reference/code-review.md` 的双轴（Spec/Standards）
-     - 小改动可委派单一 reviewer 实例；跨模块/多仓库大改动并行委派 3 个实例（规范符合度 / bug 与正确性 / 约定与安全），审查范围可用 `sh $root/harness/script/git-diff-context.sh batch $work $root/.tack/tmp/review <目标分支>` 导出三点 diff
-     - 规范来源：`$work/spec.md`、`plan.md`、`tech-design.md`；标准来源：`harness/rule/coding-standards.md`、`harness/rule/security.md`
-     - 汇总各实例结论，按 Critical / Warning / Suggestion 分组呈现（每条含 `文件:行号` 证据与依据），审查者只读不改
-   - 边界: 只审查本次变更新引入的问题；历史问题单列提示，不阻断合并
+2. **确定执行位置**
+   - 当前分支 = 目标分支：先逐仓库执行 `sh $root/harness/script/git-fetch-helper.sh sync "$work/repo/<repo-name>"` 把目标分支对齐远端最新（冲突转 `solve`），再执行 `git merge <本地源分支|origin/源分支>`
+   - 当前分支 = 源分支，或当前分支既非源也非目标、目标已被其他 worktree 检出：交由 `work` 命令新建工作区执行（第 3 步），不在源工作区 checkout 目标分支
+   - 多仓库时逐仓库判定，可能部分仓库就地合并、部分转新工作区
 
-3. **审查结论三选一分流（由用户决定，禁止 AI 自行放行）**
-   - 无 Critical/Warning（仅 Suggestion 或无问题）：一句话说明后直接进入第 4 步
-   - 存在 Critical/Warning 时，向用户呈现清单并要求三选一：
-     - **立即修复**：中止本次合并，转 `fix`（或 `code`）修复，修复后重新执行本命令第 2 步复审
-     - **记录后续**：逐条登记到 `$work/status.yaml`（如 `follow_ups` 列表：问题、位置、来源审查、计划处理时间）或平台 issue，用户确认后继续合并
-     - **维持现状**：用户明确确认承担风险，在 `$work/status.yaml` 记录确认人与事项后继续合并
-   - 动作: 把分流结果回写 `$work/status.yaml`（`current.next` 注明选择；修复/记录/确认的落盘位置）
+3. **新建合并工作区（需要时）**
+   - 动作: 按 `work` 命令「分支操作（branch-op）」流程执行，分支操作意图为「把 <源分支> 合并到 <目标分支>」，源分支引用取第 1 步的选择（本地/远端）
+   - 关联: 工作区创建后执行
+     `sh $root/harness/script/work-status.sh $root/space/<WORKSPACE>/status.yaml set parent_workspace "<当前工作区目录名>"`
+     把新工作区关联到当前工作区（`<当前工作区目录名>` = `basename "$work"`）；随后把 `$work` 切到新工作区执行第 4 步，完成后切回原工作区
+   - 边界: 建区、prepare、临时分支命名与登记均由 work/branch-op 流程完成，本命令不重复；不自行拼工作区目录名，一律使用脚本输出的 `WORKSPACE`
 
-4. **执行合并**
-   - 动作: 优先引导在代码平台发起 MR/PR 合并（以平台审查结论为准，第 2 步自查作为提交前门禁，Code Review 要求见 `harness/rule/git-standards.md`）；需要本地合并时逐仓库执行 `git merge <目标分支>`
+4. **执行合并并处理冲突**
+   - 新工作区: 逐仓库执行 `sh $root/harness/script/branch-op.sh integrate $root space/<WORKSPACE> <repo> merge <source-tmp> <target-tmp>`
+   - 当前工作区就地合并: 逐仓库执行 `git merge <本地源分支|origin/源分支>`
+   - 冲突: 退出码 10 或 `sh $root/harness/script/git-facts.sh conflicts "$work/repo/<repo-name>"` 退出码 10 时，停止自动处理并转 `solve`；解决后新工作区执行 `sh $root/harness/script/branch-op.sh continue $root space/<WORKSPACE> <repo> merge`，就地合并执行 `git merge --continue`；仍有冲突则重复 solve
+   - 边界: 不静默取舍冲突内容，不使用强制操作绕过
 
-5. **冲突处理**
-   - 动作: 出现冲突立即停止自动处理，转交 `solve` 命令；不做静默取舍
+5. **提交与推送**
+   - 提交: `branch-op.sh integrate` 以 `--no-edit` 生成合并提交；就地合并的冲突解决后由 `git merge --continue` 生成合并提交；提交信息不符合规范时按 `harness/rule/git-standards.md` 修正后再继续
+   - 推送: 新工作区逐仓库执行
+     `sh $root/harness/script/branch-op.sh push $root space/<WORKSPACE> <repo> merge <源分支> <目标分支> <source-tmp> <target-tmp>`
+     就地合并逐仓库执行 `sh $root/harness/script/git-push-helper.sh push "$work/repo/<repo-name>"`
+   - 目标为保护分支、平台拒绝直接推送时: 按平台流程发起 MR/PR 合并，成功后回填 `mr_url`；不绕过保护规则
+   - 只允许普通推送，禁止 force
 
-6. **合并后同步**
-   - 动作: 本地合并成功后提示 `push`；平台合并后执行 `sh $root/harness/script/work-status.sh $work/status.yaml set mr_url "<url>"` 回填 MR 链接，并置 `progress.merged: true`；冲突解决可转入 merge-conflict 工作流
+6. **合并后回写**
+   - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml set status merged stage merge progress.merged true`（就地合并时写当前工作区；新建工作区合并时写原工作区，新工作区按 branch-op 流程保持 `completed`）
+   - 关联工作区保留到 `close`，由 `close` 随当前工作区一并关闭；本命令不删除合并工作区
    - 合并 ≠ 上线: 用户需要在 PPE/PROD 等环境继续验证或上线时，执行 `sh $root/harness/script/work-status.sh $work/status.yaml deploy upsert <repo> <env> <lane> <route> <build> <url> <status>` 登记各环境上线计划与泳道/版本事实；BOE 验证泳道不再使用时执行 `deploy mark <repo> <env> <lane> recycled`
 
 ## 后置完成检验
 
-- [ ] 第 2 步审查已执行，问题清单按级别呈现且均有证据
-- [ ] 存在 Critical/Warning 时三选一分流有用户明确选择，结果已回写 status.yaml（修复转 fix / 后续项已登记 / 风险有人确认）
-- [ ] 每个仓库合并结果明确（成功 / 冲突转 solve / 用户选择跳过）
-- [ ] 合并后构建通过；本次按需执行过的测试（testcode/test/run）结果均通过——测试非必经环节，未执行不阻塞合并
-- [ ] `$work/status.yaml` 的 mr_url 已更新（平台合并时）
+- [ ] 已 fetch 最新；源分支、目标分支、本地/远程源引用均有明确选择依据
+- [ ] 执行位置明确：就地合并或新建关联工作区，未强行 checkout 被占用的分支
+- [ ] 每个仓库合并结果明确（成功 / 冲突已转 solve 并继续 / 用户选择跳过）
+- [ ] 合并提交已生成、普通推送成功（或平台 MR/PR 已发起并回填 mr_url）
+- [ ] 新工作区 `status.yaml` 的 `parent_workspace` 指向原工作区
+- [ ] 原工作区 `status` 置 `merged`、`progress.merged` 置 `true`
 - [ ] `deploy` 区块已按需登记上线计划或泳道回收（无部署需求时向用户说明并跳过）
 
 ## 下一步建议
 
-- 上线前需要检查清单时执行 `release-check`（数据库/配置/接口权限/中间件等检查项）
-- 合并并上线完成后执行 `close` 关闭工作区
+- 上线前需要检查清单时执行 `release-check`
+- 合并并上线完成后执行 `close`；关联的合并工作区会随之关闭

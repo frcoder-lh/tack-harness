@@ -3,7 +3,7 @@ command: close
 short: cl
 triggers: 关闭工作区, 结束, close, close workspace, finish
 params: 无
-summary: 工作区收尾——状态判定与关闭确认、交付检查、输出交付摘要、提炼内容入 wiki（含技术决策）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、删除工作区目录并移除 AGENTS.md work 条目
+summary: 工作区收尾——状态判定与关闭确认、同步关闭关联工作区、交付检查、输出交付摘要、提炼内容入 wiki（含技术决策）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、删除工作区目录并移除 AGENTS.md work 条目
 ---
 
 # close 关闭工作区
@@ -20,6 +20,16 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
    - **非完成态**（initialized/planning/developing/reviewing，或存在未完成 tasks、未推送提交、未合并 MR）：列出未完成项并说明风险，**请用户确认是否仍要关闭**
      - 输入: 用户确认 → 继续；用户不确认 → 中止关闭，引导回到对应环节（如 `merge`、`code`）
    - work 条目仍在即表示关闭未完成；若 worktree 已移除（上次收尾在删除目录前中断），直接续跑剩余收尾步骤；若工作区目录已删除而 work 条目残留（purge 与移除条目之间中断），直接执行第 7 步的 `work-remove` 后跳到收尾提交
+
+1.5 **同步关闭关联工作区**
+   - 动作: 执行 `sh $root/harness/script/work-status.sh $root related children <workspace>`（`<workspace>` = `basename "$work"`），取得 `parent_workspace` 指向当前工作区的关联工作区（每行 `目录名<TAB>status<TAB>workflow`）
+     - 无输出: 一句话说明无关联工作区，继续第 2 步
+     - 有输出: 逐个（先子后父、递归）执行本命令第 1~7 步关闭关联工作区：
+       1. 记录当前 `$work` 与状态，切换 `$work=$root/space/<关联目录>`，重新读取其 status.yaml
+       2. 关联工作区为非完成态时按第 1 步规则请用户确认；用户拒绝则中止当前工作区关闭并保留现状
+       3. 按其 workflow 分流行事（branch-op 用第 3 步简版摘要、第 6 步 `branch-op.sh cleanup`），走完交付检查、worktree 移除、目录 purge 与 `work-remove`
+       4. 恢复 `$work` 为当前工作区，继续处理下一个关联工作区
+   - 边界: 关联关系以子工作区 status.yaml 的 `parent_workspace` 为唯一依据，不按目录名或分支名推断；先关闭关联工作区再关闭当前工作区，任一关联工作区收尾失败即中止当前关闭并如实报告；子工作区收尾不单独提交，由当前工作区收尾的框架自动提交统一记录
 
 2. **交付检查**
    - 动作: 逐仓库检查：无未提交改动（或用户确认保留）、本地提交均已推送、MR 已合并或用户确认跳过；检查 `$work/status.yaml` 的 mr_url、tech_doc_url 是否需要补全；未推送提交需逐一告知用户并确认处理方式；执行 `work-status.sh $work/status.yaml deploy list`——存在 `deploying/deployed` 状态的泳道时提醒用户到部署平台回收（回收后执行 `deploy mark <repo> <env> <lane> recycled`），未回收不阻塞关闭但处理方式须经用户确认；检查 `$work/run/local/`——该目录被 .gitignore 忽略，仅本地存在、含密钥/账号或临时数据；工作区目录将在第 7 步整体删除，提醒用户其中若有需要保留的文件请先取走（不阻塞关闭）
@@ -88,6 +98,7 @@ summary: 工作区收尾——状态判定与关闭确认、交付检查、输�
 ## 后置完成检验
 
 - [ ] 非完成态关闭已有用户明确确认；完成态未做多余追问
+- [ ] `parent_workspace` 指向本工作区的关联工作区已全部同步关闭；无关联时已说明
 - [ ] 已按四段结构（构建内容/关键决策/改动文件/建议后续步骤）输出交付摘要，内容均有工作区产物或 git 事实来源
 - [ ] `git worktree list` 中不再有该工作区的 worktree
 - [ ] branch-op：`A-ts`、`B-ts` 两个临时分支均已删除

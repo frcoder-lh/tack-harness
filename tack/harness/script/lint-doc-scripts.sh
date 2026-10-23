@@ -90,11 +90,11 @@ LC_ALL=C awk -v H="${HARNESS_DIR}" '
     }
     function check_sig(base, P, NP, FL, NFL, file,   sc, sub2, min) {
         if (base == "work-status.sh") {
-            # work-status 的第一位置参数是 status.yaml，子命令在其后
+            # work-status 的第一位置参数是 status.yaml（related 为空间根），子命令在其后
             if (NP < 2) { warn(file, base, "需要 <status.yaml> <子命令>"); return }
             sc = P[2]
             if (sc ~ /\|/) return
-            if (sc != "set" && sc != "guidance" && sc != "tasks" && sc != "deploy" && sc != "branch") {
+            if (sc != "set" && sc != "guidance" && sc != "tasks" && sc != "deploy" && sc != "branch" && sc != "related") {
                 warn(file, base, "未知子命令: " sc); return
             }
             if (sc == "set") {
@@ -137,6 +137,13 @@ LC_ALL=C awk -v H="${HARNESS_DIR}" '
                 else if (sub2 == "rename") min = 5
                 else { warn(file, base, "未知 branch 子动作: " sub2); return }
                 if (NP < min) warn(file, base, "branch " sub2 " 参数不足")
+            } else if (sc == "related") {
+                if (NP < 3) { warn(file, base, "related 缺少子动作"); return }
+                sub2 = P[3]
+                if (sub2 ~ /\|/) return
+                if (sub2 == "children") min = 4
+                else { warn(file, base, "未知 related 子动作: " sub2); return }
+                if (NP < min) warn(file, base, "related " sub2 " 参数不足")
             }
             return
         }
@@ -186,8 +193,8 @@ LC_ALL=C awk -v H="${HARNESS_DIR}" '
             return
         }
         if (base == "git-fetch-helper.sh") {
-            if (P[1] != "sync" && P[1] !~ /\|/) warn(file, base, "未知子命令: " P[1])
-            if (NP < 2) warn(file, base, "sync 需要 <repo-path>")
+            if (P[1] != "sync" && P[1] != "fetch" && P[1] !~ /\|/) warn(file, base, "未知子命令: " P[1])
+            if (NP < 2) warn(file, base, P[1] " 需要 <repo-path>")
             return
         }
         if (base == "git-commit-helper.sh") {
