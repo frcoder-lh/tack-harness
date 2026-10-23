@@ -101,7 +101,7 @@
 | `harness/rule/` | 业务、代码与安全规则（coding-standards、git-standards、security、git-boundary、context-loading、windows-env、record-* 等；不参与路由，按需加载） |
 | `harness/template/` | 命令/工作流/文档/工作区模板 |
 | `harness/reference/` | 通用方法论与复杂独立能力（随 harness 分发、不接受项目级沉淀，项目做法归 rule/wiki；须被 cmd/workflow/agents/rule 引用后才加载，不参与路由） |
-| `wiki/<project>/` | 按项目隔离的公共知识：业务背景、代码导航锚点（术语→代码入口、接口→场景）、服务清单与代码外事实、技术决策与工程约定（decisions）、项目级参数（环境网关地址等）；`<project>` 与 `projects[].name` 一致；条目带来源、矛盾保留演变；不记易变代码逻辑（人工可读写，AI 蒸馏内容须人工审阅） |
+| `wiki/<project>/` | 按项目隔离的公共知识：业务背景、代码导航锚点（术语→代码入口、接口→场景）、服务清单与代码外事实、技术决策与工程约定（decisions）、项目级参数（环境网关地址等）、需求归档（`history/`，每个需求一份，记录为什么做与关键决策，不记实现过程）；`<project>` 与 `projects[].name` 一致；条目带来源、矛盾保留演变；不记易变代码逻辑（人工可读写，AI 蒸馏内容须人工审阅） |
 | `space/<workspace>/`（`<workspace>` = `<YYYYMMDD>-<branch>`） | 每个工作的工作区（status.yaml 含 project、input.md、spec/plan/tech-design、test.md、wiki/、repo worktree、run/）；日期前缀目录名便于按创建时间排序 |
 | `repo/` | 代码主仓库（只保留一份，只读基准；worktree 用到哪个仓库再从这里获取） |
 | `.tack/` | 框架本地运行时数据根（不入库、可随时清理）：`log/` 运行日志、`backup/` 回滚备份（study/update/skill 各带时间戳）、`tmp/` 临时文件（退出即清）、`state/` 本机状态（如 update-state） |

@@ -84,12 +84,12 @@ summary: 沉淀知识或扩展能力——先确定工作区与项目；能力�
 
 | 文件 | 作用 |
 |------|------|
-| `harness/rule/record-classification.md` | 五类内容的分类判据、能力/参数落点、wiki 四类分工、存疑路由 |
+| `harness/rule/record-classification.md` | 五类内容的分类判据、能力/参数落点、wiki 文件分工、存疑路由 |
 | `harness/rule/record-agents.md` | 沉淀 AGENTS.md 核心约束的格式、适用范围与边界 |
 | `harness/rule/record-cmd.md` | 命令的扫描融合、新建模板字段、分组选择 |
 | `harness/rule/record-workflow.md` | 工作流的扫描融合与新建 |
 | `harness/rule/record-rule.md` | 编码规范/研发规则的落点与融合 |
-| `harness/rule/record-wiki.md` | wiki 四类文件分工、边界、来源链、矛盾演变、落盘方式（close 提炼内容时同样适用） |
+| `harness/rule/record-wiki.md` | wiki 文件分工、边界、来源链、矛盾演变、落盘方式（close 提炼内容时同样适用） |
 
 ## 下一步建议
 
