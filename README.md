@@ -197,6 +197,8 @@ my-project/
 
 分析过程检索 `wiki/` 公共知识；ask 提炼的稳定导航锚点（术语→检索词/代码入口、接口→业务场景）经人工审阅后由 record 沉淀至根 wiki，调用链等易变细节只留在工作区分析文档。`status.yaml` 随环节推进自动更新状态与进度。
 
+需要从当前环节一路做到需求完成时，执行 `/tack auto`：开始前一次性补齐缺失信息并确认全流程，确认后连续执行到终态，结束时汇总关键决策与结果。
+
 ### 4.4 开发、修正与测试
 
 ```bash
@@ -320,6 +322,7 @@ flowchart LR
 | `code-review` | rv | 代码审查 / 审查报告 / code review / review report /code-review | 按需触发：以 plan/tech-design 为规范、目标分支三点 diff 为事实，逐函数分析改动、正确性与危害，评估影响接口与场景，产出 `$work/code-review.md` |
 | `release-check` | rc | 上线检查 / 发布检查 / release check / go-live check /release-check | 按需触发：识别数据库变更（含变更语句）、配置变更（含模板）、新增接口调用（权限申请）、新增中间件（申请配置），产出 `$work/release-check.md` |
 | `close` | cl | 关闭工作区 / close workspace / finish /close | 交付检查与摘要、提炼 wiki（含技术决策）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、按 `branches` 登记簿清理分支（tmp 直接删、main 先判合并状态，未合并需用户确认）、删除工作区目录并移除 AGENTS.md 工作区登记 |
+| `auto` | au | 自动执行 / 全自动 / 自动流转 / 自动开发 / auto / auto run / automatic execution / autopilot /auto | 自动执行当前工作流剩余环节到终态：开始前一次性补齐缺失信息并确认全流程，确认后连续执行不中断，结束时汇总关键决策与结果；默认到 merged / completed，可指定一并 close |
 
 ### 7.3 Git 命令（cmd/git/）
 

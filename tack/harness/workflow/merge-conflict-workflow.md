@@ -47,6 +47,8 @@ initialized → fetching → merging → resolving → verifying → pushing →
 | 5 | 验证 | 构建/测试命令 | 构建通过、相关测试通过 | verifying |
 | 6 | 继续/推送 | `git merge --continue`（或 rebase --continue）→ `push` | 回填 mr_url | pushing → completed |
 
+> 需要从当前环节连续执行到终态时使用 `auto`：开始前一次性补齐缺失信息并确认全流程，确认后按上表连续推进，不逐环节等待审阅；各环节准入准出仍以对应 cmd 文件为准。
+
 ## 各环节说明
 
 1. **只做引导不做静默取舍**：每个冲突点展示双方差异与代码意图，解决建议由用户拍板；modify/delete 冲突需明确保留或删除

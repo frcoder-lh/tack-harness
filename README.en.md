@@ -197,6 +197,8 @@ You can put PRD excerpts and reference links into `space/20261001-user-login/inp
 
 The analysis consults shared knowledge in `wiki/`; stable navigation anchors distilled by `ask` (term→search term/code entry, interface→business scenario) are human-reviewed and distilled by `record` into the root wiki, while volatile details such as call chains stay only in the workspace analysis documents. `status.yaml` auto-updates state and progress as stages advance.
 
+To run from the current stage all the way to requirement completion, execute `/tack auto`: it gathers missing inputs and confirms the whole flow once up front, then executes continuously to the terminal state and reports all key decisions and results at the end.
+
 ### 4.4 Develop, fix, and test
 
 ```bash
@@ -320,6 +322,7 @@ All commands support Chinese and English triggers plus short forms, in the forma
 | `code-review` | rv | code review / review report /code-review | On demand: using plan/tech-design as the spec and the target-branch three-dot diff as facts, analyzes changes function by function for correctness and hazards, assesses affected interfaces and scenarios, and produces `$work/code-review.md` |
 | `release-check` | rc | release check / go-live check /release-check | On demand: identifies database changes (with migration statements), config changes (with templates), new API calls (permission requests), and new middleware (resource requests), producing `$work/release-check.md` |
 | `close` | cl | close workspace / finish /close | Delivery check and summary, distills wiki (incl. technical decisions), consumes guidance to crystallize the harness and verifies landing points, removes worktrees and cleans up branches per the `branches` register (tmp deleted directly; main branches checked for merged status first, unmerged ones need user confirmation), then deletes the workspace directory and removes its AGENTS.md registration |
+| `auto` | au | auto / auto run / automatic execution / autopilot /auto | Automatically runs the current workflow's remaining stages to its terminal state: gathers missing inputs and confirms the whole flow once up front, then executes continuously without interruption and reports all key decisions and results at the end; defaults to merged / completed, optionally including close |
 
 ### 7.3 Git commands (cmd/git/)
 

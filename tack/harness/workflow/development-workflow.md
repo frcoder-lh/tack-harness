@@ -54,6 +54,8 @@ initialized → planning → developing → reviewing → merged ──close─�
 | 10 | 关闭工作区 | `close` | 关联工作区同步关闭、交付摘要、内容提炼入 wiki 四类页面（含 decisions，用户确认）、guidance 自进化固化到 workflow/cmd/rule（回写时校验落点）、worktree 移除、工作区目录删除、AGENTS.md work 条目移除 | 工作区关闭（目录与条目均移除） |
 | — | 经验沉淀 | `record` | cmd/workflow/rule/wiki | 任意环节之后 |
 
+> 需要从当前环节连续执行到终态时使用 `auto`：开始前一次性补齐缺失信息并确认全流程，确认后按上表连续推进，不逐环节等待审阅；各环节准入准出仍以对应 cmd 文件为准。
+
 ### 按需命令（非主链路环节，用户需要时才触发）
 
 以下命令**不是开发必经环节**：不在主链路状态机中占位、不阻塞 commit/push/merge/close，code 完成后可直接提交，AI 不主动询问"是否进入"——**用户不触发即视为本工作不需要**。用户直接表达意图（跑单测/系统测试/执行脚本）或进入 `testing` 工作流时才执行；执行期间只临时占用 `current.stage`，完成与否仅作 `progress` 事实记录。

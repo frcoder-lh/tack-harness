@@ -56,6 +56,8 @@ initialized → test-planning → testing → verifying → completed
 | 6 | 回归验证 | 构建/全量测试命令 | 全量测试通过、无稳定性问题 | verifying |
 | 7 | 提交 | `commit` `push` | 测试提交 | completed |
 
+> 需要从当前环节连续执行到终态时使用 `auto`：开始前一次性补齐缺失信息并确认全流程，确认后按上表连续推进，不逐环节等待审阅；各环节准入准出仍以对应 cmd 文件为准。
+
 ## 各环节说明
 
 1. **范围圈定**：从 status.yaml 的 `tasks` 列表与代码 diff 圈定本任务新增/修改逻辑；识别核心分支、边界条件、异常路径

@@ -47,6 +47,8 @@ initialized → reproducing → diagnosing → fixing → verifying → complete
 | 6 | 提交推送 | `commit` `push`（必要时 `merge`） | 提交记录 | completed |
 | — | 经验沉淀 | `record`（根因与排查路径沉淀项目 wiki/rule） | 项目 wiki 条目 | 完成后 |
 
+> 需要从当前环节连续执行到终态时使用 `auto`：开始前一次性补齐缺失信息并确认全流程，确认后按上表连续推进，不逐环节等待审阅；各环节准入准出仍以对应 cmd 文件为准。
+
 ## 各环节说明
 
 1. **先复现后动手**：无法稳定复现的问题先补信息（日志、数据、环境），不凭猜测改代码；受阻置 blocked
