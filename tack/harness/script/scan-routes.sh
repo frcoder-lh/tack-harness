@@ -87,6 +87,24 @@ function basename(path,   n, a) { n = split(path, a, "/"); return a[n] }
 function parent(path,   n, a)   { n = split(path, a, "/"); return a[n-1] }
 function grandp(path,   n, a)   { n = split(path, a, "/"); return a[n-2] }
 
+# 词边界模糊匹配：ASCII 关键词须出现在开头或 [-_] 之后，避免裸子串把短词退化成大批候选；
+# 中文等非 ASCII 关键词仍走子串匹配（中文没有词边界分隔符）
+function wb_match(s, kw,   pos, p, abs, prev) {
+    if (s == "" || index(s, kw) == 0) return 0
+    if (kw !~ /^[a-z0-9_-]+$/) return 1
+    pos = 1
+    while (pos <= length(s)) {
+        p = index(substr(s, pos), kw)
+        if (p == 0) return 0
+        abs = pos + p - 1
+        if (abs == 1) return 1
+        prev = substr(s, abs - 1, 1)
+        if (prev == "-" || prev == "_" || prev == " ") return 1
+        pos = abs + 1
+    }
+    return 0
+}
+
 # 从 front matter 行中取 key 的值
 function fval(line, key) {
     if (index(line, key ":") == 1) {
@@ -246,7 +264,17 @@ END {
             }
             line = ent_type[i] "|" ent_group[i] "|" ent_file[i] "|" ent_name[i] "|" ent_short[i] "|" ent_trig[i] "|" ent_params[i] "|" ent_summ[i]
             if (hit) { exact_n++; exact[exact_n] = line }
-            else if (index(nm "|" tg, kw) > 0) { fuzzy_n++; fuzzy[fuzzy_n] = line }
+            else {
+                fhit = wb_match(nm, kw)
+                if (!fhit && sh != "") fhit = wb_match(sh, kw)
+                if (!fhit) {
+                    m = split(tg, parts, ",")
+                    for (k = 1; k <= m; k++) {
+                        if (wb_match(tolower(trim(parts[k])), kw)) { fhit = 1; break }
+                    }
+                }
+                if (fhit) { fuzzy_n++; fuzzy[fuzzy_n] = line }
+            }
         }
         if (exact_n == 1) { print exact[1]; exit 0 }
         if (exact_n > 1) {
@@ -255,6 +283,11 @@ END {
             exit 2
         }
         if (fuzzy_n == 1) { print fuzzy[1]; exit 0 }
+        # 模糊候选过多时枚举反而是噪音：落回「无命中」(退出码 1)，由 AI 走语义识别
+        if (fuzzy_n > 3) {
+            print "关键词 \x27" KEYWORD "\x27 模糊命中 " fuzzy_n " 条，过于宽泛，请补充触发词" > "/dev/stderr"
+            exit 1
+        }
         if (fuzzy_n > 1) {
             print "多个路由与 \x27" KEYWORD "\x27 相似，请补充触发词：" > "/dev/stderr"
             for (i = 1; i <= fuzzy_n; i++) print fuzzy[i] > "/dev/stderr"

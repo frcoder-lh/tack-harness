@@ -13,7 +13,7 @@
 work_id: "{{BRANCH}}"
 # 所属项目（必须与 AGENTS.md projects 数组中的 name 一致；项目级知识读写 $root/wiki/<project>/）
 project: "{{PROJECT}}"
-# 工作区目录名（$root/space/ 下的目录 = 创建日期 YYYYMMDD + 分支名，便于按时间排序；与 branch 解耦）
+# 工作区目录名（$root/space/ 下的目录 = 创建日期 YYYYMMDD + 扁平化分支名；分支中的 / 转 -，便于按时间排序；与 branch 解耦）
 work_dir: "{{WORK_DIR}}"
 # 关联的上游工作区（由 merge 等命令派生的合并工作区填写来源工作区目录名；上游工作区关闭时一并关闭）
 parent_workspace: ""

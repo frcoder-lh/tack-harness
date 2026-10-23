@@ -8,7 +8,7 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 
 # work 工作区管理
 
-> 工作区位于 `$root/space/<workspace>/`；**目录命名约定：`<workspace>` = `<YYYYMMDD>-<branch>`**（如 `20261001-user-login`），日期前缀使 `space/` 下按目录名排序即按创建时间排序；worktree 检出的 git 分支名仍为 `<branch>`（不含日期），`work_id` 默认与分支同名。项目信息（`projects` 数组 + work 列表）维护在 AGENTS.md 项目信息区块，每个工作区通过 `status.yaml` 的 `project` 归属一个项目。
+> 工作区位于 `$root/space/<workspace>/`；**目录命名约定：`<workspace>` = `<YYYYMMDD>-<branch>`**（如 `20261001-user-login`；分支名中的 `/` 在目录名中转为 `-`，如 `feature/login` → `20261023-feature-login`，保证 `space/` 下始终是单层目录），日期前缀使 `space/` 下按目录名排序即按创建时间排序；worktree 检出的 git 分支名仍为 `<branch>`（不含日期、保留 `/`），`work_id` 默认与分支同名。项目信息（`projects` 数组 + work 列表）维护在 AGENTS.md 项目信息区块，每个工作区通过 `status.yaml` 的 `project` 归属一个项目。
 
 ## 前置准入条件
 
@@ -61,7 +61,7 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
    - 动作: 执行
      `sh $root/harness/script/work.sh $root <project> <branch> <已选仓库名...>`
      脚本自动取当天日期生成工作区目录 `space/<YYYYMMDD>-<branch>/` 扁平骨架（status.yaml 含 project、input.md、repo/），并为每个仓库创建 git worktree 到 `space/<YYYYMMDD>-<branch>/repo/<repo-name>`（worktree 检出分支仍为 `<branch>`）
-   - 解析输出: 脚本末尾输出结果行 `WORKSPACE=<工作区目录名>`、`BRANCH=<安全化分支名>`、`NEW_BRANCHES=<逗号分隔的仓库名>`（worktree 新建主分支的仓库，已存在分支的仓库不在内；工作区已存在时为空），第 7 步一律使用 `WORKSPACE` 值拼路径，不得自行按分支名猜目录
+   - 解析输出: 脚本末尾输出结果行 `WORKSPACE=<工作区目录名>`、`BRANCH=<git 分支名（保留 /）>`、`NEW_BRANCHES=<逗号分隔的仓库名>`（worktree 新建主分支的仓库，已存在分支的仓库不在内；工作区已存在时为空），第 7 步一律使用 `WORKSPACE` 值拼路径，不得自行按分支名猜目录
 
 7. **登记并切换上下文**
    - 动作: 用上一步的 `WORKSPACE` 值执行

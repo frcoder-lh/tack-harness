@@ -76,11 +76,16 @@ case "${ACTION}" in
             exit 1
         fi
 
-        # 指定仓库只处理该仓库；否则遍历 root/repo 下全部仓库
+        # 指定仓库只处理该仓库；否则直接枚举 repo/*/ 目录（不解析 ls 输出，仓库名含空格也不拆碎）
         if [ -n "${REPO_NAME}" ]; then
             set -- "${REPO_NAME}"
         else
-            set -- $(ls -1 repo 2>/dev/null)
+            set --
+            for _d in repo/*/; do
+                [ -d "${_d}" ] || continue
+                _name="${_d%/}"
+                set -- "$@" "${_name##*/}"
+            done
         fi
 
         FOUND=0

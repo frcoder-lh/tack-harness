@@ -522,7 +522,7 @@ if [ "${SUBCMD}" = tasks ]; then
         exit 0
       fi
       case "${TOLD}:${TNEW}" in
-        pending:in_progress|pending:blocked|\
+        pending:in_progress|pending:done|pending:blocked|\
         in_progress:pending|in_progress:done|in_progress:blocked|\
         blocked:pending|blocked:in_progress|done:pending) ;;
         *)

@@ -7,6 +7,7 @@
 #     repo-name 可传多个；不传则默认为 root/repo 下的全部仓库创建 worktree
 #     --no-worktree：只建目录骨架与模板文件，不创建任何 worktree
 #       （branch-op 工作流使用，临时分支 worktree 由 branch-op.sh prepare 另行创建）
+#       该 flag 可出现在任意位置，不占用位置参数
 #
 #   sh work.sh rename <root> <old-work-id> <new-work-id> [new-branch] --dry-run|--apply
 #     工作区重命名事务：目录（保留日期前缀）、各仓库分支、status.yaml（work_id/work_dir/branch）、
@@ -20,12 +21,13 @@
 #     本动作只删目录，AGENTS.md 工作条目的移除由 project.sh work-remove 负责；不自动提交
 #     （由 close 收尾的 space.sh commit 统一记录删除）。
 #
-# 目录命名：工作区目录名 = 创建日期(YYYYMMDD) + '-' + 安全化分支名，如 20261001-user-login。
-#   日期前缀使 space/ 下「按目录名排序」即「按创建时间排序」；git 分支名本身不带日期，
-#   目录（空间管理概念）与分支名由此解耦。
+# 目录命名：工作区目录名 = 创建日期(YYYYMMDD) + '-' + 扁平化分支名，如分支 feature/login 对应
+#   目录 20261001-feature-login（分支名中的 / 转 -，保证 space/ 下始终是单层目录）。
+#   日期前缀使 space/ 下「按目录名排序」即「按创建时间排序」；git 分支名本身不带日期、
+#   保留原始 /，目录（空间管理概念）与分支名由此解耦。
 #
 # 结果行（stdout 末尾输出 KEY=VALUE，供调用方解析实际工作区路径）：
-#   WORKSPACE=<工作区目录名>   BRANCH=<安全化分支名>
+#   WORKSPACE=<工作区目录名>   BRANCH=<git 分支名（保留 /，与目录名不同）>
 #
 # 工作区结构（扁平，工作区级文档放 wiki/）：
 #   space/<YYYYMMDD>-<branch>/
@@ -188,8 +190,10 @@ if [ "${1:-}" = "rename" ]; then
         [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]) ;;
         *) DATE_PREFIX="$(date +%Y%m%d)" ;;
     esac
-    SAFE_NEW_BRANCH="$(printf '%s' "${NEW_BRANCH}" | sed 's/[^a-zA-Z0-9/_-]/_/g')"
-    NEW_DIR="${DATE_PREFIX}-${SAFE_NEW_BRANCH}"
+    SAFE_NEW_BRANCH="$(printf '%s' "${NEW_BRANCH}" | sed 's/[^a-zA-Z0-9/_.-]/_/g')"
+    # 目录名扁平化：git 分支保留 /，目录中的 / 转 -，保证 space/ 下始终单层
+    DIR_NEW_BRANCH="$(printf '%s' "${SAFE_NEW_BRANCH}" | sed 's|/|-|g')"
+    NEW_DIR="${DATE_PREFIX}-${DIR_NEW_BRANCH}"
     NEW_PATH="${ROOT}/space/${NEW_DIR}"
 
     # 冲突检查：新 ID、新目录、新分支
@@ -359,17 +363,24 @@ if [ "${1:-}" = "rename" ]; then
     exit 0
 fi
 
+# --no-worktree 可出现在任意位置：逐参数轮转过滤，其余参数按原顺序留在位置参数中
 NO_WORKTREE=0
-case "${1:-}" in
-  --no-worktree) NO_WORKTREE=1; shift ;;
-esac
+_remaining=$#
+while [ "${_remaining}" -gt 0 ]; do
+    _arg="$1"; shift
+    case "${_arg}" in
+        --no-worktree) NO_WORKTREE=1 ;;
+        *) set -- "$@" "${_arg}" ;;
+    esac
+    _remaining=$((_remaining - 1))
+done
 
 ROOT="${1:-.}"
 PROJECT="$2"
 BRANCH="$3"
 
 if [ -z "${PROJECT}" ] || [ -z "${BRANCH}" ]; then
-    echo "Usage: sh work.sh <root> <project> <branch> [repo-name ...]" >&2
+    echo "Usage: sh work.sh [--no-worktree] <root> <project> <branch> [repo-name ...]" >&2
     exit 1
 fi
 
@@ -393,16 +404,17 @@ fi
 
 cd "${ROOT}"
 
-# 分支名安全化（只保留字母数字 _ - /；- 置于字符类末尾按字面量处理，/ 不需转义）
-SAFE_BRANCH=$(printf '%s' "${BRANCH}" | sed 's/[^a-zA-Z0-9/_-]/_/g')
-# 工作区目录名 = 创建日期 + 安全化分支名（目录名带日期前缀便于排序，git 分支名保持纯净）
-WORK_BASENAME="$(date +%Y%m%d)-${SAFE_BRANCH}"
+# 分支名安全化（只保留字母数字 _ - / .；- 置于字符类末尾按字面量处理，/ 不需转义）
+GIT_BRANCH=$(printf '%s' "${BRANCH}" | sed 's/[^a-zA-Z0-9/_.-]/_/g')
+# 工作区目录名 = 创建日期 + 扁平化分支名：git 分支保留 /，目录中的 / 转 -（space/ 下始终单层）
+DIR_BRANCH=$(printf '%s' "${GIT_BRANCH}" | sed 's|/|-|g')
+WORK_BASENAME="$(date +%Y%m%d)-${DIR_BRANCH}"
 BRANCH_DIR="space/${WORK_BASENAME}"
 
 if [ -d "${BRANCH_DIR}" ]; then
     echo "工作区已存在: ${BRANCH_DIR}"
     echo "WORKSPACE=${WORK_BASENAME}"
-    echo "BRANCH=${SAFE_BRANCH}"
+    echo "BRANCH=${GIT_BRANCH}"
     exit 0
 fi
 
@@ -410,24 +422,27 @@ fi
 mkdir -p "${BRANCH_DIR}/repo" "${BRANCH_DIR}/wiki"
 echo "已创建: ${BRANCH_DIR}/"
 
-# 2. 确定要建 worktree 的仓库列表
+# 2. 确定要建 worktree 的仓库列表（不传时直接枚举 repo/*/ 目录，不解析 ls 输出）
 shift 3
-REPO_NAMES="$*"
 if [ "${NO_WORKTREE}" = 1 ]; then
-    REPO_NAMES=""
-elif [ -z "${REPO_NAMES}" ] && [ -d "repo" ]; then
-    REPO_NAMES=$(ls -1 "repo" 2>/dev/null)
+    set --
+elif [ "$#" -eq 0 ] && [ -d "repo" ]; then
+    for _d in repo/*/; do
+        [ -d "${_d}" ] || continue
+        _name="${_d%/}"
+        set -- "$@" "${_name##*/}"
+    done
 fi
 
 # 3. 逐仓库创建 worktree
 WORKTREE_CREATED=0
 NEW_BRANCHES=""
-if [ -n "${REPO_NAMES}" ]; then
-    for name in $REPO_NAMES; do
+if [ "$#" -gt 0 ]; then
+    for name in "$@"; do
         if [ -d "repo/${name}" ] && git -C "repo/${name}" rev-parse --git-dir >/dev/null 2>&1; then
-            echo "为仓库 '${name}' 创建 worktree（分支 ${SAFE_BRANCH}）..."
+            echo "为仓库 '${name}' 创建 worktree（分支 ${GIT_BRANCH}）..."
             helper_rc=0
-            helper_out="$(sh "${SCRIPT_DIR}/git-worktree-helper.sh" create "${ROOT}" "${WORK_BASENAME}" "${SAFE_BRANCH}" "${name}")" || helper_rc=$?
+            helper_out="$(sh "${SCRIPT_DIR}/git-worktree-helper.sh" create "${ROOT}" "${WORK_BASENAME}" "${GIT_BRANCH}" "${name}")" || helper_rc=$?
             echo "${helper_out}"
             if [ "${helper_rc}" -eq 0 ]; then
                 WORKTREE_CREATED=1
@@ -460,7 +475,7 @@ if [ -f "${TEMPLATE_DIR}/work-status.yaml" ]; then
     mkdir -p ".tack/tmp"
     STATUS_TMP="$(mktemp ".tack/tmp/work-status.XXXXXX")"
     trap 'rm -f "${STATUS_TMP}"' EXIT HUP INT TERM
-    awk -v work_dir="${WORK_BASENAME}" -v project="${PROJECT}" -v branch="${SAFE_BRANCH}" -v created_at="${CREATED_AT}" '
+    awk -v work_dir="${WORK_BASENAME}" -v project="${PROJECT}" -v branch="${GIT_BRANCH}" -v created_at="${CREATED_AT}" '
         function rep(s, from, to,    out, i) {
             out = ""
             while ((i = index(s, from)) > 0) {
@@ -497,7 +512,7 @@ fi
 echo ""
 echo "工作区已就绪: ${BRANCH_DIR}"
 echo "WORKSPACE=${WORK_BASENAME}"
-echo "BRANCH=${SAFE_BRANCH}"
+echo "BRANCH=${GIT_BRANCH}"
 echo "NEW_BRANCHES=${NEW_BRANCHES}"
 
 # 框架自动提交空间仓库（space/*/repo/ 已被 .gitignore 排除，只提交工作区文档）

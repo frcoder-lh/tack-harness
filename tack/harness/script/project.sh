@@ -842,10 +842,16 @@ cmd_work_trigger() {
     tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
 
-    # 提取目标条目的现有 trigger_words 与 branch（用 sed 范围匹配，兼容有无 trigger_words 字段的条目）
-    WANT_ID="$(esc "${ID}")"
-    EXISTING=$(sed -n '/work_id: "'"${WANT_ID}"'"/,/work_id: *"/{ /trigger_words:/!d; s/.*trigger_words: *\[//; s/\].*//; s/"//g; p; }' "${tmp_body}")
-    BR=$(sed -n '/work_id: "'"${WANT_ID}"'"/,/work_id: *"/{ /branch:/!d; s/.*branch: *"//; s/".*//; p; }' "${tmp_body}")
+    # 提取目标条目的现有 trigger_words 与 branch（awk 逐行跟踪当前 work_id；
+    # 不用 sed 地址——work_id 含 / 时会截断正则表达式并让脚本中止）
+    EXISTING=$(awk -v id="$(esc "${ID}")" "${YAML_LIB}"'
+        /^[[:space:]]*-[[:space:]]*work_id:/ { cur = val($0); next }
+        cur == id && /^[[:space:]]*trigger_words[[:space:]]*:/ { print yaml_csv(val($0)); exit }
+    ' "${tmp_body}")
+    BR=$(awk -v id="$(esc "${ID}")" "${YAML_LIB}"'
+        /^[[:space:]]*-[[:space:]]*work_id:/ { cur = val($0); next }
+        cur == id && /^[[:space:]]*branch[[:space:]]*:/ { print val($0); exit }
+    ' "${tmp_body}")
 
     # 验证 work_id 存在（EXISTING 和 BR 同时为空且无匹配 → 报错）
     if [ -z "${BR}" ]; then
