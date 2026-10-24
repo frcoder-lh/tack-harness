@@ -6,6 +6,24 @@
 - 中英两份文件同版本条目一一对应、同步维护；`release.sh` 发版时校验目标 tag 在两份文件中均有对应段落，任一缺失即中止
 - CI 创建 GitHub Release 时分别抽取两份文件的对应段落拼接为双语 Release body；`check-update.sh` 检查提醒与 `update` 命令展示「本次更新内容」均同时以两份文件为来源
 
+## V0.0.19 (2026-10-24)
+
+- 新增: `auto` 命令（简写 `au`，触发词「自动执行 / 全自动 / 自动流转 / 自动开发」）——自动执行当前工作流剩余环节到终态：开始前一次性补齐缺失信息并确认全流程，确认后连续执行不中断，结束时汇总关键决策与结果；默认到 merged / completed，可指定一并 close
+- 新增: 多项目空间与项目级知识隔离——AGENTS.md 项目信息改为 `projects` 数组，工作条目与 `status.yaml` 记录所属项目；项目知识只读写 `wiki/<project>/`，能力进 harness、项目参数进项目 wiki、工作区参数进 `status.yaml`
+- 新增: `close` 自动判定需求归档价值，应归档的写入 `wiki/<project>/history/<需求名>.md`；ask 分析记录按业务名词、代码导航、代码外事实、项目决策与需求特定背景分流归档，不原样复制
+- 新增: 任务/部署状态机与 Git 事实层能力——`work-status.sh` 新增 tasks / guidance / deploy 子命令（任务依赖校验、就绪列表、部署 upsert 与状态回写）；新增 `git-facts`、`git-commit-helper`、`git-push-helper`、`harness-diff`、`harness-backup`；`work.sh rename` 改为带回滚事务；`scan-secrets --changed` 接入空间自动提交
+- 新增: 安全分支清理 `branch-clean.sh`——默认 dry-run、仅处理 `status.yaml` 登记分支、自动 fetch 后优先以 `origin/<主干>` 判定合并；未合并主分支、保护分支、被 worktree 占用的分支与主干不明项只列出不删除，远端分支不自动删除；`close` 统一经该脚本清理
+- 新增: 文档-脚本调用签名检查 `lint-doc-scripts.sh`（检查脚本存在性、固定子命令、必需位置参数与明确 flag，随 `lint-harness` 运行）与 `run-plan.sh check`（只读校验 `run.md` 清单、脚本、必需文件与依赖顺序）
+- 新增: `common.sh` 统一安装/升级共享能力（agent 预设、分发清单、下载回退、版本提取、SHA-256 校验）；`install.sh` 默认解析最新 Release 并强制核验 SHA-256，新增 `--branch` 开发版入口；Release 产出 tar.gz 与 .sha256；CI 增加 `sh -n`、三项 lint 与三平台矩阵
+- 优化: `merge` 改为纯分支合并——fetch 最新后按本地/远程源合入目标分支，冲突转 `solve`，完成后提交并推送；当前工作区为源分支时新建关联工作区并记录 `parent_workspace`，`close` 级联关闭关联工作区
+- 优化: `spec` / `plan` / `tech-design` 定位对齐——`spec` 升级为顶层设计与公共契约（产品/测试决策在本环节关闭），`plan` 升级为详细设计与施工图（接口/SQL/验证方式/上线流程/任务依赖），`tech-design` 改为按需环节，仅在正式评审时重组已确认的 spec/plan，不新增设计决策
+- 优化: `update` 对 `rule/` 文件改为逐文件交用户裁决（采用新版 / 保留本地 / 融合），未裁决保持原样，不静默跳过、不自动覆盖；新增 rule 文件随 ADDED 正常分发
+- 优化: Git 规范拆出 `git-standards.md`（分支命名、提交信息、代码审查与相关禁令）；`coding-standards.md` 补充函数内聚、减少嵌套、数据源单次获取与异常日志要求；`coding-standards-shell.md` 沉淀目录绝对路径归一、删除后校验、特殊文件名 NUL 处理、glob 枚举、动态值不进 sed 地址、flag 任意位置、共享逻辑单一事实源与 BSD awk 固定 C locale 等约束
+- 修复: 分支名含 `/` 时工作区目录扁平化为 `-`（git 分支保留 `/`），同步修复 `work` / `project` / `scan-routes` / `work-status` 相关处理；`rm -rf` 相对路径假成功、`scan-secrets` 对中文/空格/引号文件名漏扫、含空格分组路由失败一并修复
+- 修复: `deploy` upsert 命中 `(repo, env, lane)` 复合键时整条替换，避免重复条目；空间仓库自动提交因多余 pathspec 被阻断修复；`work-status` 状态字段收敛为 `pending/applied/rejected`
+- 修复: macOS BSD awk 在 UTF-8 locale 下读取长中文行触发 `towc` 多字节转换失败，`lint-harness` 与 `lint-doc-scripts` 的结构解析固定 `LC_ALL=C`
+- 优化: 文档与站点——项目 wiki 模板按语义/理由/约定/查询入口收敛；站点资源迁至 `docs/`；中英 README 补充能力范围、项目 wiki 结构与新增命令说明；联系方式新增抖音群（群号 978398534393）并更新双群二维码；CI 升级 actions/checkout v5
+
 ## V0.0.18 (2026-10-20)
 
 - 新增: `lint-shell-portability.sh` 三平台可移植性机检——扫描 `harness/script/` 下全部脚本，检出裸 `mktemp`、GNU 专有工具选项、bashism、sed 块末命令缺少分号等问题，并接入 `lint-harness` 与 `evolution` 作为硬门禁
