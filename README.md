@@ -437,10 +437,10 @@ sh harness/script/lint-shell-portability.sh harness   # 三平台可移植性机
 
 ## 12. 联系方式
 
-欢迎加入 TackHarness QQ 交流群（群号 **1128954501**）交流使用问题、实践经验与改进想法：
+欢迎加入 TackHarness 交流群（QQ群： **1128954501**，抖音群： **978398534393**）交流使用问题、实践经验与改进想法：
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/frcoder-lh/tack-harness/master/docs/contact.png" alt="TackHarness QQ 交流群二维码，群号 1128954501" width="280">
+  <img src="https://raw.githubusercontent.com/frcoder-lh/tack-harness/master/docs/contact.png" alt="TackHarness 交流群二维码">
 </p>
 
 问题反馈与功能建议也可以直接提 [GitHub Issues](https://github.com/frcoder-lh/tack-harness/issues)。
