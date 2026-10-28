@@ -932,10 +932,10 @@ var CMD_ROWS = {
       {cmd:'fix', short:'fx', what:'需求修正或代码修正，保持文档与代码一致', trig:'修正 / 需求修正 / code fix / fix'},
       {cmd:'testcode', short:'tc', what:'按需：单测驱动的需求-代码一致性审查，覆盖率 90% 为准出指标', trig:'单测 / 单元测试 / unit test'},
       {cmd:'test', short:'t', what:'按需：把测试描述转化为 $work/test.md 可落地方案', trig:'测试 / 系统测试 / system test'},
-      {cmd:'run', short:'rn', what:'按需：按 run.md 清单执行脚本，敏感数据落 run/local/', trig:'运行 / 执行 / 跑脚本 / run'},
+      {cmd:'run', short:'rn', what:'按需：run.md 只做指令识别/索引/编排，每条指令落独立目录（脚本+数据+local/）', trig:'运行 / 执行 / 跑脚本 / run'},
       {cmd:'code-review', short:'rv', what:'按需：以三点 diff 为事实逐函数审查，产出审查报告', trig:'代码审查 / 审查报告 / code review'},
       {cmd:'release-check', short:'rc', what:'按需：识别数据库/配置/接口/中间件变更，产出上线检查清单', trig:'上线检查 / 发布检查 / release-check'},
-      {cmd:'close', short:'cl', what:'交付检查、提炼 wiki、消费 guidance 自进化固化、移除 worktree', trig:'关闭工作区 / close workspace / finish'}
+      {cmd:'close', short:'cl', what:'交付检查、工作区归档（history/<workspace>/summary.md + run/）、提炼 wiki、消费 guidance 自进化固化、移除 worktree', trig:'关闭工作区 / close workspace / finish'}
     ],
     en: [
       {cmd:'ask', short:'a', what:'Analyzes worktree code, producing analysis documents in $work/wiki/ or distilling Q&A', trig:'question / analyze code / code analysis'},
@@ -946,10 +946,10 @@ var CMD_ROWS = {
       {cmd:'fix', short:'fx', what:'Requirement fixes (spec→plan→code) or code fixes (code→doc sync), keeping docs and code consistent', trig:'requirement fix / code fix'},
       {cmd:'testcode', short:'tc', what:'On demand: unit-test-driven requirement-code consistency review; 90% coverage is an exit criterion', trig:'unit test / unit testing'},
       {cmd:'test', short:'t', what:'On demand: turns test descriptions into an actionable plan in $work/test.md', trig:'system test / integration test / e2e test'},
-      {cmd:'run', short:'rn', what:'On demand: executes scripts per run.md; sensitive data lands in run/local/ (gitignored)', trig:'execute / run script'},
+      {cmd:'run', short:'rn', what:'On demand: run.md only recognizes/indexes/orchestrates, each instruction lives in its own directory (scripts + data + local/)', trig:'execute / run script'},
       {cmd:'code-review', short:'rv', what:'On demand: reviews changes function by function against the three-dot diff, producing a report', trig:'code review / review report'},
       {cmd:'release-check', short:'rc', what:'On demand: identifies database/config/API/middleware changes, producing a go-live checklist', trig:'release check / go-live check'},
-      {cmd:'close', short:'cl', what:'Delivery check and summary, distills wiki, consumes guidance for self-evolution, removes worktree', trig:'close workspace / finish'}
+      {cmd:'close', short:'cl', what:'Delivery check and summary, workspace archival (history/<workspace>/summary.md + run/), distills wiki, consumes guidance for self-evolution, removes worktree', trig:'close workspace / finish'}
     ]
   },
   git: {

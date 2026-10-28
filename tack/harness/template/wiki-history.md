@@ -1,7 +1,8 @@
-# <需求名>
+# <workspace> 工作区归档
 
-> 本模板由 `close` 按 `harness/rule/archive-requirement.md` 物化为 `$root/wiki/<project>/history/<需求名>.md`。
-> 定位：需求归档——日后回忆「为什么做这个需求、某个点为什么这样实现」，排查问题时判断「是否设计如此」。
+> 本模板由 `close` 按 `harness/rule/archive-requirement.md` 物化为 `$root/wiki/<project>/history/<workspace>/summary.md`。
+> 同目录的 `run/` 保留关闭时移入的 run 指令索引、脚本与数据，供日后复用；`run/*/local/` 不入库。
+> 定位：工作区归档——日后回忆「为什么做这个需求、某个点为什么这样实现」，排查问题时判断「是否设计如此」。
 > 只写为什么、做了什么、影响什么；不写实现过程，代码是唯一真源。
 > 工作区: space/<workspace>（已关闭）　归档日期: <YYYY-MM-DD>　状态: confirmed / candidate　涉及服务/仓库: <...>
 

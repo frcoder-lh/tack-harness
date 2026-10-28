@@ -22,7 +22,7 @@
 | 代码名词/标识的解释与导航（术语 → 检索关键词/代码入口、接口 → 业务场景） | `$root/wiki/<project>/code-understanding.md` 的两张映射表 |
 | 稳定代码外事实（服务职责、环境/配置/平台入口等） | `$root/wiki/<project>/manifest.md` 对应小节 |
 | 项目级技术决策与工程约定 | `$root/wiki/<project>/decisions.md` |
-| 需求特定的「为什么这样做 / 是否设计如此」 | 该需求的 `$root/wiki/<project>/history/<需求名>.md`；本工作区已按 `harness/rule/archive-requirement.md` 归档时就地融合 |
+| 需求特定的「为什么这样做 / 是否设计如此」 | 该工作区的 `$root/wiki/<project>/history/<workspace>/summary.md`；本工作区已按 `harness/rule/archive-requirement.md` 归档时就地融合 |
 | 其他跨工作区可复用的业务背景 | `$root/wiki/<project>/business-understanding.md` 对应小节 |
 
 - 业务名词解释进 `business-understanding.md`，代码名词解释进 `code-understanding.md`，两类不混放

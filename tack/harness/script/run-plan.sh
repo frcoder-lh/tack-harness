@@ -1,24 +1,24 @@
 #!/bin/sh
-# run-plan.sh — run 清单只读检查（不执行任何脚本）
+# run-plan.sh — run 指令清单只读检查（不执行任何脚本）
 #
-# 机器可读清单冻结格式：位于 <run-dir>/run.md 的
+# 机器可读清单冻结格式：位于 <instruction-dir>/run.md 的
 #   <!-- run-plan:start --> 与 <!-- run-plan:end --> 之间，
 #   Tab 分隔五列，首行为固定表头：
 #     seq	script	command	deps	requires
 #   - seq:      执行顺序（正整数，按文件顺序严格递增）
-#   - script:   相对 <run-dir> 的脚本路径
+#   - script:   相对 <instruction-dir> 的脚本路径
 #   - command:  实际运行命令（原样保留，不由本脚本执行）
 #   - deps:     前置步骤 seq，逗号分隔；必须存在且小于当前 seq；无依赖留空
-#   - requires: 相对 <run-dir> 的必需文件（通常为 local/ 下凭据），逗号分隔；无则留空
+#   - requires: 相对 <instruction-dir> 的必需文件（通常为 local/ 下凭据），逗号分隔；无则留空
 #
 # Usage:
-#   sh run-plan.sh check <run-dir>
+#   sh run-plan.sh check <instruction-dir>
 #
 # 输出:
 #   ERROR<TAB>code<TAB>seq<TAB>detail   校验失败项（seq 未知时为 -）
 #   成功时输出 run-plan: ok (N steps)
 #
-# 退出码: 0 校验通过；1 run 目录/run.md 不存在；2 用法错误；
+# 退出码: 0 校验通过；1 指令目录/run.md 不存在；2 用法错误；
 #         3 未找到机器可读清单块；4 清单结构、顺序或依赖非法
 
 set -eu
@@ -27,12 +27,12 @@ ACTION="${1:-}"
 RUN_DIR="${2:-}"
 
 usage() {
-    echo "Usage: sh run-plan.sh check <run-dir>" >&2
+    echo "Usage: sh run-plan.sh check <instruction-dir>" >&2
 }
 
 [ "${ACTION}" = "check" ] && [ -n "${RUN_DIR}" ] || { usage; exit 2; }
 if [ ! -d "${RUN_DIR}" ]; then
-    echo "Error: run dir not found: ${RUN_DIR}" >&2
+    echo "Error: run instruction dir not found: ${RUN_DIR}" >&2
     exit 1
 fi
 RUN_MD="${RUN_DIR}/run.md"
@@ -122,7 +122,7 @@ awk -F"$(printf '\t')" -v RUN="${RUN_AWK}" '
             if (script[i] == "") err("missing-script", s, "script 不能为空")
             if (command[i] == "") err("missing-command", s, "command 不能为空")
             if (script[i] != "" && !safe_path(script[i]))
-                err("bad-path", s, "script 必须是 run/ 下的相对路径且不含空白/..")
+                err("bad-path", s, "script 必须是指令目录下的相对路径且不含空白/..")
             if (script[i] != "" && safe_path(script[i])) {
                 cmd = "test -f \"" RUN "/" script[i] "\""
                 if (system(cmd) != 0) err("missing-script-file", s, script[i])

@@ -272,7 +272,16 @@ LC_ALL=C awk -v H="${HARNESS_DIR}" '
         }
         if (base == "run-plan.sh") {
             if (P[1] != "check" && P[1] !~ /\|/) { warn(file, base, "未知子命令: " P[1]); return }
-            if (NP < 2) warn(file, base, "check 需要 <run-dir>")
+            if (NP < 2) warn(file, base, "check 需要 <instruction-dir>")
+            return
+        }
+        if (base == "workspace-archive.sh") {
+            if (NP < 1) { warn(file, base, "缺少子命令"); return }
+            sc = P[1]; if (sc ~ /\|/) return
+            if (sc == "list") min = 3
+            else if (sc == "move") min = 5
+            else { warn(file, base, "未知子命令: " sc); return }
+            if (NP < min) warn(file, base, sc " 至少需要 " (min - 1) " 个参数")
             return
         }
         if (base == "space.sh") {

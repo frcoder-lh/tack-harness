@@ -23,8 +23,8 @@ summary: 测试计划 → 单测驱动的需求-代码一致性审查与缺陷�
 | 维度 | `testcode`（单元测试） | `test`（系统测试） |
 |------|------------------------|---------------------|
 | 目标 | 新增/改动代码覆盖率 ≥ 90% | 完整系统功能符合预期 |
-| 产物 | 测试代码（落 `$work/repo/`） | `$work/test.md` 方案 + 可选 `run/` 脚本 |
-| 脚本 | 仓库内测试框架 | `$work/run/` 下脚本，敏感数据落 `run/local/` |
+| 产物 | 测试代码（落 `$work/repo/`） | `$work/test.md` 方案 + 可选 `run/<指令>/` 脚本 |
+| 脚本 | 仓库内测试框架 | `$work/run/<指令>/` 下脚本，敏感数据落该指令的 `local/` |
 | 触发词 | 单测 / 单元测试 / testcode | 测试 / 系统测试 / 集成测试 / test |
 
 ## 状态流转
@@ -51,8 +51,8 @@ initialized → test-planning → testing → verifying → completed
 | 1 | 确定测试范围与计划 | （按 test-plan.md 人工/AI 协作出测试计划，可记入 plan.md） | 测试范围、用例清单 | test-planning |
 | 2 | 需求-代码一致性审查 + 单元测试 | `testcode` | 审查发现清单、测试代码、缺陷修复 | testing |
 | 3 | 循环暴露问题与修代码 | `testcode` | 覆盖率结果（前后对比）、缺陷修复记录 | testing → verifying |
-| 4 | 系统测试方案 | `test` | `$work/test.md`（可落地可执行方案）；需脚本时初始化 `run/` | testing / progress.test |
-| 5 | 执行测试脚本 | `run` | 加载 `run/run.md` 执行；敏感数据落 `run/local/` | testing / progress.run |
+| 4 | 系统测试方案 | `test` | `$work/test.md`（可落地可执行方案）；需脚本时初始化 `run/` 与指令目录 | testing / progress.test |
+| 5 | 执行测试脚本 | `run` | 按 `run/run.md` 索引识别指令并执行；敏感数据落 `run/<指令>/local/` | testing / progress.run |
 | 6 | 回归验证 | 构建/全量测试命令 | 全量测试通过、无稳定性问题 | verifying |
 | 7 | 提交 | `commit` `push` | 测试提交 | completed |
 

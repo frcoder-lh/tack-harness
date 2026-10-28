@@ -19,7 +19,7 @@
 #   sh scan-secrets.sh <root>                # 空间文档（wiki/、space/，*.md *.yaml *.yml）
 #   sh scan-secrets.sh <root> --changed      # 本次 Git 变更文件 + 根 AGENTS.md
 #     --changed 覆盖新增/修改的 cmd、workflow、rule、reference、run/*.sh、
-#     .ps1/.py 等入库脚本与其他文本变更文件；忽略 run/local/、.tack/、
+#     .ps1/.py 等入库脚本与其他文本变更文件；忽略任意层级 local/、.tack/、
 #     repo/ 与 space/*/repo/（以及 Git 已忽略路径）
 #     Git 状态记录按 NUL 分隔读取，文件名含中文、空格、引号时不会丢路径；
 #     rename 只取新的目标路径
@@ -72,7 +72,7 @@ if [ "${MODE}" = "--changed" ]; then
         echo "Error: ${ROOT} 不是 Git 仓库，无法使用 --changed" >&2
         exit 1
     fi
-    # 本次变更文件（含未跟踪）+ 根 AGENTS.md；忽略 run/local/、.tack/、repo 工作区。
+    # 本次变更文件（含未跟踪）+ 根 AGENTS.md；忽略任意层级 local/、.tack/、repo 工作区。
     # -z 输出为 NUL 分隔记录：文件名中的中文、空格、引号原样保留，不按空白拆词；
     # 每条记录独立解析，rename 的第二条记录是源路径（无状态前缀），自动跳过
     git -C "${ROOT}" -c core.quotePath=false status --porcelain -z \
@@ -99,7 +99,7 @@ if [ "${MODE}" = "--changed" ]; then
             [ "${c3}" = " " ] || continue
             p="${rec#???}"
             case "${p}" in
-                repo/*|space/*/repo/*|.tack/*|run/local/*|*/run/local/*) continue ;;
+                repo/*|space/*/repo/*|.tack/*|*/local/*) continue ;;
             esac
             case "${p##*.}" in
                 md|yaml|yml|sh|ps1|py|js|ts|json|toml|ini|conf|txt|bat|cmd|go|java|kt|rs|rb|php|c|h|cpp|hpp|sql|html|css) ;;

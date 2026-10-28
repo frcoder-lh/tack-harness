@@ -71,7 +71,7 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 
 8. **输出开场知识清单（roster，只列不读）**
    - 动作: 上下文就绪后，给用户一份「一行一项」的知识清单，**不贴正文**，需要时再按路径读取：
-     1. `$root/wiki/<project>/` 下已存在的页面（manifest / code-understanding / business-understanding / decisions / history 需求归档，标注各自用途一句话）
+     1. `$root/wiki/<project>/` 下已存在的页面（manifest / code-understanding / business-understanding / decisions / history 工作区归档（`summary.md` 与 `run/`），标注各自用途一句话）
      2. **冷仓库提示**：已选仓库在 `code-understanding.md` 中无任何锚点记录时，提示「该仓库尚无分析锚点，建议在 spec/plan 前执行 `ask <仓库名>` 整体分析」（仅建议，不自动执行）
    - 边界: 清单是可选读的导航，不把 wiki 全文塞入上下文；知识不足时按三级降级取用（wiki → `$work/wiki/` → 直接读代码，代码永远是真源，见 development 工作流「上下文加载原则」）
 

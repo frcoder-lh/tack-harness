@@ -5,7 +5,7 @@
 ## 相关文件位置
 
 - 目录全貌与各文件职责以 `$root/AGENTS.md` 的「目录概览」为准（`wiki/`、`space/<workspace>/`、`harness/template/`）
-- wiki 知识页面（business-understanding / code-understanding / manifest / decisions）与 `history/` 需求归档的分工与边界见 `harness/rule/record-wiki.md`
+- wiki 知识页面（business-understanding / code-understanding / manifest / decisions）与 `history/` 工作区归档的分工与边界见 `harness/rule/record-wiki.md`
 - wiki 页面按需物化，结构模板在 `harness/template/wiki-*.md`；文件存在即有真实内容，不预放空壳
 
 ## 会话中的工作

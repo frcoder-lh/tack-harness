@@ -55,7 +55,7 @@ Wiki 记录难以重建的语义、理由、约定和查询入口，不复制容
 - `code-understanding.md`：**稳定导航锚点**——业务术语（含别名/旧称）↔ 检索关键词/代码入口、非显然的接口标识 ↔ 业务场景 ↔ 代码入口
 - `business-understanding.md`：**业务背景知识**——业务范围与长期背景、术语的标准定义与边界、按业务领域的职责与不变量、来源资料索引
 - `decisions.md`：**技术决策与工程约定**——代码外的项目级「就这么定」：选型取舍（ADR）、舍入/重试/默认值、项目级常驻约定（来源通常是 plan 决策记录、git history、用户引导）
-- `history/`：**需求归档**——每个需求一份 md，记录原始资料、实现的功能、关键讨论与决策、对系统的影响与排查索引；由 `close` 自动判定并归档，规则见 `archive-requirement.md` 与 `archive-ask.md`
+- `history/`：**工作区归档**——每个工作区一个 `history/<workspace>/summary.md`，记录原始资料、实现的功能、关键讨论与决策、对系统的影响与排查索引；同目录保留移入的 `run/`；由 `close` 自动判定并归档，规则见 `archive-requirement.md` 与 `archive-ask.md`
 - 边界：易变的代码实现逻辑、调用链、模块内部行为**不进 wiki**（以代码为唯一真源；临期分析放 `$work/wiki/`，只提炼稳定结论；确需长期保留全文时迁移到 `wiki/<project>/analysis/`）；通用编码规范进 rule，不进 decisions
 
 ## 类型存疑时的路由

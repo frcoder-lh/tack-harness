@@ -15,7 +15,7 @@
 | `wiki/<project>/code-understanding.md` | **稳定导航锚点**——业务术语（含别名/旧称）↔ 检索关键词/代码入口、非显然的接口标识 ↔ 业务场景 ↔ 代码入口 |
 | `wiki/<project>/business-understanding.md` | **业务背景知识**——业务范围与长期背景、术语的标准定义与边界、按业务领域的职责与不变量、来源资料索引 |
 | `wiki/<project>/decisions.md` | **技术决策与工程约定**——代码外的项目级选型取舍（ADR）、工程约定（舍入/重试/默认值等代码里看不出的「就这么定」）与项目级常驻约定，按 `harness/template/wiki-decisions.md` 结构落盘 |
-| `wiki/<project>/history/` | **需求归档**——每个需求一份 md，记录原始资料、实现的功能、关键讨论与决策、对系统的影响与排查索引；不记实现过程。规则见 `harness/rule/archive-requirement.md` 与 `harness/rule/archive-ask.md` |
+| `wiki/<project>/history/` | **工作区归档**——每个工作区一个 `<workspace>/` 目录，内含 `summary.md`（原始资料、实现的功能、关键讨论与决策、对系统的影响与排查索引；不记实现过程）与关闭时移入的 `run/`；规则见 `harness/rule/archive-requirement.md` 与 `harness/rule/archive-ask.md` |
 
 ## 能力与参数的落点
 
@@ -28,7 +28,7 @@
 - 易变的代码实现逻辑、调用链、模块内部行为**不进 wiki**（代码是唯一真源；临期分析放 `$work/wiki/`）
 - 若代码、IDL、配置平台或部署平台是权威事实源，wiki 不复制动态当前值，只记录业务语义、查询入口、使用方式和负责人
 - 分析文档默认不进入长期 wiki，只提炼稳定结论；必须长期保存全文时，迁移到 `wiki/<project>/analysis/` 后再建立索引
-- 需求归档按 `harness/rule/archive-requirement.md` 与 `harness/rule/archive-ask.md` 执行：只保留「为什么」与「影响」，不复制 spec/plan 全文、代码实现与排查过程
+- 工作区归档按 `harness/rule/archive-requirement.md` 与 `harness/rule/archive-ask.md` 执行：只保留「为什么」与「影响」，不复制 spec/plan 全文、代码实现与排查过程
 - 锚点与事实须有来源，**不臆测**；来源不明、无法证实的内容拒绝写入
 - **禁止以 wiki 作为 wiki 更新的事实来源**：融合/提炼时，事实只能取自工作区原始产物（input/spec/plan/tech-design/status.yaml、用户原话、代码、git history、用户提供的资料）；已有 wiki 页面只用于确定「往哪里融合」，不能把其中未经原始产物证实的表述当作事实再传播，防止合成内容层层放大
 - **禁止写入密码、密钥、token 等凭据明文**（只记录凭据的存放位置或获取方式）；`space.sh commit` 前由 `scan-secrets.sh` 硬门禁扫描，命中即阻断提交
@@ -91,7 +91,7 @@
 | 1 | 初始化项目上下文（首次） | `init` | 先确定目标项目；AI 对照已物化内容列出「待补充」清单，**主动询问用户**补全；当场提供的融合写入，没有的保留「待补充」 |
 | 2 | 后续补充项目上下文 | `init`（再次执行） | 用户携带新材料（仓库/文档/服务映射）追加融合到对应项目 wiki，不覆盖已有内容 |
 | 3 | 用户主动要求沉淀 | `record` | 按用户要求把内容记入当前项目 wiki，走融合去重 |
-| 4 | 工作区关闭 | `close` | **自动提炼**工作区产物（含 plan 决策记录）形成候选清单，经用户确认与人工审阅后写入该项目 wiki；按 `archive-requirement.md` 自动判定并归档需求到 `wiki/<project>/history/`，按 `archive-ask.md` 转化 ask 记录；用户放弃则不写 |
+| 4 | 工作区关闭 | `close` | **自动提炼**工作区产物（含 plan 决策记录）形成候选清单，经用户确认与人工审阅后写入该项目 wiki；按 `archive-requirement.md` 自动判定并归档工作区到 `wiki/<project>/history/<workspace>/summary.md` 并移入 `run/`，按 `archive-ask.md` 转化 ask 记录；用户放弃则不写 |
 | 5 | 代码分析发现线索 | `ask` | 整体分析（含近期 commit message）发现的决策/约定/锚点线索只形成**候选清单**，用户确认后转 `record` 落盘，本命令不直接写项目 wiki |
 
 - 除以上时机外，**不主动改写 wiki**；任何时机的写入都必须遵守本文件的文件分工、边界、来源链与人工审阅要求

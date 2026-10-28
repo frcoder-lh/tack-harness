@@ -46,8 +46,8 @@
 
 ## 工作区凭据落位
 
-- 运行时凭据（密钥、token、账号、环境变量）一律写入 `$work/run/local/`（如 `local/credentials.sh`、`local/.env`），该目录已被 `.gitignore` 全局忽略、不入库；脚本从该目录读取，禁止硬编码
-- 入库文档（`test.md` 测试方案等）只标注凭据来源（`run/local/<文件>`），不写明文
+- 运行时凭据（密钥、token、账号、环境变量）一律写入 `$work/run/<指令>/local/`（如 `local/credentials.sh`、`local/.env`），任意层级的 `local/` 已被 `.gitignore` 全局忽略、不入库；脚本从本指令的 `local/` 读取，禁止硬编码
+- 入库文档（`test.md` 测试方案等）只标注凭据来源（`run/<指令>/local/<文件>`），不写明文
 
 ## 依赖与供应链
 

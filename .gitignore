@@ -1,4 +1,4 @@
-# 敏感数据目录：用户密钥/token/账号等，任意层级的 local 目录均忽略（含 run/local/、space/*/local/ 等）
+# 敏感数据目录：用户密钥/token/账号等，任意层级的 local 目录均忽略（含 run/<指令>/local/、space/*/local/ 等）
 **/local/
 
 # OS files

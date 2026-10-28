@@ -37,6 +37,7 @@ Tack Harness 是一套专为软件研发打造的编程工作流框架：
 | --- | --- |
 | **依赖注入** | skill 为容器、能力为注入物：skill 本体极简，不含任何命令实现；命令、工作流、可委派角色均为项目内的 Markdown 文件，文件头（command/short/triggers/summary）即注入声明，`scan-routes` 运行时动态扫描并装配为路由表。新增一个文件即注入一条新能力，skill 零改动、升级不覆盖 |
 | **工作流状态机** | 开发、测试、缺陷修复、冲突合并、分支操作各有独立工作流，定义状态流转并编排命令。工作区 `status.yaml` 的状态由工作流定义，AI 始终明确当前阶段与下一步 |
+| **可复用执行指令** | `run` 指令按目录组织：`run/run.md` 只做识别、索引与编排，每条指令的脚本、数据与凭据各自成目录（`local/` 不入库）；`close` 关闭工作区时把 `summary.md` 与 `run/` 一并归入 `wiki/<project>/history/<workspace>/`，脚本可在后续需求中直接复用 |
 | **缺陷溯源** | bugfix 工作流内置 `git-bug-trace`：定位缺陷代码行后一键追溯引入 commit、时间、作者、对应需求/工单 ID 与合并到主干的 MR 链接（GitHub/GitLab/Bitbucket），结果落 `status.yaml` 的 `bug_origin`；区分需求引入与历史遗留，回溯 MR 审查结论与关联改动 |
 | **审查与上线门禁** | `code-review` 以 plan/技术方案为规范、目标分支三点 diff 为事实逐函数审查改动正确性与危害、评估影响接口与场景，产出独立审查报告；`release-check` 产出上线检查清单——数据库变更语句、配置变更模板、接口权限申请、中间件资源申请，逐项打勾后发布 |
 | **命令自创造** | `record` 为 "生成指令的指令"。首先扫描已有命令尝试融合修正；若无合适命令，仅需提供 `command`，其余内容自动生成 |
@@ -163,13 +164,13 @@ my-project/
 │   ├── cmd/             #   命令：发现、路由、准入准出
 │   ├── agents/          #   可委派角色：独立上下文并行执行（explorer/architect/reviewer）
 │   ├── workflow/        #   工作流：状态机与命令编排
-│   ├── script/          #   固定流程脚本（init-tack 初始化 / scan-routes 路由扫描 / lint-harness 结构自检 / lint-shell-portability 三平台可移植性 / lint-doc-scripts 文档调用签名 / common 安装与升级共享能力（agent 预设/下载/版本/摘要校验） / scan-secrets 凭据扫描 / work-status 状态回写 / space 空间自动提交 / project 项目信息 / repo 仓库 / work 工作区 / git-facts Git 事实层 / git-worktree-helper / git-fetch-helper 远端同步与上游修复 / git-commit-helper / git-push-helper / git-bug-trace 缺陷溯源 / git-diff-context 三点 diff 导出 / branch-op 分支操作 / branch-clean 安全分支清理 / run-plan 执行清单校验 / harness-diff 更新差异分类 / harness-backup 备份回滚 / trigger-extract 触发词提取 / yamlib 共享 YAML 解析 / check-update 更新检查 / skill-update 本机 skill 升级；Windows 统一经 run.ps1 启动器调用）
+│   ├── script/          #   固定流程脚本（init-tack 初始化 / scan-routes 路由扫描 / lint-harness 结构自检 / lint-shell-portability 三平台可移植性 / lint-doc-scripts 文档调用签名 / common 安装与升级共享能力（agent 预设/下载/版本/摘要校验） / scan-secrets 凭据扫描 / work-status 状态回写 / space 空间自动提交 / project 项目信息 / repo 仓库 / work 工作区 / git-facts Git 事实层 / git-worktree-helper / git-fetch-helper 远端同步与上游修复 / git-commit-helper / git-push-helper / git-bug-trace 缺陷溯源 / git-diff-context 三点 diff 导出 / branch-op 分支操作 / branch-clean 安全分支清理 / run-plan 执行清单校验 / workspace-archive 工作区归档 / harness-diff 更新差异分类 / harness-backup 备份回滚 / trigger-extract 触发词提取 / yamlib 共享 YAML 解析 / check-update 更新检查 / skill-update 本机 skill 升级；Windows 统一经 run.ps1 启动器调用）
 │   │   └── hook/        #   IDE Hook 可选加速层（SessionStart/UserPromptSubmit/PreToolUse，默认不启用、不拦截）
 │   ├── rule/            #   业务、代码与安全规则（coding-standards、security、git-boundary 双层边界、context-loading 上下文加载、windows-env、record-* 沉淀规则；不参与路由，按需加载）
 │   ├── template/        #   命令、工作流、文档、工作区模板
 │   └── reference/       #   通用方法论与复杂独立能力（随 harness 分发、不接受项目沉淀；被命令/工作流/角色/规则引用后才加载）
 ├── wiki/                # 公共知识：按项目隔离的项目 wiki（init/record/close 按需物化，条目带来源、矛盾保留演变；不记易变代码逻辑）
-│   └── <project>/       #   项目 wiki，<project> 与 AGENTS.md projects 名称一致：manifest 代码外事实与服务清单 / code-understanding 代码导航锚点（术语→入口、接口→场景）/ business-understanding 业务背景 / decisions 技术决策与工程约定 / analysis 长期保留的分析文档
+│   └── <project>/       #   项目 wiki，<project> 与 AGENTS.md projects 名称一致：manifest 代码外事实与服务清单 / code-understanding 代码导航锚点（术语→入口、接口→场景）/ business-understanding 业务背景 / decisions 技术决策与工程约定 / history 工作区归档（summary.md + run/） / analysis 长期保留的分析文档
 ├── space/               # 工作空间：每个工作一个目录（<YYYYMMDD>-<分支名>，日期前缀便于按创建时间排序）
 ├── repo/                # 代码主仓库：只保留一份，只读基准
 └── .tack/               # 框架本地运行时数据（gitignore，不入库、可随时清理）：log 日志 / backup 回滚备份 / tmp 临时文件 / state 本机状态
@@ -207,8 +208,8 @@ my-project/
 /tack code         # 先判定涉及仓库并确保就绪（缺仓库转 create-repo、缺 worktree 转 worktree），再按 tasks 依赖关系连续/并行开发：复用已有逻辑，多方案自动取最优解；用户明确要求时仅交付代码片段
 /tack fix          # 需求修正走 spec→plan→代码；代码修正走代码→同步文档，保持文档与代码一致
 /tack testcode     # （按需触发，非必经）单测驱动的需求-代码一致性审查：对照 spec/plan 核对代码实现、识别缺陷与边界遗漏，用例暴露问题后修代码而非改测试；覆盖率 90% 是准出指标之一
-/tack test         # （按需触发，非必经）系统测试：把测试描述转化为 $work/test.md 可落地方案，需脚本时落到 run/
-/tack run          # （按需触发，非必经）执行脚本：无 run/ 时初始化（run.md + local/），有 run.md 时按清单执行；敏感数据落 run/local/（gitignored）
+/tack test         # （按需触发，非必经）系统测试：把测试描述转化为 $work/test.md 可落地方案，需脚本时落到 run/<指令>/
+/tack run          # （按需触发，非必经）run 指令管理：run/run.md 只做识别、索引与编排；新增指令落 run/<指令>/（脚本+数据+local/），执行时校验并编排；敏感数据落各指令的 local/（gitignored）
 ```
 
 `testcode` / `test` / `run` 均为**按需命令**：code 完成后可直接提交合并，AI 不主动询问"是否测试"；用户需要时直接触发（或以测试为目的时走 testing 工作流），不触发无需任何标记。
@@ -222,7 +223,7 @@ my-project/
 /tack commit        # 自动生成 Conventional Commits 提交信息后直接提交（无需二次确认）
 /tack push          # 推送，未关联远端时先引导关联
 /tack merge         # 纯分支合并：fetch 最新后把源分支合入目标分支（当前工作区为源分支时新建关联工作区执行），冲突转 /tack solve，完成后提交并推送
-/tack close         # 交付检查 → 输出交付摘要 → 自动判定需求归档（wiki/<project>/history/）→ 提炼 wiki（含技术决策与 ask 记录归档）→ 消费 guidance 自进化固化 → 移除 worktree、按登记簿安全清理分支 → 删除工作区目录、移除 AGENTS.md 工作区登记（关联工作区级联关闭）
+/tack close         # 交付检查 → 输出交付摘要 → 自动判定工作区归档（wiki/<project>/history/<workspace>/summary.md，run/ 整体移入，标准产物外文件询问是否保留）→ 提炼 wiki（含技术决策与 ask 记录归档）→ 消费 guidance 自进化固化 → 移除 worktree、按登记簿安全清理分支 → 删除工作区目录、移除 AGENTS.md 工作区登记（关联工作区级联关闭）
 ```
 
 ### 4.6 经验沉淀与复用
@@ -286,7 +287,7 @@ flowchart LR
 | `plan.md` | `/tack plan` | 开发计划（详细设计与施工图）：接口/SQL/验证/上线流程 + 任务清单 |
 | `tech-design.md` | `/tack tech-design` | 技术评审文档 |
 | `test.md` | `/tack test`（按需） | 系统测试方案（可落地、可执行）；与 testcode（单测/覆盖率）区分，面向完整系统功能验证 |
-| `run/` | `/tack test` / `/tack run`（按需） | 测试/执行脚本与 `run.md` 执行说明；`run/local/` 存敏感数据（已被 .gitignore 忽略，不入版本库） |
+| `run/` | `/tack test` / `/tack run`（按需） | run 指令目录：`run.md` 只做识别/索引/编排，每条指令落 `run/<指令>/`（脚本+数据）；该指令的 `local/` 存敏感数据（已被 .gitignore 忽略，不入版本库） |
 | `wiki/` | `work` / `ask` | 工作区级代码分析文档（`<repo>-analysis.md`） |
 | `repo/<name>/` | `work` | git worktree，唯一可写代码区 |
 
@@ -319,11 +320,11 @@ flowchart LR
 | `code` | c | 编码 / coding / develop / write code /code | 编码前判定仓库就绪（缺仓库转 create-repo、缺 worktree 转 worktree）；按 tasks 依赖连续/并行开发；用户明确要求时支持仅交付代码片段 |
 | `fix` | fx | 修正 / 需求修正 / 修正代码 / requirement fix / fix requirement / code fix /fix | 需求修正（spec→plan→代码）或代码修正（代码→同步文档），保持文档与代码一致 |
 | `testcode` | tc | 单测 / 单元测试 / unit test / unit testing /testcode | 按需触发，非必经：以单测为手段做需求-代码一致性审查与缺陷发现，对照 spec/plan 验收标准核对代码、识别边界遗漏，用例暴露问题后修代码而非改测试；覆盖率 90% 是准出指标之一 |
-| `test` | t | 测试 / 系统测试 / 集成测试 / system test / integration test / end-to-end test /test | 按需触发，非必经：把测试描述转化为 `$work/test.md` 可落地方案；需脚本时落到 `run/` |
-| `run` | rn | 运行 / 执行 / 跑脚本 / execute / run script /run | 按需触发，非必经：无 `run/` 时初始化（`run.md` + `local/`），有 `run.md` 时按清单执行；敏感数据落 `run/local/`（gitignored） |
+| `test` | t | 测试 / 系统测试 / 集成测试 / system test / integration test / end-to-end test /test | 按需触发，非必经：把测试描述转化为 `$work/test.md` 可落地方案；需脚本时落到 `run/<指令>/` |
+| `run` | rn | 运行 / 执行 / 跑脚本 / execute / run script /run | 按需触发，非必经：`run/run.md` 只做指令识别、索引与编排；按用户描述新增 `run/<指令>/`（脚本+数据+local/），执行时按索引识别、校验并编排；敏感数据落各指令的 `local/`（gitignored） |
 | `code-review` | rv | 代码审查 / 审查报告 / code review / review report /code-review | 按需触发：以 plan/tech-design 为规范、目标分支三点 diff 为事实，逐函数分析改动、正确性与危害，评估影响接口与场景，产出 `$work/code-review.md` |
 | `release-check` | rc | 上线检查 / 发布检查 / release check / go-live check /release-check | 按需触发：识别数据库变更（含变更语句）、配置变更（含模板）、新增接口调用（权限申请）、新增中间件（申请配置），产出 `$work/release-check.md` |
-| `close` | cl | 关闭工作区 / close workspace / finish /close | 交付检查与摘要、自动判定需求归档（`wiki/<project>/history/`）、提炼 wiki（含技术决策与 ask 记录归档）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、按 `branches` 登记簿经 `branch-clean.sh` 安全清理分支、删除工作区目录并移除 AGENTS.md 工作区登记；关联工作区级联关闭 |
+| `close` | cl | 关闭工作区 / close workspace / finish /close | 交付检查与摘要、自动判定工作区归档（`wiki/<project>/history/<workspace>/summary.md`，`run/` 整体移入，标准产物外的文件询问是否保留）、提炼 wiki（含技术决策与 ask 记录归档）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、按 `branches` 登记簿经 `branch-clean.sh` 安全清理分支、删除工作区目录并移除 AGENTS.md 工作区登记；关联工作区级联关闭 |
 | `auto` | au | 自动执行 / 全自动 / 自动流转 / 自动开发 / auto / auto run / automatic execution / autopilot /auto | 自动执行当前工作流剩余环节到终态：开始前一次性补齐缺失信息并确认全流程，确认后连续执行不中断，结束时汇总关键决策与结果；默认到 merged / completed，可指定一并 close |
 
 ### 7.3 Git 命令（cmd/git/）

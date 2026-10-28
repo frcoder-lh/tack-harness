@@ -8,6 +8,14 @@ This file is the single source of truth for tack harness release notes:
 - `release.sh` verifies before releasing that the target tag has corresponding sections in both `CHANGELOG.md` (Chinese) and `CHANGELOG.en.md` (English); release aborts if either is missing
 - CI extracts the corresponding sections from both changelogs and concatenates them as the bilingual GitHub Release body; the `check-update.sh` reminder and the `update` command's "What's new" view are sourced from both files
 
+## V0.0.20 (2026-10-29)
+
+- Added: Directory-based `run` instructions—`run/run.md` only recognizes, indexes, and orchestrates instructions and no longer records script details; each instruction gets its own `run/<instruction>/` directory containing its `run.md`, scripts, and data, with sensitive config confined to that directory's `local/` (gitignored); the `run` command now auto-selects among "initialize index / add or update instruction / recognize and orchestrate execution" modes
+- Added: `workspace-archive.sh` (`list` / `move`)—at close it lists non-standard workspace files for the user to decide whether to keep, and safely moves artifacts into the archive directory; it rejects path escapes and never overwrites an existing destination
+- Improved: `close` archival now uses a workspace-named directory `wiki/<project>/history/<workspace>/`: after the automatic decision it writes a fixed `summary.md` and moves the whole `$work/run/` into the sibling `run/` (`local/` remains uncommitted); this replaces the former flat `<requirement>.md` layout while keeping cascading linked-workspace closure and interrupted-run resume
+- Improved: `run-plan.sh` now validates a single instruction directory; a new `run-instruction.md` template is added; `test` system-test scripts land in `run/<instruction>/`, and credential references follow `run/<instruction>/local/`
+- Improved: Credential placement and scanning converge—`scan-secrets` ignores `local/` at any level, and the wiki/ask/record/security rules plus bilingual README and site docs follow the new paths; existing `run/` layouts are not auto-migrated after upgrade and need manual reorganization
+
 ## V0.0.19 (2026-10-24)
 
 - Added: The `auto` command (short `au`, triggers "auto / auto run / automatic execution / autopilot")—automatically runs the current workflow's remaining stages to its terminal state: it gathers missing inputs and confirms the whole flow once up front, then executes continuously without interruption and reports all key decisions and results at the end; defaults to merged / completed, optionally including close
