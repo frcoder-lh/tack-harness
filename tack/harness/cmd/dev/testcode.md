@@ -27,7 +27,7 @@ summary: 按需命令（非开发必经环节，用户需要时触发）——�
 
 ## 输入源与加载
 
-输入源统一口径、三级降级与防循环放大遵守 `harness/workflow/development-workflow.md`「上下文加载原则」节与 `harness/rule/context-loading.md`。本环节特化：上一阶段产物取 `$work/plan.md`（测试策略提要、任务验收标准）与 `$work/spec.md`（业务规则与验收标准）；事实源为本任务代码 diff 与被测源码；按任务 ID/关键词定位被测代码与已有测试（命名如 `*Test`、`*_test`、`*.spec`）
+输入源统一口径、三级降级、代码检索顺序与防循环放大遵守 `harness/workflow/development-workflow.md`「上下文加载原则」节与 `harness/rule/context-loading.md`，项目 wiki 检索按 `harness/rule/wiki-read.md`。本环节特化：上一阶段产物取任务所属 story 的 `story/<story>/plan.md`（测试策略提要、任务验收标准）与 `story/<story>/spec.md`（业务规则与验收标准），`story/<story>/analysis.md` 提供现有实现事实；事实源为本任务代码 diff 与被测源码；按任务 ID/关键词定位被测代码与已有测试（命名如 `*Test`、`*_test`、`*.spec`）
 
 ## 指令内容
 
@@ -50,7 +50,7 @@ summary: 按需命令（非开发必经环节，用户需要时触发）——�
 
 4. **生成、运行与修复循环**
    - 动作:
-     1. 先加载 `harness/rule/coding-standards.md` 中已有实质条目的小节（空小节跳过；存在 `coding-standards-<语言>.md` 时一并加载）；按需参考 `reference/tdd.md` 与 `harness/template/test-plan.md`
+     1. 先加载 `harness/rule/coding-standards.md` 中已有实质条目的小节（空小节跳过；存在 `coding-standards-<语言>.md` 时一并加载）；新建测试文件、测试函数与变量时遵守 `harness/rule/naming.md` 并沿用仓库既有测试命名模式；按需参考 `reference/tdd.md` 与 `harness/template/test-plan.md`
      2. 编写测试（模仿仓库已有测试风格），运行测试——**预期会暴露第 2/3 步发现的问题**
      3. 用例失败即确认缺陷存在：**修代码**（而非改测试去适配），修完重新运行直到通过
      4. 运行覆盖率统计，对未覆盖的**有意义分支**继续补用例；不可测代码向用户说明原因并记录
@@ -76,7 +76,7 @@ summary: 按需命令（非开发必经环节，用户需要时触发）——�
 
 ## 后置完成检验
 
-- [ ] 已完成需求-代码一致性审查：spec/plan 验收标准逐条核对，发现的不一致已修复或向用户说明
+- [ ] 已完成需求-代码一致性审查：所属 story 的 spec/plan 验收标准逐条核对，发现的不一致已修复或向用户说明
 - [ ] 已识别并修复潜在缺陷与遗漏边界（有修复清单或说明无问题）
 - [ ] 测试断言对准 spec/plan 预期行为，未用测试适配代码的错误行为
 - [ ] 全部新测试通过且无稳定性问题；未为覆盖率写无效断言

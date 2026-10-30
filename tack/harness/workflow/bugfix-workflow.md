@@ -38,7 +38,7 @@ initialized → reproducing → diagnosing → fixing → verifying → complete
 
 | # | 环节 | 命令/动作 | 产物 | 完成后状态 |
 |---|------|-----------|------|------------|
-| 1 | 登记现象与入口 | 工作区 input.md 记录现象、日志、环境；必要时 `work` 建修复分支 | 问题描述 | initialized |
+| 1 | 登记现象与入口 | 工作区 `context.md` 记录现象、日志、环境；必要时 `work` 建修复分支 | 问题描述 | initialized |
 | 2 | 稳定复现 | 构造复现步骤/失败测试（可引用 testcode） | 复现用例 | reproducing |
 | 3 | 诊断定位 | 按 `reference/diagnosing-bugs.md` 科学排查（假设→证据→结论） | 根因结论（可沉淀 wiki） | diagnosing |
 | 3.5 | 缺陷溯源 | `git-bug-trace.sh` 追溯引入缺陷的 commit、时间、对应需求与合并到主干的 MR | `status.yaml` 的 `bug_origin` 区块 | diagnosing |
@@ -52,7 +52,7 @@ initialized → reproducing → diagnosing → fixing → verifying → complete
 ## 各环节说明
 
 1. **先复现后动手**：无法稳定复现的问题先补信息（日志、数据、环境），不凭猜测改代码；受阻置 blocked
-2. **基于证据诊断**：按需参考 `reference/diagnosing-bugs.md`——提出假设、用运行/日志/代码证据证实或排除，结论写入工作区文档；可复用的链路结论经人工审阅后分文件沉淀到 `$root/wiki/<project>/`
+2. **基于证据诊断**：按需参考 `reference/diagnosing-bugs.md`——提出假设、用运行/日志/代码证据证实或排除，结论写入工作区文档（必要时落 `$work/doc/analysis/`）；可复用的链路结论经人工审阅后按 `harness/rule/wiki-write.md` 分文件沉淀到 `$root/wiki/<project>/` 对应分类
 3. **缺陷溯源（根因确认后必做）**：定位到缺陷代码行后，调用 `harness/script/git-bug-trace.sh <repo> <file> <line> [end-line] [target-branch]` 追溯缺陷来源，输出含：引入 commit、引入时间、作者、对应需求/工单 ID（从 commit message 提取）、commit 链接、把该 commit 带入主干的合并提交与 MR 链接。将结果写入 `$work/status.yaml` 的 `bug_origin` 区块。溯源价值：①确认缺陷是需求引入还是历史遗留；②评估同需求关联代码是否有同类问题；③MR 链接可回溯当时的审查结论与关联改动。若 `--ancestry-path` 未找到合并提交（被 rebase/cherry-pick 改写），在 `note` 注明并退而记录引入 commit 本身
 4. **最小修复**：根因经用户认可后再改；只改与缺陷相关代码，不顺手重构；遵守 `harness/rule/`
 5. **防回归**：为缺陷补一个能复现旧问题的测试，修复后该测试转绿；跑相关链路回归

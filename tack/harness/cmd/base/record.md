@@ -9,7 +9,7 @@ summary: 沉淀知识或扩展能力——先确定工作区与项目；能力�
 # record 记录沉淀
 
 > 「生成指令的指令」：创建命令或工作流时**先检查是否已有相关条目**——有则融合修正；确无合适条目才新建。
-> 新建时只要求用户提供 `command`（或工作流名），其余内容由 AI 根据用户要求自动生成草稿。
+> 新建时只要求用户提供 `command`（或工作流名），其余内容由 AI 根据用户要求自动生成草稿；新建文件、目录、命令与工作流的命名遵守 `harness/rule/naming.md`。
 > 各类内容的记录规则已独立到 `harness/rule/record-*.md`，本文件只定义流程骨架。
 
 ## 前置准入条件
@@ -31,7 +31,7 @@ summary: 沉淀知识或扩展能力——先确定工作区与项目；能力�
 2. **判断内容类型与落点**
    - 动作: 按 `harness/rule/record-classification.md` 的判据归入 **agents / cmd / workflow / rule / wiki**；并区分「能力」与「参数」——
      - 能力（命令、工作流、规则、脚本、模板）→ `harness/` 对应目录
-     - 项目级参数与代码外事实（各环境网关地址、租户、账号、平台入口等）→ `$root/wiki/<project>/`（多为 `manifest.md`）
+     - 项目级参数与代码外事实（各环境网关地址、租户、账号、平台入口等）→ `$root/wiki/<project>/`（按 `harness/rule/wiki-write.md` 归入 `config/` 等分类）
      - 工作区级参数（MR 地址、泳道、构建版本、需求链接等）→ `$work/status.yaml` 的 `mr_url` / `meego` / `tech_doc_url` 用 `work-status.sh <status.yaml> set <字段> <值>` 写入，`deploy` 用 `deploy upsert` / `deploy mark` 写入
    - 类型存疑时按该文件的路由归类，并向用户确认；不得把工作区级参数写进 harness 或项目 wiki
 
@@ -39,7 +39,7 @@ summary: 沉淀知识或扩展能力——先确定工作区与项目；能力�
    - cmd：按 `harness/rule/record-cmd.md` 全量扫描命令并语义匹配
    - workflow：按 `harness/rule/record-workflow.md` 全量扫描工作流并匹配
    - agents：读取 `$root/AGENTS.md`，匹配「核心约束」编号条目（规则见 `harness/rule/record-agents.md`）
-   - rule / wiki：读取 `harness/rule/`、`$root/wiki/<project>/` 对应文件匹配（规则见 `harness/rule/record-rule.md`、`harness/rule/record-wiki.md`）
+   - rule / wiki：读取 `harness/rule/`、`$root/wiki/<project>/` 对应索引与文件匹配（规则见 `harness/rule/record-rule.md`、`harness/rule/wiki-write.md`、`harness/rule/wiki-read.md`）
    - 命中相关条目：读取对应内容，与用户确认如何**融合修正**（最小化修改，不重写无关内容；同义条目只更新不重复追加）
    - 确无合适条目：进入第 4 步落盘（cmd/workflow 为新建，其余为直接落盘）
 
@@ -49,7 +49,7 @@ summary: 沉淀知识或扩展能力——先确定工作区与项目；能力�
      - cmd → `harness/rule/record-cmd.md`（复制 `template/cmd.md` 到 `harness/cmd/<分组>/`）
      - workflow → `harness/rule/record-workflow.md`（复制 `template/workflow.md` 到 `harness/workflow/`）
      - rule → `harness/rule/record-rule.md`（`harness/rule/` 新建或追加）
-     - wiki → `harness/rule/record-wiki.md`（`$root/wiki/<project>/` 融合或按模板创建）
+     - wiki → `harness/rule/wiki-write.md`（按分类与索引写入 `$root/wiki/<project>/`，融合或按模板创建）
 
 5. **人工审阅**
    - 动作: 展示落盘内容与路径，用户确认后生效（AGENTS.md 核心约束与项目 wiki 内容必须经人工审阅才可作为上下文）
@@ -89,7 +89,8 @@ summary: 沉淀知识或扩展能力——先确定工作区与项目；能力�
 | `harness/rule/record-cmd.md` | 命令的扫描融合、新建模板字段、分组选择 |
 | `harness/rule/record-workflow.md` | 工作流的扫描融合与新建 |
 | `harness/rule/record-rule.md` | 编码规范/研发规则的落点与融合 |
-| `harness/rule/record-wiki.md` | wiki 文件分工、边界、来源链、矛盾演变、落盘方式（close 提炼内容时同样适用） |
+| `harness/rule/wiki-write.md` | 项目 wiki 的分类、组织、写入、来源链、矛盾演变与索引更新（`close` 提炼内容时同样适用） |
+| `harness/rule/wiki-read.md` | 项目 wiki 的索引导航、检索顺序、代码核实与取用纪律 |
 
 ## 下一步建议
 

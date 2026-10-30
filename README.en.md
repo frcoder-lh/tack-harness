@@ -37,7 +37,10 @@ Core features:
 | --- | --- |
 | **Dependency injection** | The skill is the container and capabilities are injections: the skill itself is minimal and contains no command implementations; commands, workflows, and delegatable roles are all Markdown files inside the project—the front matter (command/short/triggers/summary) is the injection declaration, and `scan-routes` dynamically scans and assembles them into a route table at runtime. Adding one file injects one new capability: zero skill changes, and upgrades never overwrite it |
 | **Workflow state machine** | Development, testing, bugfix, conflict merge, and branch operations each have an independent workflow defining state transitions and orchestrating commands. The state in the workspace `status.yaml` is defined by workflows, so the AI always knows the current stage and the next step |
-| **Reusable run instructions** | `run` instructions are organized by directory: `run/run.md` only recognizes, indexes, and orchestrates, while each instruction keeps its scripts, data, and credentials in its own directory (`local/` uncommitted); at `close`, `summary.md` and `run/` are archived together under `wiki/<project>/history/<workspace>/`, so scripts remain reusable for later work |
+| **Requirement analysis** | One workspace can host multiple development stories: `analyze` reads the requirement content first, then the `doc/analysis/` notes and project wiki, and finally the code, splitting stories by complete functional loop and producing `story/<story>/analysis.md` (current implementation, feasibility, compatibility, open questions); `spec` / `plan` advance story by story |
+| **Reusable run instructions** | `run` instructions are organized by directory: `run/run.md` only recognizes, indexes, and orchestrates, while each instruction keeps its scripts, data, and credentials in its own directory (`local/` uncommitted); at `close`, `summary.md` and `run/` are archived together under `wiki/<project>/history/<workspace>/` and registered in `history/index.md`, so scripts remain reusable for later work |
+| **On-demand creation** | A new workspace creates only `status.yaml` and `context.md`; story/doc/repo directories and worktrees are created on demand—code search uses the main `repo/` first, and a worktree is created only when code must be modified, reducing setup cost |
+| **Indexed wiki** | The project wiki uses "index + small files": `index.md` as the top index, and `biz/`, `code/`, `rule/`, `config/`, `history/` each with their own `index.md`; reads and writes go through `wiki-read` / `wiki-write`, and `evolution` verifies index completeness |
 | **Defect origin tracing** | The bugfix workflow ships with `git-bug-trace`: once the defective code line is located, one command traces the introducing commit, time, author, the related requirement/ticket ID, and the MR link that merged it into the main branch (GitHub/GitLab/Bitbucket); results land in the `bug_origin` block of `status.yaml`. Distinguish requirement-introduced defects from legacy ones, and trace back to MR review conclusions and related changes |
 | **Review & release gates** | `code-review` reviews changes function by function—using the plan/tech-design as the spec and the three-dot diff against the target branch as facts—checking correctness and hazards and assessing affected interfaces and scenarios, producing an independent review report; `release-check` produces a go-live checklist—database migration statements, config change templates, API permission requests, middleware resource requests—each item checked off before release |
 | **Self-authoring commands** | `record` is "the command that generates commands". It first scans existing commands and tries to merge fixes; if none fits, you only need to supply `command` and the rest is generated automatically |
@@ -164,13 +167,13 @@ my-project/
 │   ├── cmd/             #   Commands: discovery, routing, entry/exit gates
 │   ├── agents/          #   Delegatable roles: parallel execution in isolated contexts (explorer/architect/reviewer)
 │   ├── workflow/        #   Workflows: state machines and command orchestration
-│   ├── script/          #   Fixed-flow scripts (init-tack initialization / scan-routes route scanning / lint-harness structure self-check / lint-shell-portability three-platform portability / lint-doc-scripts document call signatures / common shared install-upgrade capabilities (agent presets / downloads / versions / checksums) / scan-secrets credential scanning / work-status state writeback / space auto-commit / project project info / repo repositories / work workspaces / git-facts Git fact layer / git-worktree-helper / git-fetch-helper remote sync & upstream repair / git-commit-helper / git-push-helper / git-bug-trace defect tracing / git-diff-context three-dot diff export / branch-op branch operations / branch-clean safe branch cleanup / run-plan execution checklist validation / workspace-archive workspace archival / harness-diff update diff classification / harness-backup backup rollback / trigger-extract trigger-word extraction / yamlib shared YAML parsing / check-update update checks / skill-update local skill upgrade; on Windows all are invoked via the run.ps1 launcher)
+│   ├── script/          #   Fixed-flow scripts (init-tack initialization / scan-routes route scanning / lint-harness structure self-check / lint-shell-portability three-platform portability / lint-doc-scripts document call signatures / common shared install-upgrade capabilities (agent presets / downloads / versions / checksums) / scan-secrets credential scanning / work-status state writeback / space auto-commit / project project info / repo repositories / work workspaces / git-facts Git fact layer / git-worktree-helper / git-fetch-helper remote sync & upstream repair / git-commit-helper / git-push-helper / git-bug-trace defect tracing / git-diff-context three-dot diff export / branch-op branch operations / branch-clean safe branch cleanup / run-plan execution checklist validation / workspace-archive workspace archival / wiki-index wiki index completeness / harness-diff update diff classification / harness-backup backup rollback / trigger-extract trigger-word extraction / yamlib shared YAML parsing / check-update update checks / skill-update local skill upgrade; on Windows all are invoked via the run.ps1 launcher)
 │   │   └── hook/        #   Optional IDE Hook acceleration layer (SessionStart/UserPromptSubmit/PreToolUse; disabled and non-intercepting by default)
-│   ├── rule/            #   Business, code, and security rules (coding-standards, security, git-boundary dual boundary, context-loading, windows-env, record-* distillation rules; not routed, loaded on demand)
+│   ├── rule/            #   Business, code, and security rules (coding-standards, naming, security, git-boundary dual boundary, context-loading, wiki-read/wiki-write, windows-env, record-* distillation rules; not routed, loaded on demand)
 │   ├── template/        #   Command, workflow, document, and workspace templates
 │   └── reference/       #   General methodology and complex standalone capabilities (shipped with the harness; not accepting project distillation; loaded only when referenced by commands/workflows/roles/rules)
 ├── wiki/                # Shared knowledge: per-project wikis (materialized on demand by init/record/close; entries carry sources and contradictions keep their evolution; volatile code logic is never recorded)
-│   └── <project>/       #   Project wiki matching a name in AGENTS.md projects: manifest code-external facts and service inventory / code-understanding code navigation anchors (term→entry point, interface→scenario) / business-understanding business background / decisions technical decisions and engineering conventions / history workspace archives (summary.md + run/) / analysis long-lived analysis documents
+│   └── <project>/       #   Project wiki (index + small files) matching a name in AGENTS.md projects: index.md top index / biz business background and glossary / code repository overview, term→code entry points, interface→scenario, long-lived analysis / rule technical decisions and engineering conventions / config service inventory, environments and lanes, gateway addresses, tenants and accounts, key settings / history workspace archives (summary.md + run/)
 ├── space/               # Workspaces: one directory per work (<YYYYMMDD>-<branch name>; the date prefix sorts directories by creation time)
 ├── repo/                # Main code repositories: exactly one copy of each, the read-only baseline
 └── .tack/               # Framework-local runtime data (gitignored, never committed, safe to clean anytime): log logs / backup rollback backups / tmp temp files / state local state
@@ -184,21 +187,23 @@ my-project/
 
 `work` generates English branch-name candidates from the intent and automatically infers the related services (you can add or remove them after confirmation), then:
 
-- Uses git worktree to check out the involved repositories to `space/20261001-user-login/repo/<repo-name>/` (multiple agents can develop different requirements in parallel without interference; the branch name checked out in the worktree stays `user-login`; when a branch name contains `/`, the directory flattens it to `-`, e.g. `feature/login` → `20261001-feature-login`, while the git branch keeps `feature/login`);
-- Generates a flat workspace at `space/20261001-user-login/`: `status.yaml` (the single stateful file: properties + logs + todos) and `input.md`;
+- Creates only the `space/20261001-user-login/` directory, `status.yaml`, and `context.md`—**no `story/`, `doc/`, or `repo/` directories are pre-created and no worktree is checked out**; directories are created on demand when their first file appears. Code search reads the main `repo/` first, and when code must be modified `code` switches to `worktree` to check out `space/20261001-user-login/repo/<repo-name>/` on demand (multiple agents can develop different requirements in parallel without interference; the branch name checked out in the worktree stays `user-login`; when a branch name contains `/`, the directory flattens it to `-`, e.g. `feature/login` → `20261001-feature-login`, while the git branch keeps `feature/login`);
+- Generates workspace context files at `space/20261001-user-login/`: `status.yaml` (the single stateful file: properties + logs + todos) and `context.md` (workspace context, read before every command);
 - Registers the work in the project info block of `AGENTS.md`.
 
-You can put PRD excerpts and reference links into `space/20261001-user-login/input.md`, and specify entry points for the AI analysis chain.
+You can put PRD excerpts, reference links, and multiple requirements into `space/20261001-user-login/context.md` (all at once or appended over time), and specify entry points for the AI analysis chain.
 
-### 4.3 Requirement analysis (three stages, each confirmed manually)
+### 4.3 Requirement analysis (story by story)
 
 ```bash
-/tack spec           # Requirement planning (top-level design + public contract): requirement understanding and research, feasibility, candidate implementation routes, decisions to close early, story split, system boundaries, acceptance criteria and test points → spec.md
-/tack plan           # Development plan (detailed design + construction blueprint): for complex tasks, compare and select among options first, then land interface/SQL/verification/rollout details, modules and task dependencies → plan.md + the tasks list in status.yaml
-/tack tech-design    # Technical review document (on demand): only when a formal review is needed, reorganize the confirmed spec/plan into the technical template → tech-design.md
+/tack ask            # (Optional, before requirements are clear) Code understanding and Q&A, output in doc/analysis/, one file per topic
+/tack analyze        # Requirement analysis: requires supplied requirement content/document; reads it first, then searches doc/analysis and the project wiki, and only then inspects code → story/<story>/analysis.md (current implementation, feasibility, compatibility, open questions)
+/tack spec <story>   # Requirement planning (top-level design + public contract) → story/<story>/spec.md
+/tack plan <story>   # Development plan (detailed design + construction blueprint) → story/<story>/plan.md + the tasks list in status.yaml
+/tack tech-design    # Technical review document (on demand): reorganizes the confirmed spec/plan of the target story into doc/tech-design.md
 ```
 
-The analysis consults shared knowledge in `wiki/`; stable navigation anchors distilled by `ask` (term→search term/code entry, interface→business scenario) are human-reviewed and distilled by `record` into the root wiki, while volatile details such as call chains stay only in the workspace analysis documents. `status.yaml` auto-updates state and progress as stages advance.
+One workspace can host multiple development stories; follow-ups and appended requirements merge into the same `story/<story>/analysis.md`, while different topics either create a new story or land in `doc/analysis/`. The analysis consults shared knowledge in the project `wiki/`; stable navigation anchors distilled by `ask` (term→search term/code entry, interface→business scenario) are human-reviewed and distilled by `record` into the root wiki, while volatile details such as call chains stay only in the workspace analysis documents. `status.yaml` auto-updates state and progress as stages advance.
 
 To run from the current stage all the way to requirement completion, execute `/tack auto`: it gathers missing inputs and confirms the whole flow once up front, then executes continuously to the terminal state and reports all key decisions and results at the end.
 
@@ -208,7 +213,7 @@ To run from the current stage all the way to requirement completion, execute `/t
 /tack code         # First verifies the involved repositories are ready (missing repo → create-repo, missing worktree → worktree), then develops continuously/in parallel per task dependencies; reuses existing logic and auto-picks the best of multiple options; delivers snippets only when you explicitly ask
 /tack fix          # Requirement fixes go spec→plan→code; code fixes go code→doc sync, keeping docs and code consistent
 /tack testcode     # (On demand, not mandatory) Unit-test-driven requirement-code consistency review: checks the implementation against spec/plan, finds defects and missing boundaries; when cases expose problems, fix the code—not the tests; 90% coverage is one of the exit criteria
-/tack test         # (On demand, not mandatory) System testing: turns test descriptions into an actionable plan in $work/test.md; scripts go to run/<instruction>/ when needed
+/tack test         # (On demand, not mandatory) System testing: turns test descriptions into an actionable plan in doc/test.md; scripts go to run/<instruction>/ when needed
 /tack run          # (On demand, not mandatory) run instruction management: run/run.md only recognizes, indexes, and orchestrates; each instruction lives in run/<instruction>/ (scripts + data + local/); execution validates and orchestrates per index; sensitive data goes to each instruction's local/ (gitignored)
 ```
 
@@ -223,7 +228,7 @@ Code changes are allowed only inside the worktree at `space/20261001-user-login/
 /tack commit        # Auto-generates a Conventional Commits message and commits directly (no second confirmation)
 /tack push          # Pushes; if no remote is associated, guides you to associate one first
 /tack merge         # Pure branch merge: after fetching the latest, merge the source branch into the target branch (when the current workspace is the source branch, a linked workspace is created for it); conflicts route to /tack solve; commit and push when done
-/tack close         # Delivery check → delivery summary → automatically decide workspace archival (wiki/<project>/history/<workspace>/summary.md, run/ moved in, non-standard files asked about) → distill wiki (incl. technical decisions and ask-record archival) → consume guidance for self-evolution → remove worktree and safely clean registered branches → delete the workspace directory and remove its AGENTS.md registration (linked workspaces close in cascade)
+/tack close         # Delivery check → delivery summary → automatically decide workspace archival (wiki/<project>/history/<workspace>/summary.md registered in history/index.md, run/ moved in, non-standard files asked about) → distill wiki by category and index (incl. technical decisions and ask-record archival) → consume guidance for self-evolution → remove worktree and safely clean registered branches → delete the workspace directory and remove its AGENTS.md registration (linked workspaces close in cascade)
 ```
 
 ### 4.6 Experience distillation and reuse
@@ -254,7 +259,8 @@ Any blocked stage may enter the `blocked` state (the blocking reason is recorded
 ```mermaid
 flowchart LR
     A["/tack init"] --> B["/tack work <requirement>"]
-    B --> C["/tack spec"]
+    B --> B2["/tack analyze"]
+    B2 --> C["/tack spec"]
     C --> D["/tack plan"]
     D --> E["/tack tech-design"]
     E --> F["/tack code"]
@@ -263,6 +269,7 @@ flowchart LR
     I --> J["/tack push"]
     J --> K["/tack merge"]
     K --> L["/tack close"]
+    B -. optional before requirements are clear, lands in doc/analysis .-> A1["/tack ask"]
     F -. triggered on demand, not mandatory .-> G["/tack testcode"]
     F -. triggered on demand, not mandatory .-> G2["/tack test"]
     F -. triggered on demand, not mandatory .-> G3["/tack run"]
@@ -277,19 +284,22 @@ flowchart LR
 
 ## 6. Workspace Structure
 
-`space/<YYYYMMDD>-<branch>/` (e.g. `space/20261001-user-login/`; the directory name carries a creation-date prefix, so sorting by name equals sorting by creation time; a `/` in the branch name becomes `-` in the directory, e.g. `feature/login` → `20261001-feature-login`, while the git branch inside the worktree keeps `/` and has no date prefix) uses a flat structure:
+`space/<YYYYMMDD>-<branch>/` (e.g. `space/20261001-user-login/`; the directory name carries a creation-date prefix, so sorting by name equals sorting by creation time; a `/` in the branch name becomes `-` in the directory, e.g. `feature/login` → `20261001-feature-login`, while the git branch inside the worktree keeps `/` and has no date prefix) keeps the root flat while workspace documents are layered under `story/` and `doc/`; workspace creation writes only `status.yaml` and `context.md`, and `story/`, `doc/`, `run/`, `repo/` directories are created when their first file appears or a worktree is checked out:
 
 | File | Created when | Purpose |
 | --- | --- | --- |
-| `status.yaml` | Workspace creation | Properties + logs + todos: records the task in progress, its progress, and the next step; the `tasks` list (dependencies/acceptance/status) and the `deploy` register (lane/route/version/status); its `guidance` list collects user guidance (pending) and crystallizes it into harness entries at close (applied/rejected); the single stateful file, with fields deterministically written back by `work-status.sh` |
-| `input.md` | Workspace creation | The raw requirement, reference links, requirement understanding, and suggested analysis chain |
-| `spec.md` | `/tack spec` | Requirement planning (top-level design + public contract): what and why, boundaries, and acceptance |
-| `plan.md` | `/tack plan` | Development plan (detailed design + construction blueprint): interface/SQL/verification/rollout details + task list |
-| `tech-design.md` | `/tack tech-design` | The technical review document |
-| `test.md` | `/tack test` (on demand) | System test plan (actionable, executable); distinct from testcode (unit tests/coverage)—it targets complete system-function verification |
+| `status.yaml` | Workspace creation | Properties + logs + todos: records the task in progress, its progress, and the next step; the `tasks` list (dependencies/acceptance/status, aggregated workspace-wide) and the `deploy` register (lane/route/version/status); its `guidance` list collects user guidance (pending) and crystallizes it into harness entries at close (applied/rejected); the single stateful file, with fields deterministically written back by `work-status.sh` |
+| `context.md` | Workspace creation | Workspace context: raw requirements (multiple or appended over time), reference links, constraints, and requirement understanding; read before every command |
+| `story/<story>/analysis.md` | `/tack analyze` | Requirement analysis: current implementation, feasibility, compatibility with existing code, implementation suggestions, open questions, and discussion log (one per story) |
+| `story/<story>/spec.md` | `/tack spec <story>` | Requirement planning (top-level design + public contract): what and why, boundaries, and acceptance |
+| `story/<story>/plan.md` | `/tack plan <story>` | Development plan (detailed design + construction blueprint): interface/SQL/verification/rollout details + task list |
+| `doc/tech-design.md` | `/tack tech-design` | Technical review document (`doc/tech-design-<story>.md` when stories are reviewed separately) |
+| `doc/test.md` | `/tack test` (on demand) | System test plan (actionable, executable); distinct from testcode (unit tests/coverage)—it targets complete system-function verification |
+| `doc/code-review.md` | `/tack code-review` (on demand) | Pre-merge independent review report (function-level dual-axis analysis + impact surface) |
+| `doc/release-check.md` | `/tack release-check` (on demand) | Go-live checklist (database/config/API permissions/middleware requests) |
+| `doc/analysis/` | `ask` / pre-requirement Q&A | Code Q&A and analysis records before requirements are clear, one file per topic |
 | `run/` | `/tack test` / `/tack run` (on demand) | Run instruction directory: `run.md` only recognizes/indexes/orchestrates; each instruction lives in `run/<instruction>/` (scripts + data); that instruction's `local/` holds sensitive data (gitignored, never committed) |
-| `wiki/` | `work` / `ask` | Workspace-level code analysis documents (`<repo>-analysis.md`) |
-| `repo/<name>/` | `work` | The git worktree, the only writable code area |
+| `repo/<name>/` | `code` → `worktree` (on demand) | The git worktree, the only writable code area; code search uses the main `repo/` first and checks out only when modification is needed |
 
 
 ## 7. Command Reference
@@ -301,29 +311,30 @@ All commands support Chinese and English triggers plus short forms, in the forma
 | Command | Short | Triggers | Purpose |
 | --- | --- | --- | --- |
 | `init` | i | initialize / connect repo / organize docs /init | Extracts project info into AGENTS.md, scans and symlinks or clones repositories (natural language like "connect a repository" and "organize documents" also routes here) |
-| `work` | w | workspace / new workspace / switch workspace / merge branches / rebase branches /work | Creates / renames / switches / lists workspaces, auto-infers services, and creates worktrees; also takes branch merge/rebase intents and routes them to the branch-op workflow |
+| `work` | w | workspace / new workspace / switch workspace / merge branches / rebase branches /work | Creates / renames / switches / lists workspaces and auto-infers services; new workspaces create only `status.yaml` and `context.md`, with story/doc/repo directories and worktrees created on demand; also takes branch merge/rebase intents and routes them to the branch-op workflow |
 | `help` | h | help / commands /help | Scans the harness and prints workflows and all commands |
 | `update` | u | update / update skill /update | Updates the harness and the space-root .gitignore (`.tack/` enforced as a fallback); `cmd/` is additive, while `rule/` changes are decided file by file (take the new version / keep local / merge), and AGENTS.md is preserved |
 | `create-repo` | cr | create repo / new repository /createrepo /create-repo | Creates and initializes a local code repository and brings it under project-space management |
 | `record` | r | record / remember / distill /record | Prefers merging into existing entries; can land commands / workflows / rules / wiki / AGENTS.md resident agreements; for new entries you only need to supply command |
-| `evolution` | evo | evolve / evolve harness /evolution | Reconciles AGENTS.md workspace registrations with the actual `space/` directories (drops orphan entries, registers missing ones, purges stale archives); runs the structure and three-platform self-checks (lint-harness + lint-shell-portability) and reviews instructions, distilling rule/reference/script candidates and cleaning up stale facts or needless negative descriptions (cleanup candidates); supports both tack-space and source-repo modes; shell scripts violating the three-platform baseline are fixed on the spot, everything else lands after human confirmation |
+| `evolution` | evo | evolve / evolve harness /evolution | Reconciles AGENTS.md workspace registrations with the actual `space/` directories; checks each project wiki's index completeness and registers unindexed files; runs the structure and three-platform self-checks (lint-harness + lint-shell-portability) and reviews instructions, distilling rule/reference/script candidates and cleaning up stale facts or needless negative descriptions (cleanup candidates); supports both tack-space and source-repo modes; shell scripts violating the three-platform baseline are fixed on the spot, everything else lands after human confirmation |
 | `study` | st | study / learn / learn from /study | Learns from the design of external skills or repositories, distills borrowable ideas into the corresponding harness locations, commits after a unified preview confirmation, then automatically runs one evolution |
 
 ### 7.2 Requirement development commands (cmd/dev/)
 
 | Command | Short | Triggers | Purpose |
 | --- | --- | --- | --- |
-| `ask` | a | question / code qa / analyze code / code analysis /ask | Optional: analyzes worktree code (can delegate the explorer for parallel reconnaissance), producing analysis documents in `$work/wiki/` or distilling Q&A |
-| `spec` | sp | requirement planning / overall design /spec | Reads input.md + wiki (root/work) + code facts; produces spec.md after grep-based location (top-level design + public contract; product/test decisions close in this stage) |
-| `plan` | p | detailed design / development plan / task breakdown /plan | Reads the confirmed spec; for complex tasks, compares and selects among options first, then lands interface/SQL/verification/rollout details, module breakdown, and task dependencies (written into plan.md + status.yaml tasks) |
-| `tech-design` | td | technical design / tech doc / tech review /tech-design | On demand: only for a formal review, reorganizes the confirmed spec/plan into the review document without adding design decisions |
+| `ask` | a | question / code qa / analyze code / code analysis /ask | Optional: retrieves by index from workspace documents and project wiki in parallel, then verifies with code on demand (workspace code first, main repo fallback), producing analysis documents in `$work/doc/analysis/` or distilling Q&A (one file per topic) |
+| `analyze` | an | requirement analysis / analyze requirement / feasibility analysis /analyze | Mandatory after workspace creation: requires the user to have supplied requirement content or a requirement document; reads the requirement content first, then searches `doc/analysis/` and the project wiki, and only then inspects code; splits requirements into development stories (each a complete closed-loop function) and produces `story/<story>/analysis.md` (current implementation, feasibility, compatibility, open questions); requirements can be supplied in one batch or appended, and multi-round discussions merge in place |
+| `spec` | sp | requirement planning / overall design /spec | Reads the requirement of the target story from `context.md`, `story/<story>/analysis.md`, wiki (root/doc, retrieved by index), and code facts; produces `story/<story>/spec.md` after grep-based location (top-level design + public contract; product/test decisions close in this stage) |
+| `plan` | p | detailed design / development plan / task breakdown /plan | Per story: reads the confirmed spec and analysis; for complex tasks, compares and selects among options first, then lands interface/SQL/verification/rollout details, module breakdown, and task dependencies (written into `story/<story>/plan.md` + status.yaml tasks) |
+| `tech-design` | td | technical design / tech doc / tech review /tech-design | On demand: only for a formal review, reorganizes the confirmed spec/plan of the target story into `doc/tech-design.md` without adding design decisions |
 | `code` | c | coding / develop / write code /code | Before coding, verifies repository readiness (missing repo → create-repo, missing worktree → worktree); develops continuously/in parallel per task dependencies; snippet-only delivery supported when you explicitly request it |
 | `fix` | fx | requirement fix / fix requirement / code fix /fix | Requirement fixes (spec→plan→code) or code fixes (code→doc sync), keeping docs and code consistent |
 | `testcode` | tc | unit test / unit testing /testcode | On demand, not mandatory: uses unit tests as a means for requirement-code consistency review and defect detection, checking the code against spec/plan acceptance criteria and identifying missing boundaries; when cases expose problems, fix the code—not the tests; 90% coverage is one of the exit criteria |
-| `test` | t | system test / integration test / end-to-end test /test | On demand, not mandatory: turns test descriptions into an actionable plan in `$work/test.md`; scripts go to `run/<instruction>/` when needed |
+| `test` | t | system test / integration test / end-to-end test /test | On demand, not mandatory: turns test descriptions into an actionable plan in `$work/doc/test.md`; scripts go to `run/<instruction>/` when needed |
 | `run` | rn | execute / run script /run | On demand, not mandatory: `run/run.md` only recognizes, indexes, and orchestrates instructions; new instructions live in `run/<instruction>/` (scripts + data + local/); execution validates and orchestrates per index; sensitive data goes to each instruction's `local/` (gitignored) |
-| `code-review` | rv | code review / review report /code-review | On demand: using plan/tech-design as the spec and the target-branch three-dot diff as facts, analyzes changes function by function for correctness and hazards, assesses affected interfaces and scenarios, and produces `$work/code-review.md` |
-| `release-check` | rc | release check / go-live check /release-check | On demand: identifies database changes (with migration statements), config changes (with templates), new API calls (permission requests), and new middleware (resource requests), producing `$work/release-check.md` |
+| `code-review` | rv | code review / review report /code-review | On demand: using the story plan/tech-design as the spec and the target-branch three-dot diff as facts, analyzes changes function by function for correctness and hazards, assesses affected interfaces and scenarios, and produces `$work/doc/code-review.md` |
+| `release-check` | rc | release check / go-live check /release-check | On demand: identifies database changes (with migration statements), config changes (with templates), new API calls (permission requests), and new middleware (resource requests), producing `$work/doc/release-check.md` |
 | `close` | cl | close workspace / finish /close | Delivery check and summary, automatically decides workspace archival (`wiki/<project>/history/<workspace>/summary.md`, `run/` moved in, non-standard files asked about), distills wiki (incl. technical decisions and ask-record archival), consumes guidance to crystallize the harness and verifies landing points, removes worktrees and safely cleans branches per the `branches` register via `branch-clean.sh`, then deletes the workspace directory and removes its AGENTS.md registration; linked workspaces close in cascade |
 | `auto` | au | auto / auto run / automatic execution / autopilot /auto | Automatically runs the current workflow's remaining stages to its terminal state: gathers missing inputs and confirms the whole flow once up front, then executes continuously without interruption and reports all key decisions and results at the end; defaults to merged / completed, optionally including close |
 
@@ -332,7 +343,7 @@ All commands support Chinese and English triggers plus short forms, in the forma
 | Command | Short | Triggers | Purpose |
 | --- | --- | --- | --- |
 | `fetch` | f | pull / pull code /fetch | Pulls the latest code for each repository (fetch only, no merge) |
-| `worktree` | wt | worktree /wt | Creates the missing worktree for a specified repository |
+| `worktree` | wt | worktree /wt | Creates the missing worktree for a specified repository on demand |
 | `commit` | ci | commit / local commit /commit | Local commit; runs init first in a non-git directory; the message is auto-generated and committed directly—no second confirmation |
 | `push` | ps | push / push remote /push | Pushes to the remote; if none is associated, guides you to associate one |
 | `merge` | m | merge /m | Pure branch merge: after fetching the latest, merges the source branch into the target branch; when the current workspace is the source branch, a linked workspace is created (records `parent_workspace`, and close closes it in cascade); conflicts route to solve; commits and pushes when done |
@@ -382,7 +393,7 @@ Extension rules:
 
 Unified log: after setting the environment variable `TACK_HOOK_LOG=1`, every invocation of the three Hooks appends a full record (time, event, pid, `$root`/`$work`, input payload, injection/interception output, exit code, and duration) to `$root/.tack/log/hook.log`; concurrent calls are written serially in whole blocks and never interleave; off by default, and when off the Hook output is byte-for-byte unchanged.
 
-Fallback: deleting the `.trae/` and `.claude/` directories under the space root fully reverts to the original path of "the AI actively calls `scan-routes.sh`"; framework capabilities are unaffected.
+To disable: deleting the `.trae/` and `.claude/` directories under the space root returns to the default path (the AI actively calls `scan-routes.sh` to resolve routes); framework capabilities are unaffected.
 
 
 ## 9. Security Model
@@ -412,11 +423,15 @@ No. `update` only refreshes `script/`, `template/`, `reference/`, and `workflow/
 
 **Q: Are multi-repository projects supported?**
 
-Yes. `work` infers the involved services from the intent; each repository gets its own worktree at `space/<YYYYMMDD>-<branch>/repo/<repo-name>`, and Git commands are executed per repository.
+Yes. `work` infers the involved services and creates only `status.yaml` and `context.md` at creation time (story/doc/repo directories are created on demand); when code must be modified, each repository gets its own on-demand worktree under `space/<YYYYMMDD>-<branch>/repo/<repo-name>`, and Git commands are executed per repository.
 
 **Q: Why does project information live in AGENTS.md instead of a standalone config file?**
 
 To keep the number of files minimal. The project name, keywords, service-repository mapping, and work list all sit in the YAML "Project info" block at the end of AGENTS.md, maintained by `harness/script/project.sh` (with boundary markers—content outside the block is untouched).
+
+**Q: Why isn't the directory layout organized by project?**
+
+The first-class citizens of tack-harness are the harness, repo (code), space (workspaces), and wiki (knowledge base)—not projects. A project is only a business-level grouping, recorded in the AGENTS.md "Project info" block (business ownership and service-repository mapping) rather than materialized as directory levels; the layout is organized by workspace, keeping the code, documents, and distilled knowledge of a single requirement together.
 
 **Q: Do the scripts run on Windows?**
 
@@ -425,10 +440,6 @@ The scripts are POSIX sh; on Windows they are all invoked through the `run.ps1` 
 **Q: How do the three "evolution" commands—`record` / `evolution` / `study`—divide the work?**
 
 `record` crystallizes content you explicitly give or guidance entries (humans supply the material); `evolution` reviews inward, distilling rule/reference/script from existing cmds (no external material); `study` learns outward from third-party skills/repositories, borrowing their flows, commands, rules, scripts, templates, and organization.
-
-**Q: How do I migrate from the old directory structure (work/, doc/, root status.yaml)?**
-
-① Create `space/`, migrate `work/<branch>` to `space/<YYYYMMDD>-<branch>` (adding the creation-date prefix to the directory, e.g. `20261001-user-login`), and place documents flat (`doc/tech-design.md` → `tech-design.md`); ② run `git worktree repair` for each repository to fix the paths; ③ merge the root `status.yaml` content into the AGENTS.md project info block (you can first run `harness/script/project.sh ensure <root>` to generate the block); ④ update the harness and verify with `scan-routes.sh list harness`.
 
 
 ## 11. Contributing

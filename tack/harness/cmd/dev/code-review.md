@@ -3,7 +3,7 @@ command: code-review
 short: rv
 triggers: 代码审查, 审查报告, code-review, codereview, review, code review, review report
 params: [目标分支（默认主干）]
-summary: 合并前独立深度审查——以 plan.md/tech-design.md 为规范、与目标分支的三点 diff 为事实，逐函数分析改动内容、逻辑正确性与代码危害，评估影响的接口与业务场景，产出 $work/code-review.md 审查报告
+summary: 合并前独立深度审查——以 story/<story>/plan.md 与 doc/tech-design.md 为规范、与目标分支的三点 diff 为事实，逐函数分析改动内容、逻辑正确性与代码危害，评估影响的接口与业务场景，产出 doc/code-review.md 审查报告
 ---
 
 # code-review 代码审查
@@ -15,18 +15,18 @@ summary: 合并前独立深度审查——以 plan.md/tech-design.md 为规范�
 ## 前置准入条件
 
 - 已确定当前工作区 `$work`
-- `$work/plan.md` 已确认（`progress.plan: true`）；`$work/tech-design.md` 存在（无则在报告头部注明规范来源仅 plan.md）
+- `$work/story/*/plan.md` 已确认（`progress.plan: true`）；`$work/doc/tech-design.md`（或多 story 时的 `doc/tech-design-<story>.md`）存在（无则在报告头部注明规范来源仅 plan.md）
 - 各涉及仓库当前分支改动已 `commit`（审查基于提交事实，未提交改动不进入范围）；建议先 `fetch`
 - **Git 作用域**：遵守 `harness/rule/git-boundary.md`——只读操作仅在 `$work/repo/<repo-name>/` 内执行
 
 ## 指令内容
 
 1. **回写环节状态**
-   - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml set stage review task 代码审查 next 生成code-review.md`（自动刷新 updated_at）；不改变 `status`
+   - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml set stage review task 代码审查 next 生成doc/code-review.md`（自动刷新 updated_at）；不改变 `status`
 
 2. **确定审查范围并导出 diff 事实**
    - 输入: 目标分支参数（默认主干 master/main，由脚本自动探测）
-   - 动作: 仓库清单取 `sh $root/harness/script/work-status.sh $work/status.yaml tasks repos`（可按需与 plan.md 模块划分「所属仓库」列合并），执行批量导出：
+   - 仓库清单取 `sh $root/harness/script/work-status.sh $work/status.yaml tasks repos`（可按需与 `story/*/plan.md` 模块划分「所属仓库」列合并），执行批量导出：
      `sh $root/harness/script/git-diff-context.sh batch $work $root/.tack/tmp/review [目标分支]`
      解析每仓库输出行 `target_ref`、`merge_base`、`head`、`empty`、`files_changed`、`diff_file`、`stat_file` 与汇总行 `summary_*`
    - 退出码: 0 至少一个仓库有差异；3 全部无差异（中止并提示「与目标分支无差异，无需审查」）；1 部分仓库失败；11 目标分支不存在
@@ -34,9 +34,9 @@ summary: 合并前独立深度审查——以 plan.md/tech-design.md 为规范�
    - 边界: 脚本只搬运确定性事实（ref 解析、merge-base、diff 导出），逐函数语义分析由本命令完成
 
 3. **加载规范与标准来源**
-   - 规范: `$work/plan.md`（模块划分、逐环节落地、决策记录）、`$work/tech-design.md`（技术方案）；`$work/spec.md`（验收标准，辅助）
+   - 规范: 任务所属 story 的 `story/<story>/plan.md`（模块划分、逐环节落地、决策记录）、`doc/tech-design.md`（技术方案）；`story/<story>/spec.md`（验收标准，辅助）
    - 标准: `$root/harness/rule/coding-standards.md` 已有实质条目的小节（空小节跳过）；涉及外部输入、鉴权、凭据、数据库查询、文件路径时**必加载 `security.md`**
-   - 上下文辅助: `$work/wiki/`（分析文档、调用链梳理）用于影响面定位；加载纪律遵守 `harness/rule/context-loading.md`
+   - 上下文辅助: `$work/doc/analysis/`（分析文档、调用链梳理）与 `story/*/analysis.md` 用于影响面定位；加载纪律遵守 `harness/rule/context-loading.md`
 
 4. **逐函数分析改动（双轴审查）**
    - 方法: 审查框架遵循 `harness/reference/code-review.md` 的双轴（Spec/Standards，含 Fowler 代码味道基线）；本命令把双轴落到「仓库 → 文件 → 函数/方法」粒度，逐个分析：
@@ -47,12 +47,12 @@ summary: 合并前独立深度审查——以 plan.md/tech-design.md 为规范�
    - 纪律: 只审查本次变更新引入或放大的问题；顺手发现的历史问题单列「历史问题（不在本次范围）」，不计入结论；没有证据（路径:行号 + 依据）不报
 
 5. **影响面分析**
-   - 动作: 基于 diff 与调用链（结合 `$work/wiki/` 分析文档、代码内搜索调用方）识别：
+   - 动作: 基于 diff 与调用链（结合 `$work/doc/analysis/` 分析文档、代码内搜索调用方）识别：
      - **受影响接口**：对外 HTTP/RPC API（路径/方法/入出参变化）、消息生产/消费（topic、消息体）、定时任务、DB schema（表/字段/索引）、被改函数的全部调用方
      - **涉及业务场景**：沿调用链向上追到用户可感知入口（页面/接口/任务），列场景名与关联代码入口锚点
    - 输出: 接口表（接口 | 变化类型 | 代码锚点 | 影响说明）与场景表（场景 | 入口锚点 | 关联改动）
 
-6. **生成审查报告 `$work/code-review.md`**
+6. **生成审查报告 `$work/doc/code-review.md`**
    - 头部: `> 审查范围: <target_ref>...HEAD（merge-base: <short-hash>）　仓库: <清单>　生成时间: <日期>`
    - 章节结构:
      1. **概览**：各仓库改动统计（文件数/+/−）与一句话总评
@@ -67,14 +67,14 @@ summary: 合并前独立深度审查——以 plan.md/tech-design.md 为规范�
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): code review <branch>"`，把 `$work/code-review.md` 与 status.yaml 变更自动提交到空间根仓库；无变更自动跳过
+- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): code review <branch>"`，把 `doc/code-review.md` 与 status.yaml 变更自动提交到空间根仓库；无变更自动跳过
 - 边界: 遵守 `harness/rule/git-boundary.md`；`.tack/tmp/review/` 的 diff 临时文件不入库、可随时清理
 
 ## 后置完成检验
 
 - [ ] 每个涉及仓库均经 git-diff-context.sh 导出事实，empty 仓库已说明；报告头部审查范围与实际一致
 - [ ] 改动清单覆盖 diff 中全部改动文件与函数，每条有 `路径#L行号` 锚点
-- [ ] 双轴发现均有证据（路径:行号 + 依据）：规范轴对照 plan.md/tech-design.md 具体条目，标准轴引用编码标准/代码味道/security.md 条目；无臆测
+- [ ] 双轴发现均有证据（路径:行号 + 依据）：规范轴对照 story plan/tech-design 具体条目，标准轴引用编码标准/代码味道/security.md 条目；无臆测
 - [ ] 影响面已列出受影响接口与涉及场景；签名/协议变更已核对全部调用方
 - [ ] `$work/status.yaml` 的 progress.review 已置 true；本命令未修改任何代码文件
 

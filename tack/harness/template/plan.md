@@ -1,9 +1,9 @@
 # 需求开发文档（plan.md）模板
 
-> 由 `/tack plan` 命令读取：根据 `input.md`、`spec.md`、`$root/wiki/<project>/` 与 `$work/wiki/` 中本需求链路相关信息，产出 `$work/plan.md`。
+> 由 `/tack plan <story>` 命令读取：根据 `$work/context.md` 中本 story 的需求、`story/<story>/analysis.md`、`story/<story>/spec.md`、`$root/wiki/<project>/`、`$work/doc/analysis/` 与本需求链路相关信息，产出 `$work/story/<story>/plan.md`。
 > 定位：**详细设计 + 施工图**。回答怎么实施、任务如何依赖、每步如何验证；落到代码、接口、SQL 等可直接施工的细节。
 > 对应技术方案中的详细设计与上线流程；别人拿到本文件可直接落实到代码。
-> 细节放本文件，`status.yaml` 只保留状态与待办。
+> 细节放本文件，`status.yaml` 只保留状态与待办；任务同步到工作区级 `tasks` 列表，ID 需全局唯一（多 story 时以 story 目录名为前缀）。
 
 ## 1. 需求理解
 

@@ -1,6 +1,6 @@
 # Git 规范
 
-> 分支命名与提交信息的默认基线，项目可经 `record` 收紧或调整。
+> 分支命名与提交信息的默认基线，项目可经 `record` 收紧或调整；命名通用原则见 `harness/rule/naming.md`。
 > Git 操作边界与安全禁令见 `git-boundary.md`。
 > 加载时机：`work` 新建/重命名工作区生成分支名、`worktree` 补建分支、`commit` 生成提交信息、`merge` 合并提交。
 

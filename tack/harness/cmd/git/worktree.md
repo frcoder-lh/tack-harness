@@ -3,7 +3,7 @@ command: worktree
 short: wt
 triggers: 工作树, worktree
 params: [仓库名]
-summary: 为当前工作区的指定仓库补建 git worktree
+summary: 为当前工作区的指定仓库按需补建 git worktree（新建工作区只创建 status.yaml 与 context.md，需要修改代码时才创建 worktree）
 ---
 
 # worktree 新建 worktree

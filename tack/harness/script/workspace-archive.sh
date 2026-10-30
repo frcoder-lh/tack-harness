@@ -6,7 +6,7 @@
 #   sh workspace-archive.sh move <root> <project> <workspace> <relative-path>...
 #
 # list: 输出工作区根下除标准产物外的条目，每行 TYPE<TAB>NAME（DIR/FILE）
-#       标准产物：status.yaml、input.md、spec.md、plan.md、tech-design.md、test.md、wiki/、repo/、run/
+#      标准产物：status.yaml、context.md、story/、doc/、repo/、run/
 # move: 创建 <root>/wiki/<project>/history/<workspace>/，把相对工作区的条目原样移入
 #       输出 ARCHIVE_DIR=<路径>，每个成功移动的条目输出 MOVED<TAB><relative-path>
 #
@@ -59,7 +59,7 @@ if [ "${ACTION}" = "list" ]; then
         [ -e "${entry}" ] || [ -L "${entry}" ] || continue
         name="${entry##*/}"
         case "${name}" in
-            status.yaml|input.md|spec.md|plan.md|tech-design.md|test.md|wiki|repo|run) continue ;;
+            status.yaml|context.md|story|doc|repo|run) continue ;;
         esac
         if [ -d "${entry}" ]; then
             printf 'CANDIDATE\tDIR\t%s\n' "${name}"

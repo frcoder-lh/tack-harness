@@ -14,12 +14,12 @@ summary: 后续环节发现需求不明确或实现不正确时进行修正—�
 ## 前置准入条件
 
 - 已确定当前工作区 `$work`
-- 已有 spec.md（通常也有 plan.md 与部分代码）
-- 执行前重新读取 `$work/status.yaml`、spec.md、plan.md，尊重本地最新状态
+- 已有 `story/<story>/spec.md`（通常也有同 story 的 plan.md 与部分代码）
+- 执行前重新读取 `$work/status.yaml`、目标 story 的 analysis/spec/plan，尊重本地最新状态
 
 ## 输入源与加载
 
-输入源统一口径、三级降级与防循环放大遵守 `harness/workflow/development-workflow.md`「上下文加载原则」节与 `harness/rule/context-loading.md`。本环节按修正点定位：相关产物（spec.md / plan.md / tech-design.md / status.yaml 的 tasks）grep 相关章节再读取；wiki 与代码按修正点关键词定位后只读必要片段
+输入源统一口径、三级降级、代码检索顺序与防循环放大遵守 `harness/workflow/development-workflow.md`「上下文加载原则」节与 `harness/rule/context-loading.md`，项目 wiki 检索按 `harness/rule/wiki-read.md`。本环节按修正点定位：相关产物（`story/<story>/analysis.md`、`spec.md`、`plan.md`、`doc/tech-design.md`、status.yaml 的 tasks）grep 相关章节再读取；wiki 与代码按修正点关键词定位后只读必要片段
 
 ## 指令内容
 
@@ -32,12 +32,10 @@ summary: 后续环节发现需求不明确或实现不正确时进行修正—�
 
 ### 路径 A：需求修正（文档先行，spec → plan → 代码）
 
-1. **回写状态**：执行 `sh $root/harness/script/work-status.sh $work/status.yaml set stage fix task 需求修正 next "修正 spec.md"`（自动刷新 updated_at）；受影响任务执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks set <任务ID> blocked`
-2. **修正 spec.md**：按用户修正内容更新需求规划（边界、story、验收标准等相关章节）；只改受影响部分，保留修订说明（修正点、原因、日期）
-3. **修正 plan.md**：
-   - 更新受影响的设计章节与「决策记录」
-   - 调整模块划分与任务清单：新增/删除/修改任务，重算 deps 与并行关系
-4. **同步 status.yaml 的 tasks**：按 plan.md 的最终任务清单生成规范化 TSV（列：id / title / module / repo / deps-csv / status），落 `$root/.tack/tmp/tasks.tsv`（目录不存在先 `mkdir -p`），执行
+1. **回写状态**：执行 `sh $root/harness/script/work-status.sh $work/status.yaml set stage fix task 需求修正 next "修正 story/<story>/spec.md"`（自动刷新 updated_at）；受影响任务执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks set <任务ID> blocked`
+2. **修正 spec.md**：按用户修正内容更新目标 story 的需求规划（边界、功能场景、验收标准等相关章节）；只改受影响部分，保留修订说明（修正点、原因、日期）
+3. **修正 plan.md**：更新该 story 受影响的设计章节与「决策记录」，调整模块划分与任务清单：新增/删除/修改任务，重算 deps 与并行关系
+4. **同步 status.yaml 的 tasks**：按全部 story 的 plan.md 最终任务清单生成规范化 TSV（列：id / title / module / repo / deps-csv / status），落 `$root/.tack/tmp/tasks.tsv`（目录不存在先 `mkdir -p`），执行
    `sh $root/harness/script/work-status.sh $work/status.yaml tasks replace $root/.tack/tmp/tasks.tsv`，再执行 `tasks validate`（退出码 4 时修复后重试）；
    - 新增任务 `pending`；已 done 但受影响的任务执行 `tasks set <任务ID> pending` 回退（或新增修正任务），原因写入 `current.next`
 5. **修正代码**：对受影响的任务重新执行 code 的实现纪律（复用优先、按依赖顺序、grep 定位），使代码与修正后的文档一致
@@ -50,9 +48,9 @@ summary: 后续环节发现需求不明确或实现不正确时进行修正—�
    - grep 定位问题代码与类似正确实现；优先复用既有模式
    - 仅改动实现使行为正确；不擅自改 spec/plan
    - 相关任务置 `in_progress`，构建/测试通过后置回 `done`
-3. **评估需求一致性**：代码修正后核对 spec.md / plan.md：
+3. **评估需求一致性**：代码修正后核对目标 story 的 spec.md / plan.md：
    - 若实现修正**未改变**需求与计划（纯粹 bug/实现偏差）：文档不动，仅记录修正说明
-   - 若修正中**暴露出需求或计划需要相应调整**：告知用户差异，按路径 A 的第 2-4 步同步修正 spec.md、plan.md 与 tasks
+   - 若修正中**暴露出需求或计划需要相应调整**：告知用户差异，按路径 A 的第 2-4 步同步修正该 story 的 spec.md、plan.md 与 tasks
 4. 用户审阅确认后恢复原环节状态
 
 ### 共同纪律
@@ -63,7 +61,7 @@ summary: 后续环节发现需求不明确或实现不正确时进行修正—�
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): fix and sync docs <branch>"`，把 spec.md / plan.md / status.yaml 的修正自动提交到 tack 空间根仓库；无变更自动跳过
+- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): fix and sync docs <branch>"`，把 `story/<story>/spec.md`、`plan.md` 与 status.yaml 的修正自动提交到 tack 空间根仓库；无变更自动跳过
 - 边界: 遵守 `harness/rule/git-boundary.md`
 
 ## 后置完成检验

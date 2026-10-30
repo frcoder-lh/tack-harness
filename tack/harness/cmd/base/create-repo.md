@@ -20,7 +20,7 @@ summary: 在本地创建新的代码仓库并纳入项目空间管理
    - 输入: 建仓用途（承载什么服务、技术栈、与已有服务的关系）
 
 2. **建议仓库名称**
-   - 动作: 结合项目关键词与用途，给出 2-3 个英文 kebab-case 仓库名建议，用户选择或自行输入后确认
+   - 动作: 结合项目关键词与用途，给出 2-3 个英文 kebab-case 仓库名建议（命名遵守 `harness/rule/naming.md`），用户选择或自行输入后确认
 
 3. **创建仓库**
    - 动作: `mkdir -p $root/repo/<name>` 后在其中执行 `git init`；生成最小 README（仓库名 + 一句话用途）与合适的 .gitignore（按技术栈）
@@ -30,7 +30,7 @@ summary: 在本地创建新的代码仓库并纳入项目空间管理
    - 动作: 有地址则执行 `git remote add origin <url>`；没有则提示先在代码平台建仓，稍后可补
 
 5. **登记映射**
-   - 动作: 执行 `sh $root/harness/script/project.sh project-service-repo $root "<项目名>" "<服务名称>" "<repo 名>" "<repo_git，未关联远端则空串>" "repo/<name>"` 追加当前项目的 `service_repo_mapping`，并按 init 第 6 步物化/更新 `wiki/<project>/manifest.md` 与 `wiki/<project>/code-understanding.md`：只渲染仓库/服务真实行；两张映射表（术语→检索词/代码入口、接口→业务场景）与环境事实章节有真实事实才填写，不臆造锚点；提示用户补全服务信息
+   - 动作: 执行 `sh $root/harness/script/project.sh project-service-repo $root "<项目名>" "<服务名称>" "<repo 名>" "<repo_git，未关联远端则空串>" "repo/<name>"` 追加当前项目的 `service_repo_mapping`，并按 `harness/rule/wiki-write.md` 物化/更新 `wiki/<project>/config/services.md` 与 `wiki/<project>/code/repos.md` 的仓库/服务真实行，同步登记分类索引；环境、账号、配置等事实有真实来源才填写，不臆造锚点；提示用户补全服务信息
 
 ## 框架自动提交（无需用户操作）
 

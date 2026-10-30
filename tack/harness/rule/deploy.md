@@ -21,6 +21,6 @@
 - 复合键 `(repo, env, lane)`：已存在则覆盖，不存在则追加；`deploy list` 输出 `repo / env / lane / route / build / url / status`。
 - `lane` 建议从 `work_id` 派生（如 `tack-<work_id>`），便于与部署平台对账；泳道是「需求分支代码部署到共享环境的隔离实例 + 流量路由（header/cookie/uid）」，不新增代码分支。
 - 只登记事实与链接，不臆造环境信息。
-- 环境拓扑、部署方式、平台入口、泳道申请流程等静态事实记在 `$root/wiki/<project>/manifest.md`「环境与事实信息」下的「部署环境与泳道」，缺失时提示用户补充并经 `record` 沉淀。
+- 环境拓扑、部署方式、平台入口、泳道申请流程等静态事实记在 `$root/wiki/<project>/config/env.md`，缺失时提示用户补充并经 `record` 沉淀（读取按 `harness/rule/wiki-read.md`）。
 
 来源: 用户沉淀 2026-10-23（evolution：deploy 登记规则在 testcode / merge / close / release-check 四处重复，收敛为本规则）

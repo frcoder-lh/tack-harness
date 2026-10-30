@@ -22,13 +22,13 @@ summary: 自动执行当前工作流剩余环节直到终态——开始前一�
 ## 指令内容
 
 1. **确认当前状态并推导剩余链路**
-   - 动作: 读取 `$work/status.yaml`（status / workflow / progress / tasks / current / branches / deploy）、已有产物（input、spec、plan、tech-design、test、code-review）与当前工作流文档的「各环节与命令映射」
-   - 已完成的环节（progress 为 true 或产物已确认）不重跑；`in_progress` / `blocked` 的任务按状态续跑
+   - 动作: 读取 `$work/status.yaml`（status / workflow / progress / tasks / current / branches / deploy）、已有产物（context、`story/*/analysis.md`、`story/*/spec.md`、`story/*/plan.md`、`doc/tech-design.md`、`doc/test.md`、`doc/code-review.md`）与当前工作流文档的「各环节与命令映射」
+   - 已完成的环节（progress 为 true 或产物已确认）不重跑；`in_progress` / `blocked` 的任务按状态续跑；工作区有多个 story 时，按 story 逐个完成 analyze → spec → plan，再统一进入 code
    - 按工作流推导剩余链路（默认执行到该工作流终态，`close` 是否包含由第 2 步确认）：
 
      | 工作流 | 剩余链路（从当前环节起） | 默认终态 |
      |--------|--------------------------|----------|
-     | development | spec → plan →（需要正式评审时）tech-design → code → commit → push → merge（push 遇 non-fast-forward 转 fetch/solve；merge 自带 fetch 与冲突处理） | merged |
+     | development | analyze → spec → plan →（需要正式评审时）tech-design → code → commit → push → merge（push 遇 non-fast-forward 转 fetch/solve；merge 自带 fetch 与冲突处理） | merged |
      | testing | testcode → test → run（按需）→ commit → push | completed |
      | bugfix | 复现 → 诊断/缺陷溯源 → code → 验证 → commit → push →（按需 merge） | completed |
      | merge-conflict | fetch → merge → solve（冲突时）→ 验证 → push | completed |
@@ -43,7 +43,7 @@ summary: 自动执行当前工作流剩余环节直到终态——开始前一�
 
      | 工作流 | 必问项（事实缺失时） |
      |--------|----------------------|
-     | development | 原始需求与验收标准（input.md 为空或含糊）；涉及仓库是否就绪、缺失时是否新建；远端关联与 push 权限；源分支引用（本地/远端，仅两侧内容不同时必须确认）；目标分支无法自动判定时的取值；保护分支是否走平台 MR 及由谁合并；是否需要正式评审（决定是否执行 tech-design，默认不执行）；按需命令是否纳入（testcode / test / run / code-review / release-check，默认不纳入）；是否一并 close（默认不）；是否需要 deploy 登记 |
+     | development | 原始需求与验收标准（`context.md` 为空或含糊、`story/` 尚未拆分）；涉及仓库是否就绪、缺失时是否新建；远端关联与 push 权限；源分支引用（本地/远端，仅两侧内容不同时必须确认）；目标分支无法自动判定时的取值；保护分支是否走平台 MR 及由谁合并；是否需要正式评审（决定是否执行 tech-design，默认不执行）；按需命令是否纳入（testcode / test / run / code-review / release-check，默认不纳入）；是否一并 close（默认不）；是否需要 deploy 登记 |
      | testing | 测试范围或任务 ID；覆盖率门槛（默认 90%）；测试环境与凭据；是否需要系统测试与脚本执行；提交、推送与是否合并 |
      | bugfix | 现象、期望与实际；复现环境与步骤；日志/账号等必需输入；根因判定与修复授权（按证据确认后直接修复）；是否补回归测试；是否 merge |
      | merge-conflict | 源分支、目标分支与本地/远端引用；冲突取舍原则（业务优先级、保留哪侧）；验证命令；是否推送 |

@@ -4,7 +4,7 @@
 # 定位：工作区属性 + 日志 + 待办。
 #   AI 当前在处理哪个任务、处理到什么程度、下一步做什么，都记在这里；
 #   这是工作区下唯一有状态的文件，AI 在执行每个任务前后都应更新；
-#   内容尽量简洁，细节放在 plan.md。
+#   内容尽量简洁，细节放在 story/<story>/plan.md。
 #
 # 状态枚举：status 的合法取值由 harness/workflow/ 下所属工作流的「状态流转」定义。
 # ============================================================
@@ -45,9 +45,9 @@ tech_doc_url: ""
 created_at: "{{CREATED_AT}}"
 updated_at: "{{CREATED_AT}}"
 
-# 当前进展（日志 + 待办；细节放 plan.md，不要堆在这里）
+# 当前进展（日志 + 待办；细节放 story/<story>/plan.md，不要堆在这里）
 current:
-  stage: ""          # 当前环节：ask / spec / plan / tech-design / code / fix / testcode / test / run / review / merge
+  stage: ""          # 当前环节：analyze / ask / spec / plan / tech-design / code / fix / testcode / test / run / review / merge
                      # branch-op 工作流：prepare / integrate / resolve / push / cleanup
                      # bugfix 工作流：reproduce / diagnose / fix / verify；merge-conflict 工作流：fetch / merge / resolve / push
   task: ""           # 当前正在处理的任务 ID 与标题（对应下方 tasks 列表）
@@ -55,16 +55,17 @@ current:
 
 # 阶段进度（主链路环节每完成一个置 true，命令执行前后同步更新）
 progress:
-  ask: false          # 代码理解产物（分析文档/问答文档）已生成
-  spec: false         # spec.md 已确认
-  plan: false         # plan.md（含任务清单）已确认
-  tech-design: false  # tech-design.md 已确认
+  analyze: false      # 至少一个 story 的需求分析（story/<story>/analysis.md）已完成并经确认
+  ask: false          # 代码理解产物（doc/analysis/ 分析文档/问答文档）已生成
+  spec: false         # 至少一个 story 的 spec.md 已确认（多 story 时逐 story 维护，以文件为准）
+  plan: false         # 至少一个 story 的 plan.md（含任务清单）已确认
+  tech-design: false  # 技术评审文档（doc/tech-design.md）已确认
   code: false         # 开发已完成
   # —— 以下为按需命令的完成事实记录（非必经环节：用户主动触发并完成后置 true；不触发无需任何标记，不阻塞 commit/push/merge/close）——
   testcode: false     # 单测审查与覆盖率达标（testcode 完成）
-  test: false         # 系统测试方案（test.md）已确认（test 完成）
+  test: false         # 系统测试方案（doc/test.md）已确认（test 完成）
   run: false          # run 脚本已执行（run 完成）
-  release_check: false # 上线检查清单（release-check.md）已生成（release-check 完成）
+  release_check: false # 上线检查清单（doc/release-check.md）已生成（release-check 完成）
   review: false       # 代码审查已通过
   merged: false       # 已合并
 
@@ -85,7 +86,7 @@ follow_ups: []
 
 # 部署/泳道登记（需求在各环境的小流量与上线事实；testcode 部署验证、merge 登记上线计划时写入，close 检查回收）
 # 泳道本质是「需求分支代码部署到共享环境的隔离实例 + 流量路由规则」，不新增代码分支概念；
-# 环境拓扑、泳道申请方式等静态事实记在 $root/wiki/<project>/manifest.md 的「部署环境与泳道」，不在这里
+# 环境拓扑、泳道申请方式等静态事实记在 $root/wiki/<project>/config/env.md，不在这里
 deploy: []
 # 每条结构：
 #   - repo: ""              # 仓库名

@@ -3,7 +3,7 @@ command: release-check
 short: rc
 triggers: 上线检查, 发布检查, release-check, releasecheck, release check, go-live check
 params: [目标分支（默认主干）]
-summary: 上线前检查清单——以 plan.md/tech-design.md 与目标分支三点 diff 为输入，逐项识别数据库变更（给出变更语句）、配置变更（给出变更模板）、新增接口调用（需申请权限）、新增中间件（需提前申请配置）等上线检查项，产出 $work/release-check.md
+summary: 上线前检查清单——以 story/<story>/plan.md 与 doc/tech-design.md、目标分支三点 diff 为输入，逐项识别数据库变更（给出变更语句）、配置变更（给出变更模板）、新增接口调用（需申请权限）、新增中间件（需提前申请配置）等上线检查项，产出 doc/release-check.md
 ---
 
 # release-check 上线检查
@@ -13,7 +13,7 @@ summary: 上线前检查清单——以 plan.md/tech-design.md 与目标分支�
 ## 前置准入条件
 
 - 已确定当前工作区 `$work`
-- `$work/plan.md` 已确认；`$work/tech-design.md` 存在（无则在报告头部注明）
+- `$work/story/*/plan.md` 已确认；`$work/doc/tech-design.md`（或多 story 时的 `doc/tech-design-<story>.md`）存在（无则在报告头部注明）
 - 各涉及仓库当前分支改动已 `commit`（检查基于提交事实）；建议先 `fetch`
 - **Git 作用域**：遵守 `harness/rule/git-boundary.md`——只读操作仅在 `$work/repo/<repo-name>/` 内执行
 
@@ -26,11 +26,11 @@ summary: 上线前检查清单——以 plan.md/tech-design.md 与目标分支�
    - 动作: 与 `code-review` 第 2 步相同——仓库清单取 `work-status.sh tasks repos`，执行：
      `sh $root/harness/script/git-diff-context.sh batch $work $root/.tack/tmp/review [目标分支]`
      `empty: true` 的仓库说明后跳过；退出码 3（全部无差异）时中止并提示「与目标分支无差异」；11 目标分支不存在
-   - 若已有 `$work/code-review.md` 且其头部基准与本次 merge-base/HEAD 一致，可复用其 diff 结论，仅补充检查项识别
+   - 若已有 `$work/doc/code-review.md` 且其头部基准与本次 merge-base/HEAD 一致，可复用其 diff 结论，仅补充检查项识别
 
 3. **加载输入**
-   - 规范: `$work/plan.md`、`$work/tech-design.md`（部署架构、依赖清单、数据模型章节）
-   - 环境事实: `$root/wiki/<project>/manifest.md` 的「环境与事实信息」（部署环境、平台入口、申请流程，如已登记）
+   - 规范: `$work/story/*/plan.md`、`$work/doc/tech-design.md`（部署架构、依赖清单、数据模型章节）
+   - 环境事实: 按 `harness/rule/wiki-read.md` 查 `$root/wiki/<project>/config/env.md`（部署环境、平台入口、申请流程，如已登记）与 `config/accounts.md`、`config/settings.md` 中的申请/配置信息
    - 事实: 各仓库 diff 文件 + 必要的完整文件上下文（配置模板、migration 全文）；加载纪律遵守 `harness/rule/context-loading.md`
 
 4. **逐项识别上线检查项**（以 diff 为唯一事实来源，每项附 `路径:行号` 锚点）
@@ -41,7 +41,7 @@ summary: 上线前检查清单——以 plan.md/tech-design.md 与目标分支�
    - **其他检查项（仅列 diff 实际命中的，无命中省略）**：新增定时任务/Worker、新端口或新服务、密钥与凭据（走凭据管理平台，不入库）、监控告警与日志、容量与灰度、回滚预案
    - 纪律: 无命中的类别标注「本次无变更」；识别不出的疑似项列入「待人工确认」，不臆造
 
-5. **生成检查清单 `$work/release-check.md`**
+5. **生成检查清单 `$work/doc/release-check.md`**
    - 头部: `> 审查范围: <target_ref>...HEAD（merge-base: <short-hash>）　仓库: <清单>　生成时间: <日期>`
    - 每类检查项一节，统一表格：`| # | 检查项 | 来源锚点 | 变更语句/模板/申请内容 | 环境 | 状态 |`（状态列留 `[ ]` 供上线时逐项打勾）
    - 末尾「上线顺序建议」：按依赖排序（资源申请 → 数据库变更 → 配置下发 → 代码发布 → 验证与灰度）；多仓库时标注发布顺序
@@ -52,7 +52,7 @@ summary: 上线前检查清单——以 plan.md/tech-design.md 与目标分支�
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): release check <branch>"`，把 `$work/release-check.md` 与 status.yaml 变更自动提交到空间根仓库；无变更自动跳过
+- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): release check <branch>"`，把 `doc/release-check.md` 与 status.yaml 变更自动提交到空间根仓库；无变更自动跳过
 - 边界: 遵守 `harness/rule/git-boundary.md`；`.tack/tmp/review/` 的 diff 临时文件不入库、可随时清理
 
 ## 后置完成检验

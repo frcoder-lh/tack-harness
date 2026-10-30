@@ -5,7 +5,7 @@
 ## 相关文件位置
 
 - 目录全貌与各文件职责以 `$root/AGENTS.md` 的「目录概览」为准（`wiki/`、`space/<workspace>/`、`harness/template/`）
-- wiki 知识页面（business-understanding / code-understanding / manifest / decisions）与 `history/` 工作区归档的分工与边界见 `harness/rule/record-wiki.md`
+- 项目 wiki 分类页面（`biz/`、`code/`、`rule/`、`config/`）与 `history/` 工作区归档的分工与边界见 `harness/rule/wiki-write.md`，检索方式见 `harness/rule/wiki-read.md`
 - wiki 页面按需物化，结构模板在 `harness/template/wiki-*.md`；文件存在即有真实内容，不预放空壳
 
 ## 会话中的工作
@@ -28,7 +28,7 @@
 
 ### 即时更新文档
 
-当术语被澄清时，立即更新 `$root/wiki/<project>/business-understanding.md`；文件不存在时按 `harness/template/wiki-business-understanding.md` 创建。不要批量处理：捕获它们。`business-understanding.md` 应该完全没有实现细节。
+当术语被澄清时，立即更新 `$root/wiki/<project>/biz/glossary.md`；文件不存在时按 `harness/template/wiki-biz-glossary.md` 创建并在 `biz/index.md` 登记。不要批量处理：捕获它们。`glossary.md` 应该完全没有实现细节。
 
 ### 节制地提出技术决策
 

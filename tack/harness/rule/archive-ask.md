@@ -1,10 +1,11 @@
 # ask 记录归档规则
 
-> 被 `close` 命令引用：`ask` 的分析与问答产物留在 `$work/wiki/`，关闭工作区时按本规则转化为可长期复用的业务与代码理解。只归档结论，不归档分析过程。
+> 被 `close` 命令引用：`ask` 的分析与问答产物留在 `$work/doc/analysis/`，关闭工作区时按本规则转化为可长期复用的业务与代码理解。只归档结论，不归档分析过程。
 
 ## 处理对象
 
-- `$work/wiki/` 下的 `ask` 产物：`<repo>-analysis.md`、主题问答文档等
+- `$work/doc/analysis/` 下的 `ask` 产物：`<repo>-analysis.md`、主题问答文档等
+- `$work/story/*/analysis.md` 中的需求分析与讨论结论（只提炼其中可跨工作区复用的业务/代码结论）
 - 只处理有长期价值、且代码不应作为唯一载体的结论；无符合项时跳过，不生成空文件
 
 ## 归档方式：转化，不原样复制
@@ -18,15 +19,16 @@
 
 | 内容 | 落点 |
 |------|------|
-| 业务名词/术语的解释（是什么、边界、别名/旧称） | `$root/wiki/<project>/business-understanding.md`「核心概念与术语」表 |
-| 代码名词/标识的解释与导航（术语 → 检索关键词/代码入口、接口 → 业务场景） | `$root/wiki/<project>/code-understanding.md` 的两张映射表 |
-| 稳定代码外事实（服务职责、环境/配置/平台入口等） | `$root/wiki/<project>/manifest.md` 对应小节 |
-| 项目级技术决策与工程约定 | `$root/wiki/<project>/decisions.md` |
+| 业务名词/术语的解释（是什么、边界、别名/旧称） | `$root/wiki/<project>/biz/glossary.md`「核心概念与术语」表 |
+| 业务背景、领域职责与不变量 | `$root/wiki/<project>/biz/background.md`、`biz/domains.md` 对应小节 |
+| 代码名词/标识的解释与导航（术语 → 检索关键词/代码入口、接口 → 业务场景） | `$root/wiki/<project>/code/anchors.md`、`code/interfaces.md` 的映射表 |
+| 稳定代码外事实（服务职责、环境/配置/平台入口等） | `$root/wiki/<project>/config/` 对应文件（`services.md` / `env.md` / `accounts.md` / `settings.md`） |
+| 项目级技术决策与工程约定 | `$root/wiki/<project>/rule/decisions.md`、`rule/conventions.md` |
 | 需求特定的「为什么这样做 / 是否设计如此」 | 该工作区的 `$root/wiki/<project>/history/<workspace>/summary.md`；本工作区已按 `harness/rule/archive-requirement.md` 归档时就地融合 |
-| 其他跨工作区可复用的业务背景 | `$root/wiki/<project>/business-understanding.md` 对应小节 |
 
-- 业务名词解释进 `business-understanding.md`，代码名词解释进 `code-understanding.md`，两类不混放
+- 业务名词解释进 `biz/glossary.md`，代码名词解释进 `code/anchors.md`，两类不混放
 - 已有同义条目就地融合更新，不重复追加
+- 写入、分类与索引更新统一遵守 `harness/rule/wiki-write.md`；新增文件后同步更新对应分类索引与项目总索引
 
 ## 不归档的内容
 
@@ -40,5 +42,5 @@
 ## 审阅与来源
 
 - 展示拟归档条目（内容 | 落点 | 来源），经用户确认后写入
-- 来源标注：`space/<workspace>/wiki/<文件>#<章节>`，必要时附 `commit <short-hash>`
-- 融合去重、矛盾演变与禁写凭据要求同 `harness/rule/record-wiki.md`
+- 来源标注：`space/<workspace>/doc/analysis/<文件>#<章节>`（需求分析来源为 `space/<workspace>/story/<story>/analysis.md#<章节>`），必要时附 `commit <short-hash>`
+- 融合去重、矛盾演变与禁写凭据要求同 `harness/rule/wiki-write.md`

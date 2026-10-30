@@ -6,8 +6,9 @@
 
 - 目录: `$root/wiki/<project>/history/<workspace>/`，不存在时先创建（`<workspace>` 即工作区目录名，与关闭的工作区同名）
 - 经验文档: 固定命名 `summary.md`，结构按 `harness/template/wiki-history.md`，关键结论带来源
+- 索引登记: 归档完成后在 `$root/wiki/<project>/history/index.md` 登记本工作区目录（登记目录即覆盖 `summary.md` 与 `run/`），索引写法遵守 `harness/rule/wiki-write.md`
 - run 目录: `$work/run/` 存在时整体移入该归档目录的 `run/`（`workspace-archive.sh move`），保留指令索引、各指令脚本与数据；`run/*/local/` 仍被 `.gitignore` 忽略、不入库
-- 其他文件: 标准产物（status.yaml、input.md、spec.md、plan.md、tech-design.md、test.md、wiki/、repo/）之外的文件/目录，由 `workspace-archive.sh list` 列出后逐项询问用户是否移入本目录，用户不选择的不保存
+- 其他文件: 标准产物（status.yaml、context.md、story/、doc/、repo/、run/）之外的文件/目录，由 `workspace-archive.sh list` 列出后逐项询问用户是否移入本目录，用户不选择的不保存
 - 同一工作区目录已存在时：`summary.md` 就地融合更新，不重复建目录；同名文件不覆盖
 
 ## 归档判定（自动）
@@ -21,7 +22,7 @@
 不写 `summary.md`：
 
 - `workflow: branch-op`：只做分支搬运，不产生业务改动与需求上下文
-- 无真实 input、无 spec/plan，且只做机械性、格式性或一次性改动，没有需要回忆的背景与决策
+- 无真实 `context.md`、无 story/spec/plan，且只做机械性、格式性或一次性改动，没有需要回忆的背景与决策
 - 内容只能从代码、提交历史或当前文档直接重建，归档只会重复代码事实
 - 用户明确放弃归档
 
@@ -32,8 +33,8 @@
 按模板写以下部分，全部用业务语言、分条陈述、简练准确：
 
 1. **需求信息**：需求名、工作区、归档日期、状态（confirmed / candidate）、涉及服务/仓库
-2. **原始资料**：需求输入文档的链接或位置（`meego`、`tech_doc_url`、input.md 中的原始链接）；只登记链接，不复制原文；无链接时注明来源
-3. **实现的功能**：这个需求最终实现了哪些功能，对照 spec 故事/验收标准与 done tasks
+2. **原始资料**：需求输入文档的链接或位置（`meego`、`tech_doc_url`、`context.md` 中的原始链接）；只登记链接，不复制原文；无链接时注明来源
+3. **实现的功能**：这个需求最终实现了哪些功能，对照 spec 功能场景/验收标准与 done tasks
 4. **关键讨论与决策**：为什么这样做、比较过什么、放弃了什么、有哪些边界约定
 5. **对系统的影响**：涉及的服务/模块、接口与数据、配置与权限、上下游依赖、兼容性与风险
 6. **排查索引**：常见现象/问题 → 当前设计结论 → 是否设计如此 → 依据
@@ -51,4 +52,4 @@
 - 展示归档路径与 `summary.md` 内容摘要，经用户确认后生效
 - 关键结论标注来源：`space/<workspace>/<文件>#<章节>`、`commit <short-hash>`、用户口述日期或原始资料链接
 - 同一工作区后续再次归档时就地融合更新，不重复建文件；结论变化保留「此前为 X，于 <日期> 因 <来源> 修正」轨迹
-- 来源链、矛盾演变与禁写凭据要求同 `harness/rule/record-wiki.md`
+- 来源链、矛盾演变与禁写凭据要求同 `harness/rule/wiki-write.md`

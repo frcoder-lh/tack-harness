@@ -284,6 +284,13 @@ LC_ALL=C awk -v H="${HARNESS_DIR}" '
             if (NP < min) warn(file, base, sc " 至少需要 " (min - 1) " 个参数")
             return
         }
+        if (base == "wiki-index.sh") {
+            if (NP < 1) { warn(file, base, "缺少子命令"); return }
+            sc = P[1]; if (sc ~ /\|/) return
+            if (sc != "check") { warn(file, base, "未知子命令: " sc); return }
+            if (NP < 3) warn(file, base, "check 需要 <root> <project>")
+            return
+        }
         if (base == "space.sh") {
             if (P[1] != "commit" && P[1] !~ /\|/) { warn(file, base, "未知子命令: " P[1]); return }
             if (NP < 2) warn(file, base, "commit 需要 <root>")

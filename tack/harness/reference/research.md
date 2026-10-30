@@ -11,7 +11,7 @@
 
 1. 只针对**可信的一手来源**调查，不采用二手综述；追溯每个声明回拥有它的源头
 2. 将结果写成一份带来源的 Markdown 文件，每个关键声明附出处链接或文档位置
-3. 保存边界遵守 `harness/rule/record-wiki.md`：稳定导航锚点与代码外事实经人工审阅后沉淀到 `$root/wiki/<project>/`；易变或仅本次有效的资料留在 `$work/wiki/`，不写入项目 wiki
+3. 保存边界遵守 `harness/rule/wiki-write.md`：稳定导航锚点与代码外事实经人工审阅后沉淀到 `$root/wiki/<project>/`；易变或仅本次有效的资料留在 `$work/doc/`（分析记录放 `doc/analysis/`，需求分析放 `story/<story>/analysis.md`），不写入项目 wiki
 
 ## 输出
 

@@ -3,7 +3,7 @@ command: close
 short: cl
 triggers: 关闭工作区, 结束, close, close workspace, finish
 params: 无
-summary: 工作区收尾——状态判定与关闭确认、同步关闭关联工作区、交付检查、输出交付摘要、自动判定工作区归档（写入 wiki/<project>/history/<workspace>/summary.md 并移入 run/）、提炼内容入 wiki（含技术决策与 ask 记录归档）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、删除工作区目录并移除 AGENTS.md work 条目
+summary: 工作区收尾——状态判定与关闭确认、同步关闭关联工作区、交付检查、输出交付摘要、自动判定工作区归档（写入 wiki/<project>/history/<workspace>/summary.md、登记 history/index.md 并移入 run/）、提炼内容入 wiki（按分类与索引写入，含技术决策与 ask 记录归档）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、删除工作区目录并移除 AGENTS.md work 条目
 ---
 
 # close 关闭工作区
@@ -36,14 +36,14 @@ summary: 工作区收尾——状态判定与关闭确认、同步关闭关联�
 
 4. **输出交付摘要**
    - 时机: worktree 移除前（仍可取到提交与文件清单），工作区归档与 wiki 提炼前
-   - **branch-op 工作流分流**（无 spec/plan）：输出简版摘要，事实只取 status.yaml 的 `branch_op` 区块与各仓库 git 记录：
+   - **branch-op 工作流分流**（无 story/spec/plan）：输出简版摘要，事实只取 status.yaml 的 `branch_op` 区块与各仓库 git 记录：
      1. **操作内容**：op（merge/rebase）、源分支 A、目标分支 B、涉及仓库
      2. **执行结果**：逐仓库 pushed 状态、结果实际落入的原分支（merge→B，rebase→A）
      3. **建议后续**：提示关注目标分支状态；若有 abort/blocked 仓库在此列明
    - **其他工作流**：
-     - 输入源: spec.md（交付故事）、plan.md（方案选定与决策记录）、status.yaml（done tasks、`follow_ups`、mr_url）、各仓库 `git log <目标分支>..HEAD --stat`
+     - 输入源: `story/*/spec.md`（交付故事）、`story/*/plan.md`（方案选定与决策记录）、`story/*/analysis.md`（现有实现与兼容事实）、status.yaml（done tasks、`follow_ups`、mr_url）、各仓库 `git log <目标分支>..HEAD --stat`
      - 动作: 向用户输出固定四段结构：
-       1. **构建内容**：本次交付的功能点（对照 spec 故事与 done tasks）
+       1. **构建内容**：本次交付的功能点（对照 spec 功能场景与 done tasks）
        2. **关键决策**：plan 中选定的实现方案与重要决策记录
        3. **改动文件**：按仓库分组的提交与主要改动文件清单（来自 git 事实，附 MR 链接）
        4. **建议后续步骤**：merge 时登记的 follow_ups、遗留/跳过项、测试与上线建议
@@ -51,23 +51,24 @@ summary: 工作区收尾——状态判定与关闭确认、同步关闭关联�
 
 5. **工作区归档（自动判定 summary.md 与 run/ 的保存价值）**
    - 判定: 按 `harness/rule/archive-requirement.md`「归档判定」自动判断——
-     - 不归档 summary: `workflow: branch-op` 等纯分支搬运；无真实 input、无 spec/plan 且仅机械性/格式性改动的简单工作区
+     - 不归档 summary: `workflow: branch-op` 等纯分支搬运；无真实 context、无 story/spec/plan 且仅机械性/格式性改动的简单工作区
      - 应归档 summary: development / bugfix 等有需求背景与功能交付，且存在需要日后回忆的「为什么」（功能取舍、边界约定、关键讨论、设计决策）或对系统行为/接口/数据/配置/权限/依赖有影响
    - 归档目录: 固定为 `$root/wiki/<project>/history/<workspace>/`（`<workspace>` = `basename "$work"`，与工作区同名）；写 summary.md 前执行 `mkdir -p "$root/wiki/<project>/history/<workspace>"`（移动文件时由 `workspace-archive.sh` 自动创建）
    - summary.md: 应归档时按 `harness/template/wiki-history.md` 生成 `summary.md`（固定文件名）；内容为原始资料、实现的功能、关键讨论与决策、对系统的影响、排查索引，全部用业务语言分条陈述，不保留实现过程（编码步骤、文件/行号、调用链）、可行性分析与找 bug 过程；同目录已存在时就地融合更新，不覆盖
+   - **登记历史索引**: 归档目录创建后，按 `harness/rule/wiki-write.md` 在 `$root/wiki/<project>/history/index.md` 登记本工作区目录（登记目录即覆盖 `summary.md` 与 `run/`）；索引文件不存在时按 `harness/template/wiki-category-index.md` 创建，项目总索引不存在时按 `harness/template/wiki-index.md` 创建并登记 `history/index.md`
    - run/ 归档: `$work/run/` 存在时执行 `sh $root/harness/script/workspace-archive.sh move $root <project> <workspace> run`，把整个 run 目录（指令索引、各指令脚本与数据、local/）原样移入归档目录；`run/*/local/` 仍被 .gitignore 忽略、不入库，提醒用户密钥只留在本地
-   - 其他文件: 执行 `sh $root/harness/script/workspace-archive.sh list $root <workspace>` 取得标准产物之外的文件/目录清单（标准产物：status.yaml、input.md、spec.md、plan.md、tech-design.md、test.md、wiki/、repo/、run/），逐项询问用户是否移入归档目录；用户选择移入的执行 `sh $root/harness/script/workspace-archive.sh move $root <project> <workspace> <相对路径>...`，其余随工作区删除
-   - 输入: `$work/input.md`（含原始资料链接）、spec.md（背景/目标/功能/边界）、plan.md（决策记录）、status.yaml（meego / mr_url / tech_doc_url）、各仓库 git 事实（交付功能与影响面）；`$work/wiki/` 的 ask 产物按第 6 步处理
+   - 其他文件: 执行 `sh $root/harness/script/workspace-archive.sh list $root <workspace>` 取得标准产物之外的文件/目录清单（标准产物：status.yaml、context.md、story/、doc/、repo/、run/），逐项询问用户是否移入归档目录；用户选择移入的执行 `sh $root/harness/script/workspace-archive.sh move $root <project> <workspace> <相对路径>...`，其余随工作区删除
+   - 输入: `$work/context.md`（含原始资料链接）、`story/*/analysis.md`（现有实现与兼容性）、`story/*/spec.md`（背景/目标/功能/边界）、`story/*/plan.md`（决策记录）、status.yaml（meego / mr_url / tech_doc_url）、各仓库 git 事实（交付功能与影响面）；`$work/doc/analysis/` 的 ask 产物按第 6 步处理
    - 边界: 不归档且无 run/、无用户选择移入的文件时，一句话说明判定结果并跳过本步；`repo/` 下代码不得移入归档；展示归档路径与 summary.md 摘要，经用户确认后生效，用户放弃则不写 summary.md
 
 6. **提炼工作区内容，确认是否记入 wiki**
-   - **branch-op 工作流分流**：工作区无 spec/plan/tech-design 与 wiki 产物，input.md 为空；`branch_op` 区块只是本次过程记录，不属于跨工作区知识。动作: 检查其中是否夹带代码外事实（一般没有），无候选时一句话说明并跳过本步，不展示空清单
-   - 输入源: 工作区**原始产物**——input.md、spec.md、plan.md（含决策记录）、tech-design.md、`$work/wiki/`、status.yaml（mr_url、tech_doc_url、meego 等）；**已有项目 wiki 页面只用于确定融合位置，不作为事实来源**（防合成内容循环放大，见 `harness/rule/record-wiki.md` 边界）
-   - 动作: 从中提炼**跨工作区复用、且代码不应作为真源**的候选知识，按 `harness/rule/record-wiki.md`「文件分工」归入 `$root/wiki/<project>/` 对应文件（代码外事实、项目级参数、稳定导航锚点、业务背景知识、技术决策与工程约定的具体落点见该规则）
-   - **ask 记录归档**: 扫描 `$work/wiki/` 下的 `<repo>-analysis.md` 与问答主题文档，按 `harness/rule/archive-ask.md` 转化后分流——业务名词解释进 `business-understanding.md`、代码名词/导航进 `code-understanding.md`、稳定代码外事实进 `manifest.md`、项目级决策约定进 `decisions.md`、需求特定的「为什么/是否设计如此」融合进第 5 步的 `history/<workspace>/summary.md`；不原样复制，不保留可行性分析与找 bug 逻辑；无符合项时跳过
-   - 边界: 易变的代码实现、调用链、模块内部行为**不进 wiki**（以代码为唯一真源）；工作区级参数（MR 地址、泳道、构建版本等）留在 `$work/status.yaml`，不写入项目 wiki；通用编码规范不进 decisions（走第 7 步 rule）；来源不明、无法从工作区产物证实的内容不提炼
+   - **branch-op 工作流分流**：工作区无 story/spec/plan/tech-design 与 doc 产物，context.md 为空；`branch_op` 区块只是本次过程记录，不属于跨工作区知识。动作: 检查其中是否夹带代码外事实（一般没有），无候选时一句话说明并跳过本步，不展示空清单
+   - 输入源: 工作区**原始产物**——context.md、`story/*/analysis.md`、`story/*/spec.md`、`story/*/plan.md`（含决策记录）、`doc/tech-design.md`、`doc/analysis/`、status.yaml（mr_url、tech_doc_url、meego 等）；**已有项目 wiki 页面只用于确定融合位置，不作为事实来源**（防合成内容循环放大，见 `harness/rule/wiki-write.md` 边界）
+   - 动作: 从中提炼**跨工作区复用、且代码不应作为真源**的候选知识，按 `harness/rule/wiki-write.md`「分类与落点」归入 `$root/wiki/<project>/` 对应分类（业务背景、代码锚点、项目规则、项目配置的具体落点见该规则）
+   - **ask 记录归档**: 扫描 `$work/doc/analysis/` 下的 `<repo>-analysis.md` 与问答主题文档，按 `harness/rule/archive-ask.md` 转化后分流——业务名词解释进 `biz/glossary.md`、代码名词/导航进 `code/anchors.md` 与 `code/interfaces.md`、稳定代码外事实进 `config/`、项目级决策约定进 `rule/`、需求特定的「为什么/是否设计如此」融合进第 5 步的 `history/<workspace>/summary.md`；不原样复制，不保留可行性分析与找 bug 逻辑；无符合项时跳过
+   - 边界: 易变的代码实现、调用链、模块内部行为**不进 wiki**（以代码为唯一真源）；工作区级参数（MR 地址、泳道、构建版本等）留在 `$work/status.yaml`，不写入项目 wiki；通用编码规范不进 `rule/decisions.md`（走第 7 步 rule）；来源不明、无法从工作区产物证实的内容不提炼
    - 询问: 以候选条目清单（含建议落点与**来源标注**）询问用户**是否记入项目 wiki**；用户可全部采纳、挑选部分或放弃
-   - 落盘: 被采纳条目按 `harness/rule/record-wiki.md` 写入 `$root/wiki/<project>/` 对应文件——文件已存在则融合去重（不重复追加），不存在时按 `harness/template/wiki-*.md` 模板创建（decisions.md 首条采纳时才创建）；每条带来源（`space/<workspace>/<文件>`，`<workspace>` 即当前工作区目录名），与旧条目矛盾时按「矛盾与演变」规则保留轨迹；**必须经人工审阅确认后才生效**；用户放弃则跳过
+   - 落盘: 被采纳条目按 `harness/rule/wiki-write.md` 写入 `$root/wiki/<project>/` 对应分类文件——文件已存在则融合去重（不重复追加），不存在时按对应模板创建（`rule/decisions.md` 首条采纳时才创建）；每个新增文件同步登记分类索引与项目总索引；每条带来源（`space/<workspace>/<文件>`，`<workspace>` 即当前工作区目录名），与旧条目矛盾时按「矛盾与演变」规则保留轨迹；**必须经人工审阅确认后才生效**；用户放弃则跳过；落盘后执行 `sh $root/harness/script/wiki-index.sh check $root <project>` 确认退出码 0
 
 7. **自进化：消费 guidance，固化操作习惯到 harness**
    - 输入: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml guidance list pending` 取得本工作区全部 pending 条目（无 pending 条目则向用户一句话说明并跳过本步）
@@ -88,7 +89,7 @@ summary: 工作区收尾——状态判定与关闭确认、同步关闭关联�
    - 边界: 只清理 `status.yaml` branches 列表登记的分支；用户在工作区期间手动 `checkout -b` 创建的分支未登记，框架不自动删除（可提示用户检查工作区是否有未登记分支）；远端分支不由脚本删除，输出中的远端提示需用户人工确认后处理
 
 9. **删除工作区并移除登记**
-   - 前置: 第 5 步工作区归档（summary.md 与 run/ 移入）、第 6 步 wiki 提炼（含 ask 记录归档）、第 7 步 guidance 固化均已落盘（跨工作区知识已进入 `$root/wiki/<project>/`，能力固化进入 `harness/`），交付摘要已在第 4 步当场呈现；工作区剩余文件随目录一并删除
+   - 前置: 第 5 步工作区归档（summary.md 与 run/ 移入）、第 6 步 wiki 提炼（含 ask 记录归档）、第 7 步 guidance 固化均已落盘（跨工作区知识已进入 `$root/wiki/<project>/`，能力固化进入 `harness/`），交付摘要已在第 4 步当场呈现；工作区剩余文件（context.md、story/、doc/ 等）随目录一并删除
    - 动作: 取 `<workspace>` = `basename "$work"`、`<work_id>` = status.yaml 的 `work_id`，先执行
      `sh $root/harness/script/work.sh purge $root <workspace>`
      删除整个 `$work` 目录（脚本内置三道安全门禁：workspace 为单层目录名、物理路径位于 `$root/space/` 内、`repo/` 下无残留 worktree；`run/` 已在第 5 步移入归档，剩余文件一并删除）；再执行
@@ -115,12 +116,13 @@ summary: 工作区收尾——状态判定与关闭确认、同步关闭关联�
 - [ ] 已按 `harness/rule/archive-requirement.md` 自动判定归档价值：应归档的已写入 `wiki/<project>/history/<workspace>/summary.md` 并经用户确认；不归档的已说明理由，未生成空 summary.md
 - [ ] `$work/run/` 存在时已整体移入 `wiki/<project>/history/<workspace>/run/`（`workspace-archive.sh move` 成功），`run/*/local/` 未入库
 - [ ] 标准产物之外的文件/目录已列清单询问用户，选择移入的已移入归档目录，其余随工作区删除
-- [ ] ask 记录已按 `harness/rule/archive-ask.md` 转化归档：业务名词进 business-understanding、代码名词/导航进 code-understanding，未保留可行性分析与找 bug 逻辑
+- [ ] ask 记录已按 `harness/rule/archive-ask.md` 转化归档（来源 `doc/analysis/`）：业务名词进 `biz/glossary.md`、代码名词/导航进 `code/anchors.md` 与 `code/interfaces.md`，未保留可行性分析与找 bug 逻辑
+- [ ] 归档工作区已在 `history/index.md` 登记；新增/更新的 wiki 文件已登记到对应分类索引与项目总索引，`wiki-index.sh check` 退出码为 0
 - [ ] `git worktree list` 中不再有该工作区的 worktree
 - [ ] branch-op：`A-ts`、`B-ts` 两个临时分支均已删除
 - [ ] 其他工作流：`branch-clean.sh` 已执行，SUMMARY 无 failed；blocked 项（未合并主分支/保护分支/占用分支/主干不明）已原样告知用户并保留
 - [ ] `$root/space/<workspace>/` 目录已删除（`work.sh purge` 成功），AGENTS.md 项目信息区块中已无该 work 条目
-- [ ] 记入 `wiki/<project>/` 的内容符合 `harness/rule/record-wiki.md` 的边界、文件分工与来源链，且经人工审阅；工作区归档符合 `archive-requirement.md` 与 `archive-ask.md`；工作区级参数未误写项目 wiki，用户放弃时未强行写入
+- [ ] 记入 `wiki/<project>/` 的内容符合 `harness/rule/wiki-write.md` 的分类、边界、来源链与索引要求，且经人工审阅；工作区归档符合 `archive-requirement.md` 与 `archive-ask.md`；工作区级参数未误写项目 wiki，用户放弃时未强行写入
 - [ ] guidance 的 pending 条目已逐条处理：固化项经用户确认落盘并置 applied，不固化项置 rejected；未确认落盘的条目保留 pending 且不阻塞关闭
 - [ ] `deploy` 区块无未回收泳道（deploying/deployed），或用户已确认处理方式
 - [ ] `run/*/local/` 中的敏感数据已提醒用户自行管理；该目录随 run/ 移入归档且不入库

@@ -63,7 +63,7 @@
    - 用户的 Git 操作（fetch/commit/push/merge/solve）只作用于 `$work/repo/<repo-name>/` 工作区代码仓库，由用户主动发起命令触发（框架不自动执行）；其中 `commit` 生成提交信息后直接提交、无需二次确认（提交后如实汇报 hash/信息/文件清单），`push` 等影响远端的操作仍需用户明确指令；worktree 的创建/移除也由框架脚本自动完成
    - `.gitignore` 已排除 `repo/` 与 `space/*/repo/`，代码仓库内容与空间仓库互不串扰
 7. 每个任务/环节执行结束后，按第 11 条自动采集 `guidance`（用户对 AI 做法的引导、纠偏、补充约定 → `$work/status.yaml`）；用户要求立即沉淀时走 `record`
-8. **耗时较长任务完成后的主动沉淀预判**：除第 7 条（用户引导触发）与第 10 条（改 cmd 文件触发）外，凡耗时较长的任务（多步骤、跨文件、多轮试错）完成前，AI 主动做一次沉淀预判——本次是否暴露了可复用的操作模式、可固化的机械流程、或值得入项目 `wiki/<project>/`（含 decisions）的事实？预判结果**不直接改动 harness**，而是作为 `guidance` 原始记录追加到 `$work/status.yaml`（标注建议固化点：cmd/workflow/rule/script/wiki），由第 11 条的 close 自进化审查统一消化。固化门槛同第 10 条：只有"未来会以同样方式重复"的机械步骤才提炼为 `harness/script/` 脚本，一次性操作不固化
+8. **耗时较长任务完成后的主动沉淀预判**：除第 7 条（用户引导触发）与第 10 条（改 cmd 文件触发）外，凡耗时较长的任务（多步骤、跨文件、多轮试错）完成前，AI 主动做一次沉淀预判——本次是否暴露了可复用的操作模式、可固化的机械流程、或值得入项目 `wiki/<project>/`（含 `rule/` 决策与约定）的事实？预判结果**不直接改动 harness**，而是作为 `guidance` 原始记录追加到 `$work/status.yaml`（标注建议固化点：cmd/workflow/rule/script/wiki），由第 11 条的 close 自进化审查统一消化。固化门槛同第 10 条：只有"未来会以同样方式重复"的机械步骤才提炼为 `harness/script/` 脚本，一次性操作不固化
 9. 用户主动要求记录或记忆时，使用 record 命令进行记录
 10. **每次优化 `harness/cmd/` 指令文件时，必须同步检查其中是否有固定、可重复的流程可提炼为 `harness/script/` 脚本**：发现机械性固定步骤（确定性的文件操作、状态流转、格式转换、校验等）应沉淀为脚本，并将指令文件中的手工步骤替换为脚本调用；也可运行 `evolution` 命令做专项审查。指令文件只保留意图、判断与决策，不堆叠应由脚本固化的流程
 11. **harness 的更新时机（手动更新 + 自进化）**：
@@ -76,7 +76,8 @@
 15. **多项目空间——知识按项目隔离、参数按作用域落盘**：
    - 项目信息区块的 `projects` 是项目数组，每个 work 条目带 `project`；项目级知识只读写 `$root/wiki/<project>/`，不隐式跨项目取用
    - `init` / `record` 等命令先确定目标项目（有 `$work` 时取 `$work/status.yaml` 的 `project`；无 `$work` 时从 `projects` 选择或经用户确认新建），再把知识落到对应项目的 wiki
-   - **能力与参数的落点分离**：可复用的命令/工作流/规则/脚本/模板进 `harness/`；项目级参数与代码外事实（各环境网关发布地址、租户、账号、平台入口等）进 `$root/wiki/<project>/`；工作区级参数（MR 地址、泳道、构建版本、需求链接等）进 `$work/status.yaml`（`mr_url` / `deploy` 等），不写入 harness 或项目 wiki
+   - **能力与参数的落点分离**：可复用的命令/工作流/规则/脚本/模板进 `harness/`；项目级参数与代码外事实（各环境网关发布地址、租户、账号、平台入口等）进 `$root/wiki/<project>/`（按 `harness/rule/wiki-write.md` 分入 `config/`、`rule/` 等分类）；工作区级参数（MR 地址、泳道、构建版本、需求链接等）进 `$work/status.yaml`（`mr_url` / `deploy` 等），不写入 harness 或项目 wiki
+16. **命名遵循 `harness/rule/naming.md`**：目录、文件、分支、函数、变量、命令与工作流命名前先读该规则——简洁、在上下文中有区分度、用常见通俗词；项目 wiki 的文件/目录/分类与分支名鼓励使用通用缩写，代码中的目录、文件、函数与变量谨慎使用缩写
 
 ## 目录概览
 
@@ -86,13 +87,13 @@
 | `harness/cmd/` | 命令入口（base/dev/git 分组），定义准入准出 |
 | `harness/agents/` | 可委派角色（code-explorer / code-architect / code-reviewer）：被 cmd 引用后经 Task 子代理在独立上下文执行，可多实例并行；只供发现与委派，不参与命令路由 |
 | `harness/workflow/` | 工作流状态机（development/testing/bugfix/merge-conflict/branch-op） |
-| `harness/script/` | 固定流程脚本（init-tack、space、scan-routes、lint-harness、lint-shell-portability、scan-secrets、harness-diff、harness-backup、run-plan、workspace-archive、lint-doc-scripts、common、work-status、project、repo、work、git-facts、git-fetch-helper、git-commit-helper、git-push-helper、git-worktree-helper、git-bug-trace、git-diff-context、branch-op、branch-clean、trigger-extract、skill-update、check-update；Windows 统一经 `run.ps1` 启动器调用） |
+| `harness/script/` | 固定流程脚本（init-tack、space、scan-routes、lint-harness、lint-shell-portability、scan-secrets、harness-diff、harness-backup、run-plan、workspace-archive、wiki-index、lint-doc-scripts、common、work-status、project、repo、work、git-facts、git-fetch-helper、git-commit-helper、git-push-helper、git-worktree-helper、git-bug-trace、git-diff-context、branch-op、branch-clean、trigger-extract、skill-update、check-update；Windows 统一经 `run.ps1` 启动器调用） |
 | `harness/script/hook/` | TRAE/Claude Code Hooks 可选加速层（SessionStart 预载路由、UserPromptSubmit 零往返路由、PreToolUse 观察层；默认不启用、不拦截，删掉整个目录框架仍完整可用） |
-| `harness/rule/` | 业务、代码与安全规则（coding-standards、git-standards、security、git-boundary、context-loading、windows-env、record-* 等；不参与路由，按需加载） |
+| `harness/rule/` | 业务、代码与安全规则（coding-standards、git-standards、naming、security、git-boundary、context-loading、wiki-read、wiki-write、windows-env、record-* 等；不参与路由，按需加载） |
 | `harness/template/` | 命令/工作流/文档/工作区模板 |
 | `harness/reference/` | 通用方法论与复杂独立能力（随 harness 分发、不接受项目级沉淀，项目做法归 rule/wiki；须被 cmd/workflow/agents/rule 引用后才加载，不参与路由） |
-| `wiki/<project>/` | 按项目隔离的公共知识：业务背景、代码导航锚点（术语→代码入口、接口→场景）、服务清单与代码外事实、技术决策与工程约定（decisions）、项目级参数（环境网关地址等）、工作区归档（`history/<workspace>/summary.md` 与随工作区移入的 `run/`，记录为什么做与关键决策，不记实现过程）；`<project>` 与 `projects[].name` 一致；条目带来源、矛盾保留演变；不记易变代码逻辑（人工可读写，AI 蒸馏内容须人工审阅） |
-| `space/<workspace>/`（`<workspace>` = `<YYYYMMDD>-<branch>`） | 每个工作的工作区（status.yaml 含 project、input.md、spec/plan/tech-design、test.md、wiki/、repo worktree、run/（指令索引 run.md + 各指令目录））；日期前缀目录名便于按创建时间排序 |
+| `wiki/<project>/` | 按项目隔离的公共知识，**索引 + 小文件**：`index.md` 总索引；`biz/` 业务背景与术语；`code/` 仓库概览、术语→代码入口、接口→场景与长期分析；`rule/` 技术决策（ADR）与工程约定；`config/` 服务清单、环境与泳道、网关地址、租户账号、关键配置与中间件事实；`history/` 工作区归档（`<workspace>/summary.md` 与移入的 `run/`）。各分类有 `index.md`，文件主题单一；`<project>` 与 `projects[].name` 一致；条目带来源、矛盾保留演变；不记易变代码逻辑（人工可读写，AI 蒸馏内容须人工审阅） |
+| `space/<workspace>/`（`<workspace>` = `<YYYYMMDD>-<branch>`） | 每个工作的工作区：建区只创建 `status.yaml`（含 project）与 `context.md`（执行任何命令前先读），`story/`（每个研发 story 一个子目录，含 analysis.md/spec.md/plan.md）、`doc/`（tech-design/test/code-review/release-check 等生成文档 + analysis/ 需求前分析记录）、`repo/`（worktree 懒加载，需要修改代码时创建）、`run/`（指令索引 run.md + 各指令目录）均按需创建；日期前缀目录名便于按创建时间排序 |
 | `repo/` | 代码主仓库（只保留一份，只读基准；worktree 用到哪个仓库再从这里获取） |
 | `.tack/` | 框架本地运行时数据根（不入库、可随时清理）：`log/` 运行日志、`backup/` 回滚备份（study/update/skill 各带时间戳）、`tmp/` 临时文件（退出即清）、`state/` 本机状态（如 update-state） |
 

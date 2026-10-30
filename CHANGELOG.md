@@ -6,6 +6,15 @@
 - 中英两份文件同版本条目一一对应、同步维护；`release.sh` 发版时校验目标 tag 在两份文件中均有对应段落，任一缺失即中止
 - CI 创建 GitHub Release 时分别抽取两份文件的对应段落拼接为双语 Release body；`check-update.sh` 检查提醒与 `update` 命令展示「本次更新内容」均同时以两份文件为来源
 
+## V0.0.21 (2026-10-30)
+
+- 新增: 项目 wiki 索引化——项目 wiki 改为 `index.md` 总索引 + `biz/`、`code/`、`rule/`、`config/`、`history/` 分类小文件，14 个分类模板随 harness 分发；新增公共 `wiki-read` / `wiki-write` 规则，`init` / `record` / `close` / `ask` / `evolution` 的 wiki 读写统一按该规则执行；新增 `wiki-index.sh` 校验索引完整性（支持目录覆盖与遗漏文件），`evolution` 运行时自动补录未登记文件
+- 新增: 工作区按 `context.md` + `story/<story>/(analysis|spec|plan)` + `doc/` 分层——一个工作区可承载多个研发 story；`ask` 产物与易变分析落 `doc/analysis/`（按主题分文件）；`spec` / `plan` 改为按 story 执行，`tech-design` 把目标 story 已确认的 spec/plan 重组为 `doc/tech-design.md`
+- 新增: `analyze` 命令（简写 `an`，触发词「需求分析 / 分析需求 / 需求可行性 / 需求兼容性 / requirement analysis / analyze requirement / feasibility analysis」）——建区后必经，前置为用户已提供需求内容或需求文档；按需求内容 → `doc/analysis/` 与项目 wiki → 代码的顺序检索，按「完整闭环功能」拆研发 story，产出 `story/<story>/analysis.md`（现有实现、可行性、兼容性、待确认问题）；需求可多条分批追加，多轮讨论就地融合
+- 优化: 工作区全懒加载——`work` 建区只创建 `status.yaml` 与 `context.md`，`story/`、`doc/`、`run/`、`repo/` 目录与 worktree 按需创建；检索代码先读主仓库 `repo/`，需要修改代码时才检出 worktree；`ask` 与上下文加载改为工作区代码优先、主仓库兜底
+- 优化: 命名规则统一——新增 `naming` 规则，明确目录、文件、分支、函数、变量、命令与工作流命名原则，命令与规则按需引用
+- 优化: 双语 README、站点文档与 AGENTS.md 同步新结构（分析链路、工作区分层、索引化 wiki、命令与脚本清单），FAQ 补充「为什么不按 project 组织目录」
+
 ## V0.0.20 (2026-10-29)
 
 - 新增: `run` 指令目录化——`run/run.md` 只负责指令识别、索引与编排，不再记录脚本细节；每条指令独立目录 `run/<指令>/`，内含 `run.md`、脚本与数据，敏感配置只落该目录的 `local/`（gitignored）；`run` 命令按「初始化索引 / 新增或更新指令 / 识别并编排执行」三种模式自动分流

@@ -23,7 +23,7 @@ summary: 无需求/无分析/无测试的分支级 merge、rebase 状态机—�
 
 ## 明确跳过的环节
 
-- 不录入需求（input.md 仅留空模板）、不做代码分析 ask
+- 不录入需求（context.md 仅留空模板）、不做代码分析 ask / 需求分析 analyze
 - 不做 spec / plan / tech-design、不生成任务清单
 - 不做 code-reviewer 审查（被搬运提交在其原工作区负责审查）
 - 不做构建与测试
@@ -43,7 +43,7 @@ initialized → preparing → integrating → pushing → completed
 | 状态 | 含义 | 进入条件 |
 |------|------|----------|
 | initialized | 已解析 op/A/B 与涉及仓库 | work 意图分流完成 |
-| preparing | 建骨架、fetch、建时间戳临时分支与工作 worktree | `branch-op.sh prepare` |
+| preparing | 创建工作区（仅 status.yaml 与 context.md）、fetch、建时间戳临时分支与工作 worktree | `branch-op.sh prepare` |
 | integrating | merge/rebase 执行中（无冲突即一步完成） | `branch-op.sh integrate` |
 | resolving | 逐文件解决冲突 | integrate/continue 退出码 10，执行 `solve` |
 | pushing | 结果推回原分支 | integrate 全部完成，执行 `branch-op.sh push` |
@@ -57,7 +57,7 @@ initialized → preparing → integrating → pushing → completed
 | # | 环节 | 执行 | 完成后状态 |
 |---|------|------|------------|
 | 1 | 解析意图与确认仓库 | `work` 分流：解析 op（合并→merge，变基→rebase）、A、B；逐仓库校验分支存在并由用户确认 | initialized |
-| 2 | 建骨架与 prepare | `work.sh --no-worktree <root> <project> <branch>` 建工作区骨架（project 由 work 命令确定）→ `branch-op.sh prepare ... [auto|local|remote]`（每仓库一次，源分支引用区分本地/远程），解析输出的临时分支名 | preparing |
+| 2 | 创建工作区与 prepare | `work.sh --no-worktree <root> <project> <branch>` 创建工作区目录、status.yaml 与 context.md（project 由 work 命令确定，其它目录按需创建）→ `branch-op.sh prepare ... [auto|local|remote]`（每仓库一次，源分支引用区分本地/远程），解析输出的临时分支名 | preparing |
 | 3 | 集成 | `branch-op.sh integrate ...`；退出码 10 → 第 4 步 | integrating |
 | 4 | 解决冲突 | `solve`：展示双方差异与意图，用户拍板，禁止静默取舍 | resolving |
 | 5 | 继续 | `branch-op.sh continue ...`；退出码 10 回第 4 步；用户放弃则 `abort` 后置 blocked | integrating |

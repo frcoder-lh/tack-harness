@@ -10,7 +10,7 @@ summary: 按需命令（非开发必经环节，用户需要时触发）——�
 
 > **按需触发，不是 development 主链路的必经环节**：code 完成后可直接 commit/push，AI 不主动引导进入系统测试；仅当用户主动表达（如"做系统测试/集成测试/e2e"）或进入 testing 工作流时才执行。
 > 与 `testcode`（单元测试，目标代码覆盖率达标）明确区分：本命令面向**完整系统功能**，目标是验证系统端到端行为是否符合预期。
-> 产物是 `$work/test.md`（可落地、可执行的测试方案）；测试脚本放在 `$work/run/<指令>/`。
+> 产物是 `$work/doc/test.md`（可落地、可执行的测试方案）；测试脚本放在 `$work/run/<指令>/`。
 
 ## 前置准入条件
 
@@ -25,11 +25,11 @@ summary: 按需命令（非开发必经环节，用户需要时触发）——�
    - 动作: 描述宽泛时先澄清边界（测哪些功能、不测哪些、用什么环境），意图明确后再继续；不得带着模糊目的直接生成方案
 
 2. **加载上下文（节约 token）**
-   - 输入源: `$work/spec.md`（验收标准）、`$work/plan.md`（模块与接口）、`$work/wiki/` 与 `$root/wiki/<project>/`（环境与接口事实，grep 定位后读命中小节）、代码事实
-   - 加载纪律: 遵守 `harness/rule/context-loading.md`；环境拓扑、泳道、部署方式等静态事实查 `$root/wiki/<project>/manifest.md`「部署环境与泳道」，缺失不臆造
+   - 输入源: `story/*/spec.md`（验收标准）、`story/*/plan.md`（模块与接口）、`$work/doc/analysis/` 与 `$root/wiki/<project>/`（环境与接口事实，按 `harness/rule/wiki-read.md` 走索引、grep 定位后读命中小节）、代码事实
+   - 加载纪律: 遵守 `harness/rule/context-loading.md`；环境拓扑、泳道、部署方式等静态事实查 `$root/wiki/<project>/config/env.md`，缺失不臆造
 
 3. **生成 test.md（可落地、可执行方案）**
-   - 动作: 复制 `harness/template/test.md` 到 `$work/test.md`，把用户描述转化为结构化测试方案：
+   - 动作: 复制 `harness/template/test.md` 到 `$work/doc/test.md`，把用户描述转化为结构化测试方案：
      - 测试目标与范围（含验收标准，逐条可勾选）
      - 测试环境（地址/入口；凭据来源指向 `run/<指令>/local/`，不写明文）
      - 测试用例（场景 / 前置条件 / 操作步骤 / 预期结果 / 状态）
@@ -52,7 +52,7 @@ summary: 按需命令（非开发必经环节，用户需要时触发）——�
 
 ## 后置完成检验
 
-- [ ] `$work/test.md` 已生成，测试目标、范围、验收标准明确，用例逐条可执行
+- [ ] `$work/doc/test.md` 已生成，测试目标、范围、验收标准明确，用例逐条可执行
 - [ ] 敏感信息未写入 test.md，凭据来源均指向 `run/<指令>/local/`
 - [ ] 需要脚本的场景下 `$work/run/` 索引已初始化，脚本位于 `$work/run/<指令>/` 且在 run.md 索引登记，指令的 run.md 已填写脚本清单与 run-plan
 - [ ] status.yaml 已同步（stage=test，确认后 progress.test=true）

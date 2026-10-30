@@ -15,19 +15,19 @@ summary: 编码前先判定涉及仓库并确保就绪（主仓库缺失转 crea
 ## 前置准入条件
 
 - 已确定当前工作区 `$work`
-- `$work/plan.md` 已确认（`progress.plan: true`），`$work/status.yaml` 的 `tasks` 列表非空
+- `$work/story/*/plan.md` 中至少一个已确认（`progress.plan: true`），`$work/status.yaml` 的 `tasks` 列表非空
 - plan.md 的「决策记录」中需用户决断的事项已关闭
 - **仓库准入已判定**：已汇总本批任务涉及的仓库清单；仓库模式（默认）下各仓库在 `$root/repo/<name>` 存在且 `$work/repo/<name>` 有可用 worktree，未就绪须先转 `create-repo` / `worktree`（见指令内容第 1 步）；片段模式（用户明确选择）豁免本项
 - 仓库模式下所有代码改动只能在 `$work/repo/<repo-name>/`（git worktree）内，禁止直接修改 `$root/repo/`；片段模式不创建、不改动任何仓库文件，仅在回复中交付代码片段
 
 ## 输入源与加载
 
-输入源统一口径、三级降级与防循环放大遵守 `harness/workflow/development-workflow.md`「上下文加载原则」节与 `harness/rule/context-loading.md`。本环节特化：上一阶段产物以 `$work/plan.md` 为主（模块划分、逐环节落地、决策记录、任务清单），spec.md 取验收标准、tech-design.md 如有再读；每个任务开工前按任务标题/模块/涉及接口提取关键词，plan/spec 按任务读相关章节而非每次全文重读；定位时**额外搜索类似实现**；input.md 仅在核对原始需求时 grep 定位
+输入源统一口径、三级降级、代码检索顺序与防循环放大遵守 `harness/workflow/development-workflow.md`「上下文加载原则」节与 `harness/rule/context-loading.md`；项目 wiki 检索按 `harness/rule/wiki-read.md`。本环节特化：上一阶段产物以任务所属 story 的 `story/<story>/plan.md` 为主（模块划分、逐环节落地、决策记录、任务清单），同 story 的 `spec.md` 取验收标准、`analysis.md` 取现有实现与兼容事实，`doc/tech-design.md` 如有再读；每个任务开工前按任务标题/模块/涉及接口提取关键词，plan/spec 按任务读相关章节而非每次全文重读；定位时**额外搜索类似实现**；`context.md` 仅在核对原始需求时 grep 定位。worktree 尚未创建时先用 `$root/repo/<repo-name>/` 只读检索，需要改动时按第 1 步创建 worktree
 
 ## 指令内容
 
 1. **仓库准入判定（编码前必须先完成）**
-   - 判定涉及仓库: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks repos` 取得 status.yaml 中的仓库集合，并与 plan.md 模块划分表「所属仓库」列合并去重，向用户一句话说明
+   - 判定涉及仓库: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks repos` 取得 status.yaml 中的仓库集合，并与 `story/*/plan.md` 模块划分表「所属仓库」列合并去重，向用户一句话说明
    - 识别交付模式:
      - **仓库模式（默认）**：用户未作其他说明时采用；代码落入 worktree，任务 done 以本地构建/相关测试通过为准
      - **片段模式（例外）**：仅当用户在指令中明确说明「不需要仓库、只生成代码片段、不需要编译和运行」时进入；代码片段直接在回复中交付，逐片段标注所属仓库与建议落点路径；不创建/改动仓库文件，不执行构建、运行与测试；在 `$work/status.yaml` 的 `current.next` 注明「片段模式：仅交付代码片段，未编译运行」
@@ -47,13 +47,15 @@ summary: 编码前先判定涉及仓库并确保就绪（主仓库缺失转 crea
 3. **加载规则**
    - 动作: 按任务涉及的代码类型（后端/前端/配置/SQL/脚本等）加载 `$root/harness/rule/` 匹配规则：加载 `coding-standards.md` 中**已有实质条目的小节**（空小节不构成约束，无内容可加载时直接跳过，以模仿仓库既有代码模式为默认基线）；任务涉及某语言时，若存在对应语言规则文件 `coding-standards-<语言>.md`（如 `coding-standards-python.md`）则一并加载——这些文件按需新建，不存在即该语言无项目级约束；再加载类型专属规则（项目可自行扩展）
    - 涉及外部输入、命令/进程执行、数据库查询、Web 输出、文件路径、鉴权、凭据与加密、新依赖时，**必须加载 `security.md`**，命中清单模式即按其正确做法实现
+   - **项目规则与决策**: 按 `harness/rule/wiki-read.md` 读 `$root/wiki/<project>/rule/index.md`，按任务关键词加载 `rule/decisions.md`、`rule/conventions.md` 中命中的条目作为约束；缺失视为该项目暂无沉淀，不是异常
+   - **命名**: 新建目录、文件、函数、变量时遵守 `harness/rule/naming.md`，并优先沿用仓库既有命名与术语
    - 按需参考 reference: `implement.md`、`codebase-design.md`、`research.md`
 
 4. **逐任务实现（连续开发，尽量不打扰用户）**
    - 对每个任务：
      1. 向用户**简述**本任务目标与涉及仓库（一句话，不等待确认，直接开始）
      2. grep 定位改动点与可复用资产；**代码中已有类似逻辑时，优先复用或严格模仿其模式**（命名、分层、异常处理、日志、配置方式），不另造风格
-     3. 严格按 plan.md 的落地方案、决策记录与任务验收标准编码：仓库模式涉及多仓库时按依赖顺序改动；片段模式按依赖顺序组织片段，逐段标注所属仓库与建议落点路径
+     3. 严格按所属 story 的 `plan.md` 落地方案、决策记录与任务验收标准编码：仓库模式涉及多仓库时按依赖顺序改动；片段模式按依赖顺序组织片段，逐段标注所属仓库与建议落点路径
      4. 仓库模式：本地构建/相关测试通过后执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks set <任务ID> done`；**片段模式：不编译、不运行、不测试，片段交付即置 done**；随后将下一个就绪任务置 `in_progress`，继续开发
    - 纪律:
      - 不修改 spec/plan 等规划文档（发现需求问题应走 `fix` 命令，不擅自改需求）

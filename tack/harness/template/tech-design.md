@@ -1,6 +1,6 @@
 # 技术设计文档模板
 
-> 技术评审文档模板。仅在需要正式评审时，由 `/tack tech-design` 命令读取，结合 `spec.md` 与 `plan.md` 产物生成 `space/<workspace>/tech-design.md`。
+> 技术评审文档模板。仅在需要正式评审时，由 `/tack tech-design <story>` 命令读取，结合目标 story 的 `spec.md` 与 `plan.md` 产物生成 `space/<workspace>/doc/tech-design.md`（多 story 分别评审时为 `doc/tech-design-<story>.md`）。
 > 本文是 spec 与 plan 的评审化重组：所有内容应能追溯到这两份文档之一，不新增设计、不新增决策；发现缺口回补上游后再生成。
 
 ## 1. 概述
