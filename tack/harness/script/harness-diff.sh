@@ -13,6 +13,7 @@
 #   LOCAL_ONLY local 有、incoming 无
 #
 # 说明: 本脚本只分类、不做任何覆盖决策；rule/ 下的文件不特殊跳过，必须由 update 列入候选并经用户选择。
+# 临时文件: 在 tack 空间内执行时落 <local-harness 上级>/.tack/tmp/（退出即清）；非 tack 空间回退系统临时目录。
 #
 # 退出码: 0 分类完成；1 目录无效或读取失败；2 用法错误
 
@@ -36,9 +37,17 @@ if [ ! -d "${LOCAL}" ]; then
     exit 1
 fi
 
-TMP_A="$(mktemp "${TMPDIR:-/tmp}/tack-hdiff-a.XXXXXX")"
-TMP_B="$(mktemp "${TMPDIR:-/tmp}/tack-hdiff-b.XXXXXX")"
-TMP_ALL="$(mktemp "${TMPDIR:-/tmp}/tack-hdiff-all.XXXXXX")"
+# 临时集合文件优先落本地 harness 所属空间的 .tack/tmp（update 约束：不写系统临时目录）
+LOCAL_ROOT="$(dirname "${LOCAL}")"
+TMP_DIR="${LOCAL_ROOT}/.tack/tmp"
+if [ -f "${LOCAL_ROOT}/AGENTS.md" ] && mkdir -p "${TMP_DIR}" 2>/dev/null; then
+    :
+else
+    TMP_DIR="${TMPDIR:-/tmp}"
+fi
+TMP_A="$(mktemp "${TMP_DIR}/tack-hdiff-a.XXXXXX")"
+TMP_B="$(mktemp "${TMP_DIR}/tack-hdiff-b.XXXXXX")"
+TMP_ALL="$(mktemp "${TMP_DIR}/tack-hdiff-all.XXXXXX")"
 trap 'rm -f "${TMP_A}" "${TMP_B}" "${TMP_ALL}"' EXIT HUP INT TERM
 
 ( cd "${INCOMING}" && find . -type f -print ) | sed 's|^\./||' | sort > "${TMP_A}"

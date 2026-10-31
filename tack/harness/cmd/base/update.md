@@ -16,32 +16,35 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
 ## 指令内容
 
 1. **检测版本**
-   - 动作: 执行 `sh $root/harness/script/project.sh space-info $root` 读取 `skill_version`（为空时取本机已安装 skill 的 SKILL.md front matter 版本号）；通过 `skill_update_url` 指向仓库的最新 release tag（`Vx.y.z`）获取最新版本进行对比；无网络时以本机版本为准并提示
+   - 动作: 执行 `sh $root/harness/script/project.sh space-info $root` 读取 `SKILL_VERSION` 与 `SKILL_UPDATE_URL`（版本为空时取本机已安装 skill 的 SKILL.md front matter 版本号）
+   - 动作: 复用 `harness/script/common.sh` 的 `tack_latest_release_tag` 解析最新 tag（已含 Windows `curl --ssl-no-revoke` 回退，禁止自写 curl/wget）：macOS/Linux 执行 `sh -c '. "$root/harness/script/common.sh"; tack_latest_release_tag "<skill_update_url>"'`；Windows 把同一内容写入 `$root/.tack/tmp/` 下的临时 `.sh` 后按 `windows-env.md` 用 Git for Windows `bash -l` 执行
+   - 动作: 无网络或解析失败时以本机版本为准并提示
    - 动作: 远端有新版本时，先展示「本次更新内容」让用户了解变更再继续：同时拉取 `skill_update_url` 仓库的 `raw/master/CHANGELOG.md` 与 `CHANGELOG.en.md`，分别抽取「本机版本（不含）→ 最新版本」区间的全部版本段落，中英双语分段向用户展示（多版本升级展示区间所有段落；按用户语言可只转述对应语言段）；任一语言拉取失败或段落缺失时该语言提示变更说明不可得，不阻塞另一种语言与更新流程
-   - 动作: 若版本一致且无本地差异（见第 3 步），提示"已是最新"并结束
+   - 动作: 版本一致时跳过第 2 步，直接进入第 3 步；分类结果无 ADDED / CHANGED（仅 SAME 或 LOCAL_ONLY）时提示"已是最新"并结束
 
 2. **更新本机 skill**（远端有新版本时执行）
    - 动作: 执行固定流程脚本把本机已安装 skill 更新到最新版本（定位本机 skill 安装目录 → 下载该版本 release 源码 → 完整备份旧目录后按 `harness/script/common.sh` 的 `TACK_SKILL_FILES` 分发包清单整体清空覆盖（旧版残留文件一并清除）→ 校验版本号）：
      `sh $root/harness/script/skill-update.sh <skill_update_url> <最新tag> --tack-root $root/.tack`
-   - 临时产物边界：下载解压目录落 `$root/.tack/tmp/` 下、脚本结束自动清理；旧版 skill 完整备份落 `$root/.tack/backup/skill-<时间戳>/`（回滚用，保留不自动删除，与第 6 步的 `harness-<时间戳>/` 备份同级）
+   - 临时产物边界：下载解压目录落 `$root/.tack/tmp/` 下、脚本结束自动清理；旧版 skill 完整备份落 `$root/.tack/backup/skill-<时间戳>/`（回滚用，保留不自动删除，与第 6 步的 `update-<时间戳>/` 备份同级）
    - `--skill-root <path>` 可省略：脚本按 `harness/script/common.sh` 的 agent 预设路径自动探测；探测到多个或零个时脚本报错，向用户询问本机 tack skill 安装目录后以 `--skill-root` 重试
    - **失败即中止**：下载失败/无网络时提示可手动安装最新 skill 后重试，不继续后续步骤——本机 skill 未更新到最新版时，第 3 步的文件对比会拿到旧版内容
    - 版本一致时跳过本步
 
 3. **检测本地改动**
+   - `<skill>` 指本机 skill 安装目录：第 2 步输出的路径；第 2 步跳过时取自动探测结果或 `--skill-root` 指定值
    - 动作: 执行 `sh $root/harness/script/harness-diff.sh <skill>/tack/harness $root/harness --profile update`，读取 TAB 分隔的分类行：
      - `ADDED`: 远端有、本地无 → 直接列入新增清单（含新增的 `rule/` 文件）
-     - `CHANGED`: 内容不一致 → 列入融合候选清单（需结合版本号与 diff 判断）；`rule/` 下文件同样列入，本地版本可能含项目沉淀
+     - `CHANGED`: 内容不一致 → 列入融合候选清单（需结合版本号与 diff 判断）；`rule/` 下文件同样列入，本地版本可能含项目沉淀；`cmd/` 下同名文件不列入（框架命令文件只增补，不覆盖）
      - `SAME`: 内容相同 → 跳过
      - `LOCAL_ONLY`: 本地独有（含 `cmd/` 用户自建文件、`rule/` 下项目自建规则）→ 保留
    - 禁止手工逐文件判断分类；脚本只分类，不覆盖，采用/保留/融合仍由本命令与用户决定
    - **`rule/` 文件强制走用户裁决**：本地已存在的 rule 文件一律按 `CHANGED` / `SAME` 分类，`CHANGED` 的必须进入第 4/5 步候选并逐文件询问，**不得静默跳过，也不得自动覆盖**；用户未裁决的文件保持原样
    - 动作: 空间根 `.gitignore` 单独对比：对比 `<skill>/tack/.gitignore`（新版模板）与 `$root/.gitignore`（用户当前），按同样的新增/本地已修改/一致分类；`.gitignore` 不在 `harness/` 下，故单独处理
-   - 以下内容不参与覆盖：`AGENTS.md`、`tack.yaml`（空间登记）、`cmd/` 中用户自建文件、`wiki/`、`space/`
+   - 以下内容不参与覆盖：`AGENTS.md`、`tack.yaml`（空间登记）、`cmd/` 下同名文件（只增补新命令文件）、`wiki/`、`space/`
    - 临时产物约束：本步对比/diff 产生的临时文件一律放 `$root/.tack/tmp/`，本步结束后及时清理，禁止写系统临时目录
 
 4. **提炼融合点**
-   - 动作: 对每个 `CHANGED` 文件（含 `rule/` 下文件），阅读 diff 内容，将差异总结提炼为**功能点**（一句话描述该改动实现了什么，如"init-tack.sh 增加了 -n 防覆盖参数"、"plan 命令合并了 task 拆解能力"），形成融合点清单：
+   - 动作: 对每个 `CHANGED` 文件（`cmd/` 同名文件除外，含 `rule/` 下文件），阅读 diff 内容，将差异总结提炼为**功能点**（一句话描述该改动实现了什么，如"init-tack.sh 增加了 -n 防覆盖参数"、"plan 命令合并了 task 拆解能力"），形成融合点清单：
      ```
      文件: harness/script/xxx.sh
        - 本地功能点: <本地版本的改动描述>
@@ -52,7 +55,7 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
    - 原则: 提炼必须基于 diff 实际内容，禁止臆测；冲突与可自动合并的改动要分开标注
 
 5. **用户确认融合方案**
-   - 动作: 展示新增清单 + 融合点清单，逐文件询问用户处理方式：
+   - 动作: 展示新增清单 + 融合点清单，逐文件询问用户处理方式（新增的 `cmd/` 文件直接复制，无需询问）：
      - **采用新版**: 放弃本地改动，直接用新版覆盖（本地改动保留在备份中）
      - **保留本地**: 不更新该文件
      - **融合**: 以某一方为基础，将另一方功能点合并进来（由 AI 执行融合并展示结果，用户确认后落盘）
@@ -96,9 +99,9 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
 
 - [ ] scan-routes.sh list 正常输出工作流与全部命令
 - [ ] 本机 skill 的 SKILL.md version 已更新为最新版本号（第 2 步已执行）
-- [ ] `harness-diff.sh --profile update` 分类齐全，所有 `CHANGED` 文件（含 `rule/` 下文件）均已按用户确认的方案处理；用户未裁决的 `rule/` 文件保持原样，未被静默跳过或自动覆盖
+- [ ] `harness-diff.sh --profile update` 分类齐全，所有 `CHANGED` 文件（`cmd/` 同名文件除外，含 `rule/` 下文件）均已按用户确认的方案处理；`cmd/` 同名文件保持原样、仅新增命令文件被复制；用户未裁决的 `rule/` 文件保持原样，未被静默跳过或自动覆盖
 - [ ] 融合文件通过 `sh -n` 校验，融合结果经用户确认
-- [ ] 用户自定义的 cmd 未被改动；`rule/` 文件仅按用户确认的方案处理，未确认的本地改动未被覆盖；`tack.yaml` 仅 skill_version 经 project.sh 更新，其余字段不变；老空间已完成 `migrate`（旧区块已移除）或明确说明无需迁移
+- [ ] 用户自定义的 cmd 与框架 `cmd/` 同名文件均未被覆盖；`rule/` 文件仅按用户确认的方案处理，未确认的本地改动未被覆盖；`tack.yaml` 仅 skill_version 经 project.sh 更新，其余字段不变；老空间已完成 `migrate`（旧区块已移除）或明确说明无需迁移
 - [ ] skill_version 已更新为最新版本号
 - [ ] `close` / `evolution` / `record` / `help` 命令文件含版本检查步骤且 `.gitignore` 含 `.*/` 或 `.tack/`（老空间本次经确认补写，新空间已自带）
 

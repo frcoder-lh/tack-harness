@@ -20,10 +20,12 @@
 #                <path>/backup/skill-<时间戳>/（保留供回滚，不自动删除）；
 #                不传时二者均使用系统临时目录（脱离空间手动执行的回退模式）
 #
-# 退出码: 0 成功；非 0 失败（本机 skill 未被改动，可安全重试）
+# 退出码: 0 成功；非 0 失败。覆盖前失败时本机 skill 未改动；覆盖中途失败自动从备份恢复，
+#         两种情况均可安全重试。
 #
 # 注意: 下载源码压缩包为 <update-url>/archive/refs/tags/<tag>.tar.gz；
-#       下载回退、版本提取与分发清单统一由同目录 common.sh 提供。
+#       下载回退、版本提取与分发清单统一由同目录 common.sh 提供；
+#       分发清单以下载包内的 common.sh 为准（与 install.sh 一致），避免旧清单漏装新版本新增的顶层文件。
 
 set -eu
 
@@ -113,8 +115,20 @@ if [ -n "${TACK_ROOT_ARG}" ]; then
 else
     TMP_SRC="$(mktemp -d "${TMPDIR:-/tmp}/tack-skill-update.XXXXXX")"
 fi
-cleanup_src() { rm -rf "${TMP_SRC}"; }
-trap cleanup_src EXIT
+# 覆盖中途失败（复制/校验）时自动从备份恢复，避免留下残缺 skill 目录
+BACKUP_DIR=""
+ROLLBACK=0
+finalize() {
+    _status=$?
+    if [ "${_status}" -ne 0 ] && [ "${ROLLBACK}" -eq 1 ]; then
+        rm -rf "${SKILL_ROOT}"
+        mkdir -p "${SKILL_ROOT}"
+        cp -R "${BACKUP_DIR}/." "${SKILL_ROOT}" || true
+        echo "错误: 覆盖后失败，已从备份恢复本机 skill: ${BACKUP_DIR}" >&2
+    fi
+    rm -rf "${TMP_SRC}"
+}
+trap finalize EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
@@ -135,6 +149,12 @@ SRC_VER=$(tack_skill_version "${SRC_ROOT}")
 if [ "${SRC_VER}" != "${TAG}" ]; then
     echo "错误: 下载包 SKILL.md 版本 (${SRC_VER}) 与目标 tag (${TAG}) 不一致，中止" >&2
     exit 1
+fi
+
+# 以目标版本自带的 common.sh 刷新分发清单（与 install.sh 一致）：
+# 旧版本清单可能缺少新版本新增的顶层文件，按旧清单复制会静默漏装
+if [ -f "${SRC_ROOT}/tack/harness/script/common.sh" ]; then
+    . "${SRC_ROOT}/tack/harness/script/common.sh"
 fi
 
 # —— 3. 备份本机旧版本（回滚用，保留不自动清理；路径打印给用户） ——
@@ -160,6 +180,7 @@ case "${SKILL_ROOT}" in
         echo "错误：skill 目录路径异常，拒绝清空: '${SKILL_ROOT}'" >&2
         exit 1 ;;
 esac
+ROLLBACK=1
 rm -rf "${SKILL_ROOT}"
 mkdir -p "${SKILL_ROOT}"
 for item in ${TACK_SKILL_FILES}; do
@@ -171,5 +192,6 @@ done
 # —— 5. 校验 ——
 NEW_VER=$(tack_skill_version "${SKILL_ROOT}")
 [ "${NEW_VER}" = "${TAG}" ] || { echo "错误: 覆盖后 SKILL.md 版本 (${NEW_VER}) 与目标 (${TAG}) 不一致" >&2; exit 1; }
+ROLLBACK=0
 
 echo "✅ 本机 skill 已更新: ${OLD_VER:-未知} → ${NEW_VER}"
