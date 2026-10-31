@@ -346,12 +346,12 @@ class Commands(unittest.TestCase):
         """F10/F11: work accepts defined workflows; signature lint preserves paths."""
         self.create("builtin")
         empty = self.create("empty", "")
-        self.assertIn('workflow: ""', self.status(empty).read_text())
+        self.assertIn('workflow: ""', self.status(empty).read_text(encoding="utf-8"))
         self.write(self.root / "harness/workflow/custom.md",
                    "---\nworkflow: custom\nshort: cust\ntriggers: custom flow\n"
                    "params: 无\nsummary: Test\n---\n# Custom\n")
         custom = self.create("custom", "custom")
-        self.assertIn('workflow: "custom"', self.status(custom).read_text())
+        self.assertIn('workflow: "custom"', self.status(custom).read_text(encoding="utf-8"))
         self.sh("command-batch.sh", "work-create", self.root, "demo", "bad",
                 "Test", "", "", "missing", code=2)
         self.assertEqual([], list((self.root / "space").glob("*-bad")))
@@ -362,7 +362,7 @@ class Commands(unittest.TestCase):
         parent, child = self.create("parent"), self.create("child")
         sf = self.status(child)
         self.sh("work-status.sh", sf, "set", "parent_workspace", parent)
-        self.write(sf, sf.read_text().replace("guidance: []",
+        self.write(sf, sf.read_text(encoding="utf-8").replace("guidance: []",
                    'guidance:\n  - id: "G1"\n    status: "pending"\n'
                    '    stage: "code"\n    guidance: "Keep this rule"'))
         self.commit(self.root, "space", "tack.yaml")
@@ -441,7 +441,7 @@ class Commands(unittest.TestCase):
         self.sh("harness-baseline.sh", "apply-clean", self.root, incoming)
         for name, expected in (("upstream", "upstream\n"), ("local", "local\n"),
                                ("conflict", "local\n"), ("deleted", "base\n")):
-            self.assertEqual(expected, (self.root / f"harness/rule/{name}.md").read_text())
+            self.assertEqual(expected, (self.root / f"harness/rule/{name}.md").read_text(encoding="utf-8"))
 
 
 class ReportResult(unittest.TextTestResult):
