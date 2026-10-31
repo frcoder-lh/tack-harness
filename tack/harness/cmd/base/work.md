@@ -3,7 +3,7 @@ command: work
 short: w
 triggers: 工作区, 新建工作区, 切换工作区, 分支合并, 分支变基, 合并分支, 变基分支, work, workspace, new workspace, switch workspace, merge branches, rebase branches
 params: [目的或分支名]
-summary: 工作区管理——新建、重命名、切换、列出工作区（space/<YYYYMMDD>-<branch>/）；新建时只创建 status.yaml 与 context.md，story/doc/repo 等目录与 worktree 均按需懒加载；意图分流支持 branch-op 分支级 merge/rebase，自动推断服务并登记到 tack.yaml
+summary: 工作区管理——新建、重命名、切换、列出工作区（space/<YYYYMMDD>-<branch>/）；新建时只创建 status.yaml 与 context.md，story/doc/repo 等目录与 worktree 均按需懒加载；意图分流支持 branch-op 分支级 merge/rebase，按输入确定或推断服务并登记到 tack.yaml
 ---
 
 # work 工作区管理
@@ -26,9 +26,11 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 
 ### 新建工作区
 
+> 确认原则：输入已明确给出的项目、分支、服务与目的直接采用，用一句话说明取值；只对缺失项、AI 推断项或冲突项发起确认。四项齐全时不生成候选、不重复确认，直接创建。
+
 0. **确定所属项目**
    - 输入: 当前上下文（`$work` 已存在时取 `$work/status.yaml` 的 `project`）、`tack.yaml` 的 projects、用户输入中的项目线索
-   - 动作: 有当前项目且与工作区目的匹配时直接使用并说明；否则执行 `sh $root/harness/script/project.sh project-list $root`——单项目直接使用，多项目请用户选择，无项目时引导先执行 `init` 新建项目
+   - 动作: 输入已明确项目名且与 `tack.yaml` 的 projects 匹配时直接使用并说明，不再确认；未明确时，有当前项目且与工作区目的匹配则直接使用，否则执行 `sh $root/harness/script/project.sh project-list $root`——单项目直接使用，多项目请用户选择，无项目时引导先执行 `init` 新建项目
    - 边界: `project` 是工作区归属与项目 wiki 的依据，不得留空或自行编造
 
 1. **获取工作区目的**
@@ -43,15 +45,15 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
    - 动作: 执行 `sh $root/harness/script/trigger-extract.sh "<目的描述>"` 取得候选触发词（逗号分隔，已去停用词与单字、中英文分别处理后合并去重），再按语义筛选并补充遗漏的核心词
    - 边界: 触发词用于切换匹配，宁多勿漏但不堆砌单字；最终以逗号分隔字符串形式传入 work-add
 
-4. **生成并确认分支名**（澄清意图之后才进行命名）
-   - 动作: 依据明确后的目的，生成 3 个英文 kebab-case 分支名候选
+4. **确定分支名**（澄清意图之后才进行命名）
+   - 动作: 用户已给出分支名时，按 `harness/rule/git-standards.md` 与 `harness/rule/naming.md` 校验格式及工作区冲突；通过则直接采用并说明，不生成候选、不追加确认；不通过时说明原因并请用户改名
+   - 未给出时，依据明确后的目的生成 3 个英文 kebab-case 分支名候选；用户选择候选即视为确认（也可自行输入），不再单独确认最终名称
    - 边界: 分支命名遵循 `harness/rule/git-standards.md` 的分支命名约定（`<type>-<username>-<description>`）与 `harness/rule/naming.md`
-   - 输入: 用户选择候选或自行输入；展示最终名称并请用户确认
 
-5. **自动推断需要的服务**
-   - 输入: 工作区目的 + `sh $root/harness/script/project.sh repo-list $root <project>` 的服务仓库映射（主数据源，必然存在）
+5. **确定需要的服务**
+   - 输入: 工作区目的 + 用户给出的服务线索 + `sh $root/harness/script/project.sh repo-list $root <project>` 的服务仓库映射（主数据源，必然存在）
    - `$root/wiki/<project>/config/services.md` 存在时一并读取，补充职责等上下文；不存在不影响推断（wiki 文件按需物化）
-   - 动作: 根据目的关键词推断涉及的服务/仓库，列出推断结果由用户多选确认（可全部取消）；推断结果只登记到工作区与 `tack.yaml`，**不建 worktree**
+   - 动作: 用户已给出服务清单（如「只涉及 user-service」）时，与 `repo-list` 映射核对后直接登记，不再多选确认；未给出或指定了映射中不存在的服务时，按目的关键词推断并列出结果由用户多选确认（可全部取消或补充）；登记结果只写入工作区与 `tack.yaml`，**不建 worktree**
 
 6. **创建工作区（只建上下文文件，其余目录懒加载）**
    - 动作: 执行

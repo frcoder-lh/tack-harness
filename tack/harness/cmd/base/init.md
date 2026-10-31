@@ -23,6 +23,8 @@ summary: 初始化项目上下文——先确定目标项目，再自动识别�
 
 ## 指令内容
 
+> 确认原则：输入中已明确给出的项目名、描述、关键词、仓库与服务映射直接采用，不重复询问；AI 提炼或推断的字段需要确认时，与第 7 步落盘审阅合并为一次，逐项打断只用于信息缺失或存在冲突。
+
 ### 0. 确定目标项目并自动分类处理（首选）
 
 **先确定本次 init 的目标项目，再做内容分类**——项目级知识必须落到正确的 `wiki/<project>/`。
@@ -30,9 +32,9 @@ summary: 初始化项目上下文——先确定目标项目，再自动识别�
 - 输入: 用户输入中的项目名/业务线线索、当前 `$work`、`tack.yaml` 的 projects（`project.sh project-list`）
 - 动作:
   0. 先执行 `sh $root/harness/script/project.sh ensure $root`（幂等；区块缺失时补齐，后续项目操作才有落点）
-  1. 有 `$work` 且 `$work/status.yaml` 的 `project` 非空：默认以该项目为目标，向用户确认
-  2. 否则执行 `sh $root/harness/script/project.sh project-list $root`：
-     - 只有一个项目：展示并请用户确认
+  1. 输入已明确项目名且与已有项目匹配时直接采用并说明，不再确认；否则有 `$work` 且 `$work/status.yaml` 的 `project` 非空时直接采用该项目并说明（输入指向其他项目时走第 3 条）
+  2. 仍未确定时执行 `sh $root/harness/script/project.sh project-list $root`：
+     - 只有一个项目：直接采用并说明
      - 多个项目：列出 `name` 与 description，请用户选择
      - 没有项目：请用户提供项目名称（英文 slug）与一句话描述，执行
        `sh $root/harness/script/project.sh project-add $root "<name>" "<描述>"`
@@ -63,11 +65,11 @@ summary: 初始化项目上下文——先确定目标项目，再自动识别�
 - 输入: 用户用自然语言描述项目（一句话或多段均可），可补充业务线、目标用户、市场定位
 - 动作:
   - 提炼项目名称（英文 slug，如 `user-center`）、关键词（3-8 个）、一句话描述；名称与文件名命名遵守 `harness/rule/naming.md`
-  - 向用户确认提炼结果，允许修改
+  - 输入已明确给出的名称、关键词与描述直接采用；仅需 AI 提炼或补全的字段不在此处单独确认，并入第 7 步一次性审阅
 - 落盘:
   - 项目条目不存在时先新建：`sh $root/harness/script/project.sh project-add $root "<名称>" "<描述>"`
   - 标量执行脚本写入：`sh $root/harness/script/project.sh project-set $root "<名称>" description "<描述>"`、`project-set $root "<名称>" root_path "<项目根路径>"`
-  - 结构化字段 `projects[].keywords` 经用户确认后执行 `sh $root/harness/script/project.sh project-keywords $root "<名称>" "<kw1,kw2,...>"` 写入
+  - 结构化字段 `projects[].keywords` 随第 7 步审阅一并确认后执行 `sh $root/harness/script/project.sh project-keywords $root "<名称>" "<kw1,kw2,...>"` 写入
 
 ### 3. 收集业务文档与全局上下文
 
@@ -98,7 +100,7 @@ summary: 初始化项目上下文——先确定目标项目，再自动识别�
 ### 5. 建立服务与仓库映射
 
 - 输入: 已接入的仓库列表 + 用户补充的服务信息
-- 动作: 对每个仓库，向用户确认（输入中已包含的不重复询问）：
+- 动作: 对每个仓库，输入已包含的服务名称、对应仓库与服务职责直接采用，不重复询问；仅缺失或存在冲突时确认：
   - 服务名称（如 `用户服务`）
   - 对应代码仓库（已接入的 repo 名）
   - 服务职责简述（可为空）——代码外信息，不进 YAML，随第 6 步 `wiki/<project>/config/services.md` 物化
@@ -154,7 +156,7 @@ summary: 初始化项目上下文——先确定目标项目，再自动识别�
   - 动作: 对照已物化内容列出「待补充」清单（如各服务职责、环境与中间件事实、租户/账号获取方式、业务背景资料等），**主动询问用户现在能否补全**
   - 用户当场能提供的：按本文件边界补充并融合进对应项目 wiki 文件；暂时没有的保留「待补充」，不反复催逼
 - **后续补充执行 init**：只处理当前项目新材料的追加融合，已有内容不重复询问
-- 动作: 展示本次物化/更新的 `wiki/<project>/` 文件（如有）与 `tack.yaml` 当前项目条目，提示用户审阅
+- 动作: 展示本次物化/更新的 `wiki/<project>/` 文件（如有）与 `tack.yaml` 当前项目条目，提示用户审阅；因信息充分而在前序步骤跳过的字段确认并入本步，一次性确认
 - 用户可直接修改文件；修改后无需重新执行 init
 
 ## 框架自动提交（无需用户操作）
