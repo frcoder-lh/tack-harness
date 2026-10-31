@@ -176,7 +176,7 @@ my-project/
 │   │   ├── run-plan.sh        # Plan validation, execution, failure stops and resume
 │   │   ├── git-root.sh        # Shared physical repository-root validation for Git helpers
 │   │   └── hook/        #   Optional IDE Hook acceleration layer (SessionStart/UserPromptSubmit/PreToolUse; disabled and non-intercepting by default)
-│   ├── rule/            #   Business, code, and security rules (coding-standards, naming, security, git-boundary dual boundary, context-loading, wiki-read/wiki-write, windows-env, record-* distillation rules; not routed, loaded on demand)
+│   ├── rule/            #   Business, code, and security rules (coding-standards, naming, security, git-boundary dual boundary, context-loading, execution-efficiency, wiki-read/wiki-write, windows-env, record-* distillation rules; not routed, loaded on demand)
 │   ├── template/        #   Command, workflow, document, and workspace templates
 │   └── reference/       #   General methodology and complex standalone capabilities (shipped with the harness; not accepting project distillation; loaded only when referenced by commands/workflows/roles/rules)
 ├── wiki/                # Shared knowledge: per-project wikis (materialized on demand by init/record/close; entries carry sources and contradictions keep their evolution; volatile code logic is never recorded)

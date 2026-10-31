@@ -176,7 +176,7 @@ my-project/
 │   │   ├── run-plan.sh        # 清单检查、执行、失败停止与续跑
 │   │   ├── git-root.sh        # Git helpers 共用的物理仓库根校验
 │   │   └── hook/        #   IDE Hook 可选加速层（SessionStart/UserPromptSubmit/PreToolUse，默认不启用、不拦截）
-│   ├── rule/            #   业务、代码与安全规则（coding-standards、naming 命名、security、git-boundary 双层边界、context-loading 上下文加载、wiki-read/wiki-write wiki 读写、windows-env、record-* 沉淀规则；不参与路由，按需加载）
+│   ├── rule/            #   业务、代码与安全规则（coding-standards、naming 命名、security、git-boundary 双层边界、context-loading 上下文加载、execution-efficiency 执行效率、wiki-read/wiki-write wiki 读写、windows-env、record-* 沉淀规则；不参与路由，按需加载）
 │   ├── template/        #   命令、工作流、文档、工作区模板
 │   └── reference/       #   通用方法论与复杂独立能力（随 harness 分发、不接受项目沉淀；被命令/工作流/角色/规则引用后才加载）
 ├── wiki/                # 公共知识：按项目隔离的项目 wiki（init/record/close 按需物化，条目带来源、矛盾保留演变；不记易变代码逻辑）
