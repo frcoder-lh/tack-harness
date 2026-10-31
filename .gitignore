@@ -1,5 +1,8 @@
-# 敏感数据目录：用户密钥/token/账号等，任意层级的 local 目录均忽略（含 run/<指令>/local/、space/*/local/ 等）
-**/local/
+# 默认忽略所有以 . 开头的目录（.tack/、.vscode/、.idea/、.trae/ 等）；
+# 需要纳入版本管理时，在本条之后追加例外，如 !.github/
+.*/
+
+!.github/
 
 # OS files
 .DS_Store
@@ -7,11 +10,4 @@ Thumbs.db
 desktop.ini
 
 # IDE
-.vscode/
-.idea/
 *.swp
-.trae/
-
-# 临时文件
-.tack/
-tmp/
