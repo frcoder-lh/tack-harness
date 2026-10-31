@@ -330,7 +330,7 @@ flowchart LR
 
 | 命令 | 简写 | 触发词 | 作用 |
 | --- | --- | --- | --- |
-| `ask` | a | 问 / 提问 / 代码问答 / 分析代码 / 代码分析 / question / code qa / analyze code / code analysis /ask | 可选：按索引并发检索工作区文档与项目 wiki，再按需检索代码核实（工作区代码优先、主仓库兜底）；在 `$work/doc/analysis/` 产出分析文档或沉淀问答（按主题分文件、统一头部，多仓库逐仓库记录基准 commit 并由脚本判定新鲜度） |
+| `ask` | a | 问 / 提问 / 代码问答 / 分析代码 / 代码分析 / question / code qa / analyze code / code analysis /ask | 可选：按索引并发检索工作区文档与项目 wiki，再按需检索代码核实（工作区代码优先、主仓库兜底）；在 `$work/doc/analysis/` 产出分析文档或沉淀问答（按主题分文件、统一头部，正文依次为总结 / 梳理结论 / 问答记录，多仓库逐仓库记录基准 commit 并由脚本判定新鲜度） |
 | `analyze` | an | 需求分析 / 分析需求 / 需求可行性 / 需求兼容性 / requirement analysis / analyze requirement / feasibility analysis /analyze | 建区后必经：前置为用户已提供需求内容或需求文档；先读需求内容，再检索 `doc/analysis/` 与项目 wiki，最后检索代码，按「完整闭环功能」拆研发 story 并产出 `story/<story>/analysis.md`（现有实现、可行性、兼容性、待确认问题）；需求可多条/分批追加，多轮讨论就地融合 |
 | `spec` | sp | 需求规划 / 整体设计 / requirement planning / overall design /spec | 读 `context.md` 中本 story 需求、`story/<story>/analysis.md`、wiki（root/doc，按索引检索）+ 代码事实，grep 定位后产出 `story/<story>/spec.md`（顶层设计与公共契约；产品/测试决策在本环节关闭） |
 | `plan` | p | 详细设计 / 开发计划 / 任务拆解 / detailed design / development plan / task breakdown /plan | 按 story：读已确认 spec 与 analysis，复杂任务先多方案对比与选定，再落到接口/SQL/验证方式/上线流程、模块划分与任务依赖（写入 `story/<story>/plan.md` + status.yaml tasks） |

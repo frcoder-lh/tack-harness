@@ -21,7 +21,7 @@ summary: 按 story 做需求规划——读 context.md、story/<story>/analysis.
 
 ## 输入源与加载
 
-- 输入源统一口径、三级降级、代码检索顺序与防循环放大遵守 `harness/workflow/development-workflow.md`「上下文加载原则」节与 `harness/rule/context-loading.md`，项目 wiki 检索按 `harness/rule/wiki-read.md`（先读索引再读命中文件，禁止整仓通读）。本环节特化：`context.md` 中本 story 对应的需求原文与 `story/<story>/analysis.md` 全文读取；`doc/analysis/` 与项目 wiki 只加载命中内容（缺失视为该领域暂无沉淀，不是异常）；检索关键词从需求与 analysis 中提炼（业务名词、服务名、接口名、模块名）
+- 输入源统一口径、三级降级、代码检索顺序与防循环放大遵守 `harness/workflow/development-workflow.md`「上下文加载原则」节与 `harness/rule/context-loading.md`，项目 wiki 检索按 `harness/rule/wiki-read.md`（先读索引再读命中文件，禁止整仓通读）。本环节特化：`context.md` 中本 story 对应的需求原文、`story/<story>/analysis.md` 与 `doc/analysis/` 下的分析文档直接读取整篇；项目 wiki 只加载命中内容（缺失视为该领域暂无沉淀，不是异常）；检索关键词从需求与 analysis 中提炼（业务名词、服务名、接口名、模块名）
 
 ## 指令内容
 

@@ -26,7 +26,7 @@
 
 ## 按需加载
 
-- wiki / 文档类文件：按 `harness/rule/wiki-read.md` 先读索引选分类与文件，只读取命中的小节或相关片段。
+- 项目 wiki：按 `harness/rule/wiki-read.md` 先读索引选分类与文件，只读取命中的小节或相关片段；工作区分析文档等结构固定的文档直接读取整篇。
 - 代码文件：优先 `$work/repo/<repo-name>/`（已有 worktree），没有所需仓库时用 `$root/repo/<repo-name>/`（只读）；先定位再读取关键片段；代码是「唯一真源」。
 
 ## 引用方式

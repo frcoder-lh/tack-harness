@@ -8,6 +8,13 @@ This file is the single source of truth for tack harness release notes:
 - `release.sh` verifies before releasing that the target tag has corresponding sections in both `CHANGELOG.md` (Chinese) and `CHANGELOG.en.md` (English); release aborts if either is missing
 - CI extracts the corresponding sections from both changelogs and concatenates them as the bilingual GitHub Release body; the `check-update.sh` reminder and the `update` command's "What's new" view are sourced from both files
 
+## V0.0.24 (2026-11-01)
+
+- Added: Analysis documents produced by `ask` now start with a Summary section, followed by Findings and the Q&A log; the answer, summarize and verify flows refresh Summary and Findings together when conclusions change.
+- Improved: Read granularity follows document structure—project wiki files are read by matching sections, while fixed-structure workspace analysis documents such as `doc/analysis/` are read in full; `spec` input loading follows the same rule.
+- Improved: CI only runs for pushes to the target branches and cancels superseded runs, and the release workflow adds step timeouts and pinned action SHAs.
+- Fixed: Command regression tests read files as UTF-8 consistently, fixing false failures caused by Windows CI decoding.
+
 ## V0.0.23 (2026-10-31)
 
 - Improved: `work` now defines how `<workflow>` is chosen when creating a workspace and merges the create and register steps; the opening roster is fetched in one call via `command-context.sh roster` (wiki files, cold repositories, existing stories and analysis freshness), consistent between create and switch.
