@@ -54,7 +54,7 @@ Tack Harness 是一套专为软件研发打造的编程工作流框架：
 | **向外学习** | `study` 把外部 skill 或仓库当作教材：通读结构、提炼可借鉴点、以新增/融合/优化方式落盘到 harness 对应位置，全程唯一确认点是统一预览，确认后自动提交并触发一次 `evolution` 向内自审 |
 | **精简克制** | 保持最小目录结构、基础命令与必要状态流转；凡可脚本化的操作不依赖大模型 |
 | **简单易用** | 所有命令支持中英文触发词与简写（如 `需求规划`/`spec`/`sp`） |
-| **开放配置** | 全部命令、工作流、规则均位于项目 `harness/` 目录下，可自由增改，升级不覆盖 |
+| **开放配置** | 全部命令、工作流、规则均位于项目 `harness/` 目录下，可自由增改；升级逐文件询问，未确认不覆盖 |
 | **安全可控** | worktree 隔离改动、命令准入准出、人工审阅关口、禁用破坏性 Git 操作 |
 
 
@@ -163,7 +163,7 @@ sh install.sh
 my-project/
 ├── AGENTS.md            # 常驻说明书：命令路由 + AGENT/tack harness 核心约束 + 数据来源
 ├── tack.yaml            # 空间登记：版本、项目（关键词/仓库映射）、工作区列表
-├── harness/             # 开发过程定义（需求无关，可自定义，升级不覆盖）
+├── harness/             # 开发过程定义（需求无关，可自定义，升级逐文件询问）
 │   ├── README.md        #   harness 的使用说明
 │   ├── cmd/             #   命令：发现、路由、准入准出
 │   ├── agents/          #   可委派角色：独立上下文并行执行（explorer/architect/reviewer）
@@ -314,7 +314,7 @@ flowchart LR
 | `init` | i | 初始化 / 接入仓库 / 整理文档 / initialize / connect repo / organize docs /init | 提炼项目信息写入 `tack.yaml`，扫描软链或克隆仓库（自然语言「接入仓库」「整理文档」同样路由至此） |
 | `work` | w | 工作区 / 新建工作区 / 切换工作区 / 分支合并 / 分支变基 / workspace / new workspace / switch workspace / merge branches / rebase branches /work | 新建 / 重命名 / 切换 / 列出工作区，自动推断服务；新建只创建 `status.yaml` 与 `context.md`，story/doc/repo 等目录与 worktree 按需创建；亦承接分支合并/变基意图，分流至 branch-op 工作流 |
 | `help` | h | 帮助 / 命令 / help / commands /help | 扫描 harness，输出工作流与全部命令 |
-| `update` | u | 更新 / 更新skill / update / update skill /update | 更新 harness 与空间根 .gitignore（点开头目录默认忽略，强制兜底）；cmd/ 只增补，`rule/` 变更逐文件交用户裁决（采用新版 / 保留本地 / 融合），`AGENTS.md` 与 `tack.yaml` 保留（老空间自动迁移登记区块） |
+| `update` | u | 更新 / 更新skill / update / update skill /update | 更新 harness、`AGENTS.md` 与空间根 .gitignore（点开头目录默认忽略，强制兜底）；`cmd/` 同名文件、`rule/` 与 `AGENTS.md` 变更逐文件交用户裁决（采用新版 / 保留本地 / 融合），新增文件直接复制；`tack.yaml` 保留（老空间自动迁移登记区块） |
 | `repo` | rp | 新建仓库 / 建仓 / 更新仓库 / 拉取仓库 / repo / repo fetch / create repo / new repository /createrepo /create-repo | 管理代码主仓库（`$root/repo/`）：新建并纳入项目空间管理，或更新全部/指定主仓库到远端最新 |
 | `record` | r | 记录 / 记忆 / 沉淀 / record / remember / distill /record | 优先融合已有条目；可落命令 / 工作流 / 规则 / wiki / AGENTS.md 常驻约束，新建时仅需提供 command |
 | `evolution` | evo | 进化 / 进化harness / evolve / evolve harness /evolution | 校准 `tack.yaml` 工作区登记与 `space/` 实际目录；检查各项目 wiki 索引完整性并补录未登记文件；结构自检（lint-harness + lint-shell-portability）并审查指令，提炼 rule/reference/script 候选、清理过时事实与非必要反向描述（cleanup 候选）；支持 tack 空间与源仓库两种运行模式；sh 脚本三平台兼容不符合项当场修正，其余人工确认后落盘 |
@@ -410,6 +410,7 @@ sh harness/script/lint-shell-portability.sh harness   # 三平台可移植性机
 | **Hook 边界观察层** | `PreToolUse` Hook 观察 Git 双层边界、`--force`/`--no-verify` 等破坏性操作；默认仅记录不拦截，调用与命中详情随 `TACK_HOOK_LOG=1` 统一写入 `$root/.tack/log/hook.log`（三个 Hook 事件共用）；`TACK_HOOK_ENFORCE=1` 预留 deny 路径，启用前须先用日志校准误判 |
 | **工作区删除门禁** | close 经 `work.sh purge` 删除工作区目录前三道校验：仅接受单层目录名（拒绝分隔符、空白与 `.`/`..`）、物理路径经 `pwd -P` 确认位于 `space/` 内（防 symlink 逃逸）、`repo/` 下无残留 worktree；任一不满足即拒绝删除 |
 | **分支清理门禁** | close 经 `branch-clean.sh` 仅处理 `status.yaml` 登记的分支，默认 dry-run；未合并主分支、保护分支、被 worktree 占用的分支与主干不明项只列出、不删除，远端分支不自动删除 |
+| **旧空间重建门禁** | `harness-resync.sh` 先备份再覆盖，支持 `-n` 预览；拒绝从空间内旧副本运行，旧登记未迁移成功即中止 |
 
 
 ## 10. 常见问题
@@ -420,7 +421,15 @@ sh harness/script/lint-shell-portability.sh harness   # 三平台可移植性机
 
 **Q：`update` 会覆盖我的自定义内容吗？**
 
-不会。`update` 仅刷新 `script/`、`template/`、`reference/`、`workflow/`；`cmd/` 只增补、不覆盖同名文件；`rule/` 下文件按差异正常分类，变更逐文件询问采用新版 / 保留本地 / 融合（未裁决保持原样，不静默跳过、不自动覆盖）；`AGENTS.md` 与 `tack.yaml` 保留，老空间的项目信息区块会自动迁移到 `tack.yaml`。
+不会自动覆盖。`update` 先把 skill 与空间 harness 的差异逐文件分类，`script/`、`template/`、`reference/`、`workflow/`、`cmd/`、`rule/` 与 `AGENTS.md` 的变更均逐文件询问采用新版 / 保留本地 / 融合（未裁决保持原样，不静默跳过、不自动覆盖）；新增文件直接复制；`tack.yaml` 仅更新 `skill_version`，老空间的项目信息区块会自动迁移到 `tack.yaml`。
+
+**Q：V0.0.22 及更早的空间如何获得新的 update 流程？**
+
+这些空间的 `update.md` 仍是旧版，`cmd/` 与 `AGENTS.md` 不参与裁决，无法通过常规 `update` 自我更新。先把本机 skill 更新到最新版，再用最新 skill 自带的一次性重建脚本（先 `-n` 预览，确认后去掉 `-n`）：
+
+`sh <skill>/tack/harness/script/harness-resync.sh <root> -n`
+
+脚本依次备份到 `$root/.tack/backup/resync-<时间戳>/`、迁移旧登记、用新版骨架覆盖空间 `harness/` 与 `AGENTS.md`（同名框架文件取新版，用户自建文件保留；本地定制可从备份找回），最后校验并自动提交。完成后空间即按新版 update 流程升级。V0.0.18 及更早的单项目登记（`project:`）会转换为 `projects` 数组；项目名为空时生成空登记，需再执行 `init` 补录。
 
 **Q：支持多仓库项目吗？**
 

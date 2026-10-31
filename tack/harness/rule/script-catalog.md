@@ -50,6 +50,7 @@
 | `wiki-index.sh` | 项目 wiki 索引完整性检查 |
 | `harness-diff.sh` | 本机 harness 与新版 skill 的差异分类 |
 | `harness-backup.sh` | harness/AGENTS.md/tack.yaml 的备份、恢复与校验 |
+| `harness-resync.sh` | 旧流程空间一次性重建 harness 与 AGENTS.md（备份、迁移旧登记后覆盖，随后切换新版 update 流程） |
 | `skill-update.sh` | 更新本机已安装 skill |
 | `check-update.sh` | 空间版本检查与更新提醒（close/evolution/record/help 挂载） |
 

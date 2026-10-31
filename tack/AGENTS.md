@@ -1,16 +1,17 @@
 # AGENTS.md
 
-本工程由 [TackHarness](https://github.com/frcoder-lh/tack-harness)  驱动。
+本空间由 tack harness 驱动  
+Github：https://github.com/frcoder-lh/tack-harness
 
 ## 环境变量
 
-- `$root` = tack 工程的根目录（本文件所在目录）
+- `$root` = tack 空间的根目录（本文件所在目录）
 - `$work` = 当前会话正在处理的工作区目录（`$root/space/<workspace>/`）
 - `$project` = `$work` 所属项目名（`$work/status.yaml` 的 `project` 字段值）
 - `$workflow` = `$work` 所属任务名（`$work/status.yaml` 的 `workflow` 字段值）
 
 ## 脚本调用约定
-本工程下的脚本均为 POSIX sh。文档中的 `sh $root/harness/script/<name>.sh <args>`：
+本空间下的脚本均为 POSIX sh。文档中的 `sh $root/harness/script/<name>.sh <args>`：
 - macOS / Linux：直接执行。
 - Windows：一律改为 `powershell -ExecutionPolicy Bypass -File "$root\harness\script\run.ps1" <name> <args>`；路径参数用正斜杠。安装、路径转换、换行与工具定位等细节见 `harness/rule/windows-env.md`。
 
@@ -18,7 +19,7 @@
 
 入口只有命令：`harness/cmd/` 的 cmd 是唯一触发入口；`harness/workflow/` 是工作区流转的状态机，由命令或语义识别后写入 `$work/status.yaml`，用于辅助长任务推进、引导下一步或为自动完成提供路径。工作区可以没有工作流；无法识别意图或没有对应工作流时，由用户自行执行指令。
 
-用户输入以 `/tack` 为可选前缀。会话启动时只识别工程位置，收到请求后再解析路由：
+用户输入以 `/tack` 为可选前缀。会话启动时只识别空间位置，收到请求后再解析路由：
 1. 去掉 `/tack` 前缀，执行 `scan-routes resolve "$root/harness" "<输入>"`。带参数的命令先按命令前缀精确匹配，参数原文完整保留；显式命令命中后不再按意图重新路由。
    - 退出码 **0**（唯一命中）：按输出行前缀 `cmd|` / `workflow|` 定位文件——cmd 直接执行其四段正文，不再执行 `index` / `list`；workflow 只按状态机引导，不当作触发入口。注入内容已含指令正文或索引时直接复用。
    - 退出码 **2**（多命中）：列出候选项让用户选择。

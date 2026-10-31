@@ -54,7 +54,7 @@ Core features:
 | **Learning from outside** | `study` treats external skills or repositories as teaching material: it reads through the structure, distills borrowable ideas, and lands them at the corresponding harness locations by adding, merging, or optimizing; the sole confirmation point in the whole process is a unified preview—after confirmation it auto-commits and triggers one `evolution` for inward self-review |
 | **Minimal & restrained** | Keeps the smallest viable directory structure, basic commands, and necessary state transitions; anything scriptable never relies on the LLM |
 | **Simple & easy to use** | All commands support Chinese and English triggers plus short forms (e.g. "requirement planning"/`spec`/`sp`) |
-| **Open configuration** | All commands, workflows, and rules live under the project's `harness/` directory—freely add or modify them, and upgrades never overwrite |
+| **Open configuration** | All commands, workflows, and rules live under the project's `harness/` directory—freely add or modify them; upgrades ask file by file and never overwrite without confirmation |
 | **Safe & controllable** | Worktree-isolated changes, command entry/exit gates, human review checkpoints, and destructive Git operations are forbidden |
 
 
@@ -163,7 +163,7 @@ The space structure after initialization:
 my-project/
 ├── AGENTS.md            # Resident manual: command routing + AGENT/tack harness constraints + data sources
 ├── tack.yaml            # Space registry: version, projects (keywords/repo mappings), work list
-├── harness/             # Development process definitions (requirement-agnostic, customizable, never overwritten by upgrades)
+├── harness/             # Development process definitions (requirement-agnostic, customizable, upgrade asks file by file)
 │   ├── README.md        #   Usage guide for the harness
 │   ├── cmd/             #   Commands: discovery, routing, entry/exit gates
 │   ├── agents/          #   Delegatable roles: parallel execution in isolated contexts (explorer/architect/reviewer)
@@ -314,7 +314,7 @@ All commands support Chinese and English triggers plus short forms, in the forma
 | `init` | i | initialize / connect repo / organize docs /init | Extracts project info into `tack.yaml`, scans and symlinks or clones repositories (natural language like "connect a repository" and "organize documents" also routes here) |
 | `work` | w | workspace / new workspace / switch workspace / merge branches / rebase branches /work | Creates / renames / switches / lists workspaces and auto-infers services; new workspaces create only `status.yaml` and `context.md`, with story/doc/repo directories and worktrees created on demand; also takes branch merge/rebase intents and routes them to the branch-op workflow |
 | `help` | h | help / commands /help | Scans the harness and prints workflows and all commands |
-| `update` | u | update / update skill /update | Updates the harness and the space-root .gitignore (dot-directories ignored by default, enforced as a fallback); `cmd/` is additive, while `rule/` changes are decided file by file (take the new version / keep local / merge), and `AGENTS.md` and `tack.yaml` are preserved (legacy registries migrate automatically) |
+| `update` | u | update / update skill /update | Updates the harness, `AGENTS.md`, and the space-root .gitignore (dot-directories ignored by default, enforced as a fallback); changes to same-named `cmd/` files, `rule/`, and `AGENTS.md` are decided file by file (take the new version / keep local / merge), new files are copied directly, and `tack.yaml` is preserved (legacy registries migrate automatically) |
 | `repo` | rp | create repo / new repository / update repo / repo fetch /createrepo /create-repo | Manages code main repositories (`$root/repo/`): creates and registers a new repository, or updates all/specified main repositories to the remote latest |
 | `record` | r | record / remember / distill /record | Prefers merging into existing entries; can land commands / workflows / rules / wiki / AGENTS.md resident constraints; for new entries you only need to supply command |
 | `evolution` | evo | evolve / evolve harness /evolution | Reconciles `tack.yaml` workspace registrations with the actual `space/` directories; checks each project wiki's index completeness and registers unindexed files; runs the structure and three-platform self-checks (lint-harness + lint-shell-portability) and reviews instructions, distilling rule/reference/script candidates and cleaning up stale facts or needless negative descriptions (cleanup candidates); supports both tack-space and source-repo modes; shell scripts violating the three-platform baseline are fixed on the spot, everything else lands after human confirmation |
@@ -410,6 +410,7 @@ To disable: deleting the `.trae/` and `.claude/` directories under the space roo
 | **Hook boundary observation layer** | The PreToolUse Hook observes the Git dual boundary and destructive operations such as `--force`/`--no-verify`; by default it only logs and never intercepts, and invocation/hit details are written together to `$root/.tack/log/hook.log` when `TACK_HOOK_LOG=1` (shared by the three Hook events); `TACK_HOOK_ENFORCE=1` reserves the deny path—calibrate false positives with the logs before enabling |
 | **Workspace deletion gates** | Before close deletes a workspace directory via `work.sh purge`, three checks must pass: a single-segment directory name only (no separators, whitespace, or `.`/`..`), the physical path confirmed via `pwd -P` to reside inside `space/` (symlink-escape protection), and no leftover valid worktree under `repo/`; deletion is rejected if any check fails |
 | **Branch cleanup gates** | At close, `branch-clean.sh` only touches branches registered in `status.yaml` and defaults to dry-run; unmerged main branches, protected branches, branches occupied by worktrees, and cases with an unclear mainline are only listed, never deleted, and remote branches are never deleted automatically |
+| **Legacy space rebuild gates** | `harness-resync.sh` backs up before overwriting and supports a `-n` preview; it refuses to run from the space's stale copy and aborts if the legacy registry is not migrated successfully |
 
 
 ## 10. FAQ
@@ -420,7 +421,15 @@ Copy `harness/template/cmd.md` (for a command) or `workflow.md` (for a workflow)
 
 **Q: Will `update` overwrite my custom content?**
 
-No. `update` only refreshes `script/`, `template/`, `reference/`, and `workflow/`; `cmd/` is additive—same-named files are never overwritten; files under `rule/` are classified normally by diff, and changes are decided file by file (take the new version / keep local / merge; undecided files stay as-is—never silently skipped or auto-overwritten); `AGENTS.md` and `tack.yaml` are preserved, and legacy project info blocks are migrated to `tack.yaml` automatically.
+Not automatically. `update` first classifies the differences between the skill and the space harness file by file; changes under `script/`, `template/`, `reference/`, `workflow/`, `cmd/`, `rule/`, and `AGENTS.md` are all decided file by file (take the new version / keep local / merge; undecided files stay as-is—never silently skipped or auto-overwritten); new files are copied directly; `tack.yaml` only gets an updated `skill_version`, and legacy project info blocks are migrated to `tack.yaml` automatically.
+
+**Q: How do spaces from V0.0.22 and earlier adopt the new update flow?**
+
+Their `update.md` is still the old version—`cmd/` and `AGENTS.md` are not adjudicated—so a regular `update` cannot refresh itself. Update the local skill to the latest version first, then run the one-time rebuild script shipped with the latest skill (preview with `-n`, drop it to apply):
+
+`sh <skill>/tack/harness/script/harness-resync.sh <root> -n`
+
+The script backs up to `$root/.tack/backup/resync-<timestamp>/`, migrates the legacy registry, replaces the space's `harness/` and `AGENTS.md` with the new skeleton (same-named framework files take the new version; user-created files are kept; local customizations can be recovered from the backup), then verifies and auto-commits. After that, the space uses the new update flow. Single-project registries (`project:`) from V0.0.18 and earlier are converted to the `projects` array; when the project name is empty an empty registry is generated, and you should run `init` again to re-register.
 
 **Q: Are multi-repository projects supported?**
 
