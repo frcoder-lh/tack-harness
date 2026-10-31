@@ -16,6 +16,8 @@ set -e
 
 ACTION="$1"
 ROOT="${2:-.}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+. "${SCRIPT_DIR}/git-root.sh"
 
 if [ -z "${ACTION}" ]; then
     echo "Usage: $0 <create|remove|list> <root-path> [workspace] [branch] [repo-name]"
@@ -46,6 +48,7 @@ case "${ACTION}" in
             echo "Run /tack init first."
             exit 1
         fi
+        tack_is_repo_root "${REPO_PATH}" || { echo "Error: not a repository root: ${REPO_PATH}" >&2; exit 1; }
 
         # 存在性以目录为准（不依赖 worktree list 文本——Git for Windows 输出的是 C:/ 形式，
         # 而 MSYS shell 内是 /tmp 形式，字符串匹配会失效）
@@ -93,15 +96,16 @@ case "${ACTION}" in
             repo_dir="repo/${name}"
             [ -d "${repo_dir}" ] || continue
             WT="${ABS_ROOT}/space/${WORKSPACE}/repo/${name}"
-            # 同样以目录存在为准；直接让 git 执行 remove，失败则 prune 登记信息
+            # 由 Git 检查工作树是否可安全移除，失败时保留目录并传回错误。
             if [ -d "${WT}" ]; then
+                tack_is_repo_root "${repo_dir}" || { echo "Error: not a repository root: ${repo_dir}" >&2; exit 1; }
                 echo "Removing worktree from ${name}..."
-                if git -C "${repo_dir}" worktree remove --force "${WT}" 2>/dev/null; then
+                if git -C "${repo_dir}" worktree remove "${WT}"; then
                     echo "  removed: ${WT}"
                     FOUND=1
                 else
-                    echo "  git remove 失败，尝试 prune 登记信息"
-                    git -C "${repo_dir}" worktree prune 2>/dev/null
+                    echo "Error: worktree retained: ${WT}" >&2
+                    exit 1
                 fi
             fi
         done

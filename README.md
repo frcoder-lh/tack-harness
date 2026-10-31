@@ -48,13 +48,14 @@ Tack Harness 是一套专为软件研发打造的编程工作流框架：
 | **自动流转** | `auto` 自动执行当前工作流剩余环节到终态：开始前一次性补齐缺失信息并确认全流程，确认后连续执行不中断，结束时汇总关键决策与结果；默认到 merged / completed，可指定一并 close |
 | **多项目隔离** | 一个空间可管理多个项目：`tack.yaml` 的 `projects` 数组登记项目，工作条目与 `status.yaml` 记录所属项目；项目知识只读写 `wiki/<project>/`，能力进 harness、项目参数进项目 wiki、工作区参数进 `status.yaml` |
 | **三平台 shell 门禁** | 全部 harness 脚本按 POSIX sh 与 Linux/macOS/Windows 共有工具选项编写；`lint-shell-portability` 随 `lint-harness` 运行，检出裸 `mktemp`、GNU 专有选项、bashism 与 sed 方言问题，`evolution` 审查时即修 |
-| **自动更新检查** | `close`/`evolution`/`record`/`help` 命令收尾时静默检查新版本（7 天 + 同版本双节流，不在会话开始时抢占任务）；发现新版本时展示本机版本到最新版本之间的全部更新内容，用户确认后说「更新」即可升级 |
+| **自动更新检查** | `close`/`help` 收尾时、`evolution`/`record` 落盘前静默检查新版本（7 天 + 同版本双节流，不在会话开始时抢占任务）；发现新版本时展示本机版本到最新版本之间的全部更新内容，用户确认后说「更新」即可升级；网络请求带超时，断网或代理挂起时静默跳过 |
 | **角色委派** | `harness/agents/` 内置可委派角色（code-explorer / code-architect / code-reviewer），被 `ask`/`plan`/`tech-design`/`code-review`/`merge` 等命令引用后经 Task 子代理在独立上下文并行执行；只供发现与委派，不参与命令路由 |
 | **Hook 加速层** | `harness/script/hook/` 提供 IDE Hooks 可选加速（SessionStart 只注入空间位置、UserPromptSubmit 按路由结果注入索引或指令正文、PreToolUse 边界观察）；仅搬运确定性事实，AGENTS.md + `scan-routes.sh` 仍是唯一事实源，默认不启用、不拦截 |
-| **向外学习** | `study` 把外部 skill 或仓库当作教材：通读结构、提炼可借鉴点、以新增/融合/优化方式落盘到 harness 对应位置，全程唯一确认点是统一预览，确认后自动提交并触发一次 `evolution` 向内自审 |
+| **向外学习** | `study` 先筛选外部 skill 或仓库中的相关素材，提炼可借鉴点并落盘；统一预览确认后提交，再按本次变更与反向引用执行增量 `evolution` |
 | **精简克制** | 保持最小目录结构、基础命令与必要状态流转；凡可脚本化的操作不依赖大模型 |
 | **简单易用** | 所有命令支持中英文触发词与简写（如 `需求规划`/`spec`/`sp`） |
-| **开放配置** | 全部命令、工作流、规则均位于项目 `harness/` 目录下，可自由增改；升级逐文件询问，未确认不覆盖 |
+| **开放配置** | 全部命令、工作流、规则均位于项目 `harness/` 目录下，可自由增改；升级以出厂原件做三方比较，纯上游变化批量采用、本地定制保留、冲突集中裁决 |
+| **减少模型往返** | 28 个命令按需准备上下文，Git 与登记操作批量执行；story 任务增量导入并原子领取，确认与评审绑定输入指纹；run 支持失败停止、人工步骤与显式续跑 |
 | **安全可控** | worktree 隔离改动、命令准入准出、人工审阅关口、禁用破坏性 Git 操作 |
 
 
@@ -163,12 +164,17 @@ sh install.sh
 my-project/
 ├── AGENTS.md            # 常驻说明书：命令路由 + AGENT/tack harness 核心约束 + 数据来源
 ├── tack.yaml            # 空间登记：版本、项目（关键词/仓库映射）、工作区列表
-├── harness/             # 开发过程定义（需求无关，可自定义，升级逐文件询问）
+├── harness/             # 开发过程定义（需求无关，可自定义，升级三方比较）
 │   ├── README.md        #   harness 的使用说明
 │   ├── cmd/             #   命令：发现、路由、准入准出
 │   ├── agents/          #   可委派角色：独立上下文并行执行（explorer/architect/reviewer）
 │   ├── workflow/        #   工作流：状态机与命令编排
 │   ├── script/          #   固定流程脚本（清单见 harness/rule/script-catalog.md；Windows 统一经 run.ps1 启动器调用）
+│   │   ├── command-context.sh # 状态/文档目录、分析新鲜度与开场清单、story 确认与评审证据指纹
+│   │   ├── command-batch.sh   # 建区/登记/worktree/收尾的批量执行
+│   │   ├── harness-baseline.sh # 出厂基线与三方升级
+│   │   ├── run-plan.sh        # 清单检查、执行、失败停止与续跑
+│   │   ├── git-root.sh        # Git helpers 共用的物理仓库根校验
 │   │   └── hook/        #   IDE Hook 可选加速层（SessionStart/UserPromptSubmit/PreToolUse，默认不启用、不拦截）
 │   ├── rule/            #   业务、代码与安全规则（coding-standards、naming 命名、security、git-boundary 双层边界、context-loading 上下文加载、wiki-read/wiki-write wiki 读写、windows-env、record-* 沉淀规则；不参与路由，按需加载）
 │   ├── template/        #   命令、工作流、文档、工作区模板
@@ -239,8 +245,8 @@ my-project/
 经验沉淀形成三条互补通路：
 
 - **自动采集**：任务各环节凡用户对 AI 的做法有过引导、纠偏、补充约定，自动把原始事实追加到 `status.yaml` 的 `guidance` 列表（pending），`close` 时自动审查固化到 workflow/cmd/rule（applied）或标记不固化（rejected），落点在回写时直接校验；
-- **向内自审**：`/tack evolution` 定期审查全部指令文件，识别可沉淀为 rule/reference/script 的候选，经人工确认后落盘；
-- **向外学习**：`/tack study <skill 名|本地路径|Git 链接>` 通读外部 skill 或仓库，提炼可借鉴点并以新增/融合/优化方式落盘到 harness，统一预览确认后自动提交并触发一次 evolution。
+- **向内自审**：`/tack evolution full` 审查全部指令，`incremental` 按明确变更范围、反向引用与 guidance 审查，候选经人工确认后落盘；
+- **向外学习**：`/tack study <skill 名|本地路径|Git 链接>` 先筛选相关素材再读正文，统一预览确认后提交并触发一次增量 evolution。
 
 
 ## 5. 工作流模型
@@ -312,19 +318,19 @@ flowchart LR
 | 命令 | 简写 | 触发词 | 作用 |
 | --- | --- | --- | --- |
 | `init` | i | 初始化 / 接入仓库 / 整理文档 / initialize / connect repo / organize docs /init | 提炼项目信息写入 `tack.yaml`，扫描软链或克隆仓库（自然语言「接入仓库」「整理文档」同样路由至此） |
-| `work` | w | 工作区 / 新建工作区 / 切换工作区 / 分支合并 / 分支变基 / workspace / new workspace / switch workspace / merge branches / rebase branches /work | 新建 / 重命名 / 切换 / 列出工作区，自动推断服务；新建只创建 `status.yaml` 与 `context.md`，story/doc/repo 等目录与 worktree 按需创建；亦承接分支合并/变基意图，分流至 branch-op 工作流 |
+| `work` | w | 工作区 / 新建工作区 / 切换工作区 / 分支合并 / 分支变基 / workspace / new workspace / switch workspace / merge branches / rebase branches /work | 新建 / 重命名 / 切换 / 列出工作区，自动推断服务；新建只创建 `status.yaml` 与 `context.md`，story/doc/repo 等目录与 worktree 按需创建，开场知识清单标注冷仓库与过时分析；亦承接分支合并/变基意图，分流至 branch-op 工作流（脚本一次写入状态与临时分支） |
 | `help` | h | 帮助 / 命令 / help / commands /help | 扫描 harness，输出工作流与全部命令 |
-| `update` | u | 更新 / 更新skill / update / update skill /update | 更新 harness、`AGENTS.md` 与空间根 .gitignore（点开头目录默认忽略，强制兜底）；`cmd/` 同名文件、`rule/` 与 `AGENTS.md` 变更逐文件交用户裁决（采用新版 / 保留本地 / 融合），新增文件直接复制；`tack.yaml` 保留（老空间自动迁移登记区块） |
+| `update` | u | 更新 / 更新skill / update / update skill /update | 基于出厂原件三方比较 harness、AGENTS.md 与 .gitignore；批量采用纯上游变化，保留本地定制，冲突与无基线差异集中裁决；保护 tack.yaml 登记 |
 | `repo` | rp | 新建仓库 / 建仓 / 更新仓库 / 拉取仓库 / repo / repo fetch / create repo / new repository /createrepo /create-repo | 管理代码主仓库（`$root/repo/`）：新建并纳入项目空间管理，或更新全部/指定主仓库到远端最新 |
-| `record` | r | 记录 / 记忆 / 沉淀 / record / remember / distill /record | 优先融合已有条目；可落命令 / 工作流 / 规则 / wiki / AGENTS.md 常驻约束，新建时仅需提供 command |
-| `evolution` | evo | 进化 / 进化harness / evolve / evolve harness /evolution | 校准 `tack.yaml` 工作区登记与 `space/` 实际目录；检查各项目 wiki 索引完整性并补录未登记文件；结构自检（lint-harness + lint-shell-portability）并审查指令，提炼 rule/reference/script 候选、清理过时事实与非必要反向描述（cleanup 候选）；支持 tack 空间与源仓库两种运行模式；sh 脚本三平台兼容不符合项当场修正，其余人工确认后落盘 |
+| `record` | r | 记录 / 记忆 / 沉淀 / record / remember / distill /record | 优先融合已有条目；可落命令 / 工作流 / 规则 / wiki / AGENTS.md 常驻约束，新建时仅需提供 command；落盘前一次审阅全部草稿 |
+| `evolution` | evo | 进化 / 进化harness / evolve / evolve harness /evolution | 校准 `tack.yaml` 工作区登记与 `space/` 实际目录；检查各项目 wiki 索引完整性并补录未登记文件；一次 lint-harness 完成结构、脚本签名与三平台机检，只精读机检命中与变更的脚本，并审查指令，提炼 rule/reference/script 候选、清理过时事实与非必要反向描述（cleanup 候选）；支持 tack 空间与源仓库两种运行模式；sh 脚本三平台兼容不符合项当场修正，其余人工确认后落盘 |
 | `study` | st | 学习 / 研习 / 借鉴 / study / learn / learn from /study | 向外学习外部 skill 或仓库的设计，提炼可借鉴点并落盘到 harness 对应位置，统一预览确认后提交，随后自动执行一次 evolution |
 
 ### 7.2 需求开发命令（cmd/dev/）
 
 | 命令 | 简写 | 触发词 | 作用 |
 | --- | --- | --- | --- |
-| `ask` | a | 问 / 提问 / 代码问答 / 分析代码 / 代码分析 / question / code qa / analyze code / code analysis /ask | 可选：按索引并发检索工作区文档与项目 wiki，再按需检索代码核实（工作区代码优先、主仓库兜底）；在 `$work/doc/analysis/` 产出分析文档或沉淀问答（按主题分文件） |
+| `ask` | a | 问 / 提问 / 代码问答 / 分析代码 / 代码分析 / question / code qa / analyze code / code analysis /ask | 可选：按索引并发检索工作区文档与项目 wiki，再按需检索代码核实（工作区代码优先、主仓库兜底）；在 `$work/doc/analysis/` 产出分析文档或沉淀问答（按主题分文件、统一头部，多仓库逐仓库记录基准 commit 并由脚本判定新鲜度） |
 | `analyze` | an | 需求分析 / 分析需求 / 需求可行性 / 需求兼容性 / requirement analysis / analyze requirement / feasibility analysis /analyze | 建区后必经：前置为用户已提供需求内容或需求文档；先读需求内容，再检索 `doc/analysis/` 与项目 wiki，最后检索代码，按「完整闭环功能」拆研发 story 并产出 `story/<story>/analysis.md`（现有实现、可行性、兼容性、待确认问题）；需求可多条/分批追加，多轮讨论就地融合 |
 | `spec` | sp | 需求规划 / 整体设计 / requirement planning / overall design /spec | 读 `context.md` 中本 story 需求、`story/<story>/analysis.md`、wiki（root/doc，按索引检索）+ 代码事实，grep 定位后产出 `story/<story>/spec.md`（顶层设计与公共契约；产品/测试决策在本环节关闭） |
 | `plan` | p | 详细设计 / 开发计划 / 任务拆解 / detailed design / development plan / task breakdown /plan | 按 story：读已确认 spec 与 analysis，复杂任务先多方案对比与选定，再落到接口/SQL/验证方式/上线流程、模块划分与任务依赖（写入 `story/<story>/plan.md` + status.yaml tasks） |
@@ -333,7 +339,7 @@ flowchart LR
 | `fix` | fx | 修正 / 需求修正 / 修正代码 / requirement fix / fix requirement / code fix /fix | 需求修正（spec→plan→代码）或代码修正（代码→同步文档），保持文档与代码一致 |
 | `testcode` | tc | 单测 / 单元测试 / unit test / unit testing /testcode | 按需触发，非必经：以单测为手段做需求-代码一致性审查与缺陷发现，对照 spec/plan 验收标准核对代码、识别边界遗漏，用例暴露问题后修代码而非改测试；覆盖率 90% 是准出指标之一 |
 | `test` | t | 测试 / 系统测试 / 集成测试 / system test / integration test / end-to-end test /test | 按需触发，非必经：把测试描述转化为 `$work/doc/test.md` 可落地方案；需脚本时落到 `run/<指令>/` |
-| `run` | rn | 运行 / 执行 / 跑脚本 / execute / run script /run | 按需触发，非必经：`run/run.md` 只做指令识别、索引与编排；按用户描述新增 `run/<指令>/`（脚本+数据+local/），执行时按索引识别、校验并编排；敏感数据落各指令的 `local/`（gitignored） |
+| `run` | rn | 运行 / 执行 / 跑脚本 / execute / run script /run | 按需触发：指令目录索引、依赖校验与顺序执行；失败即停，显式 resume/new、人工步骤 ack、中断步骤 retry；日志与敏感数据保留在各指令 local/（gitignored） |
 | `code-review` | rv | 代码审查 / 审查报告 / code review / review report /code-review | 按需触发：以 story plan/tech-design 为规范、目标分支三点 diff 为事实，逐函数分析改动、正确性与危害，评估影响接口与场景，产出 `$work/doc/code-review.md` |
 | `release-check` | rc | 上线检查 / 发布检查 / release check / go-live check /release-check | 按需触发：识别数据库变更（含变更语句）、配置变更（含模板）、新增接口调用（权限申请）、新增中间件（申请配置），产出 `$work/doc/release-check.md` |
 | `close` | cl | 关闭工作区 / close workspace / finish /close | 交付检查与摘要、自动判定工作区归档（`wiki/<project>/history/<workspace>/summary.md`，`run/` 整体移入，标准产物外的文件询问是否保留）、提炼 wiki（含技术决策与 ask 记录归档）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、按 `branches` 登记簿经 `branch-clean.sh` 安全清理分支、删除工作区目录并移除 `tack.yaml` 工作区登记；关联工作区级联关闭 |
@@ -389,7 +395,7 @@ sh harness/script/lint-shell-portability.sh harness   # 三平台可移植性机
 | 事件 | 作用 | 对会话影响 |
 | --- | --- | --- |
 | SessionStart | 预注入路由全表、`$root`/`$work` 路径与工作区快照（cwd 在工作区内则精确命中，否则取最近活跃并提示确认）；不写入任何路径类环境变量 | 省去首轮 `scan-routes list` 往返 |
-| UserPromptSubmit | 以当次 cwd 实时解析空间根与工作区（cwd 在 `space/<name>/` 内精确命中，天然支持多项目窗口与同空间多工作区并行；之外回退最近活跃）；对用户输入执行 `scan-routes resolve`：唯一命中直接注入 cmd/workflow 正文与状态快照，多命中列候选，无命中给全表 | 省去路由解析往返与重复的空间/工作区扫描 |
+| UserPromptSubmit | 以当次 cwd 实时解析空间根与工作区（cwd 在 `space/<name>/` 内精确命中，天然支持多项目窗口与同空间多工作区并行；之外回退最近活跃）；对用户输入执行 `scan-routes resolve`：唯一命中直接注入 cmd/workflow 正文与状态快照，多命中列候选，无命中给紧凑索引（短描述） | 省去路由解析往返与重复的空间/工作区扫描 |
 | PreToolUse | 观察模式（默认）：命令执行类工具（RunCommand/Bash）的调用与 Git 双层边界、`--force`/`--no-verify` 等规则命中经统一日志记录；`TACK_HOOK_ENFORCE=1` 才输出 deny（**当前预留，默认不拦截**） | 默认零输出、零拦截 |
 
 统一日志：设置环境变量 `TACK_HOOK_LOG=1` 后，三个 Hook 每次被调用都会把完整记录（时间、事件、pid、`$root`/`$work`、输入 payload、注入/拦截输出、退出码与耗时）追加到 `$root/.tack/log/hook.log`，并发调用按整块串行写入、互不交错；默认关闭，关闭时 Hook 输出逐字节不变。
@@ -402,8 +408,11 @@ sh harness/script/lint-shell-portability.sh harness   # 三平台可移植性机
 | 机制 | 说明 |
 | --- | --- |
 | **worktree 隔离** | 代码改动仅限工作区 worktree，主仓库 `repo/` 只读 |
+| **仓库与关闭校验** | Git helpers 核验目标物理仓库根，兼容 worktree 与软链；普通 worktree 移除遇到未保存改动即停止；pending guidance 处置完成后关闭工作区，父子工作区删除统一提交 |
+| **空间锁自愈** | 登记写入与空间提交在空间级锁内串行；持锁进程被强杀或中断后，残留锁按 pid 存活检测自动回收，存活持锁者仍正常阻塞 |
 | **Git 双层边界** | 空间根仓库由框架自动提交托管（`space.sh`），用户不直接操作；用户 Git 命令仅作用于工作区代码仓库 |
 | **命令准入准出** | 破坏性 Git 操作被禁用，命令执行受准入准出约束 |
+| **执行与复用门禁** | run 失败停止、显式恢复；任务领取在锁内校验依赖；评审 token 绑定输入，变化时刷新证据；升级仅自动采用有原件证明的纯上游变化 |
 | **人工审阅关口** | 分析结论、合并均需人工确认后方可生效；提交由用户主动发起 commit 命令触发（发起即确认意图，信息自动生成后直接提交） |
 | **凭据明文拦截** | `scan-secrets.sh` 在空间文档（wiki/、space/）提交前做高置信凭据扫描，命中即阻断自动提交；支持 `tack:allow-secret` 豁免标记与占位值过滤 |
 | **固化落点校验** | guidance 固化回写时校验落点文件存在，路径失效即阻断写入，防止固化证据链悬空 |
@@ -421,7 +430,7 @@ sh harness/script/lint-shell-portability.sh harness   # 三平台可移植性机
 
 **Q：`update` 会覆盖我的自定义内容吗？**
 
-不会自动覆盖。`update` 先把 skill 与空间 harness 的差异逐文件分类，`script/`、`template/`、`reference/`、`workflow/`、`cmd/`、`rule/` 与 `AGENTS.md` 的变更均逐文件询问采用新版 / 保留本地 / 融合（未裁决保持原样，不静默跳过、不自动覆盖）；新增文件直接复制；`tack.yaml` 仅更新 `skill_version`，老空间的项目信息区块会自动迁移到 `tack.yaml`。
+`update` 用保存的出厂原件区分本地定制与上游变化：仅上游变化的文件批量采用，本地定制保留，双方变化与删除候选集中交用户裁决。旧空间缺少基线时保守询问；更新前备份，验证后只推进已采用文件的基线。`tack.yaml` 仅更新 `skill_version`，旧登记区块按需迁移。
 
 **Q：V0.0.22 及更早的空间如何获得新的 update 流程？**
 
@@ -458,6 +467,10 @@ tack-harness 的一等公民是 harness、repo（代码）、space（工作区�
 
 - 提交问题与建议：[GitHub Issues](https://github.com/frcoder-lh/tack-harness/issues)
 - 参考现有命令模板：`harness/template/cmd.md`、`workflow.md`
+
+CI 在 Ubuntu、macOS、Windows（Git for Windows）矩阵执行 shell 语法、框架结构、可移植性、文档签名检查及 `.github/tests/` 中的命令回归。回归使用 Python 3.12 标准库，在系统临时目录创建独立空间和本地 bare origin，验证完成后清理；每个平台的 JUnit 报告保留 14 天。
+
+本地安装 Python 3.12+、Git 与 POSIX sh 后执行 `sh .github/tests/run.sh`（Windows 在 Git Bash 中运行）；可传入测试方法名定向验证，例如 `sh .github/tests/run.sh test_rename_children_and_rollback`。使用 `--report <临时目录>/command-regression.xml` 保存报告。真实 MR/PR 审批及代理对自然语言命令的编排仍需按命令契约审查。
 
 
 ## 12. 联系方式

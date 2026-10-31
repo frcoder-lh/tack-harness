@@ -68,8 +68,7 @@ summary: 初始化项目上下文——先确定目标项目，再自动识别�
   - 输入已明确给出的名称、关键词与描述直接采用；仅需 AI 提炼或补全的字段不在此处单独确认，并入第 7 步一次性审阅
 - 落盘:
   - 项目条目不存在时先新建：`sh $root/harness/script/project.sh project-add $root "<名称>" "<描述>"`
-  - 标量执行脚本写入：`sh $root/harness/script/project.sh project-set $root "<名称>" description "<描述>"`、`project-set $root "<名称>" root_path "<项目根路径>"`
-  - 结构化字段 `projects[].keywords` 随第 7 步审阅一并确认后执行 `sh $root/harness/script/project.sh project-keywords $root "<名称>" "<kw1,kw2,...>"` 写入
+  - 标量与关键词、后续服务映射写入一份 TSV，按 `harness/rule/execution-efficiency.md` 在字段补齐后调用 `sh $root/harness/script/command-batch.sh register $root "<名称>" <tsv文件>`，统一持锁写入；第 7 步集中审阅未决项
 
 ### 3. 收集业务文档与全局上下文
 
@@ -105,7 +104,7 @@ summary: 初始化项目上下文——先确定目标项目，再自动识别�
   - 对应代码仓库（已接入的 repo 名）
   - 服务职责简述（可为空）——代码外信息，不进 YAML，随第 6 步 `wiki/<project>/config/services.md` 物化
 - 落盘:
-  - 每个仓库执行一次 `sh $root/harness/script/project.sh project-service-repo $root "<项目名>" "<服务名称>" "<repo 名>" "<repo_git，无则空串>" "<repo_path>"` 追加当前项目的映射（每条**仅含服务↔仓库映射字段**：service_name / repo_name / repo_git / repo_path）
+  - 各仓库的 service_name / repo_name / repo_git / repo_path 汇总为 register TSV 的 repo 行，与第 2 步字段一并写入
   - 服务职责等代码外信息不进 YAML，在第 6 步物化到 `wiki/<project>/config/services.md`
   - `projects[].repo_scan_path` 记录本地扫描目录（无脚本接口，直接编辑 `tack.yaml` 对应项目条目该字段）
   - 提示用户人工审阅补全

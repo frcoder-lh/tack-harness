@@ -4,7 +4,7 @@
 # 只做分类，不覆盖任何文件；是否采用、保留或融合由模型与用户决定。
 #
 # Usage:
-#   sh harness-diff.sh <incoming-harness> <local-harness> --profile update
+#   sh harness-diff.sh <incoming-harness> <local-harness> --profile update [--base <original-harness>]
 #
 # 输出（TAB 分隔，按路径排序）:
 #   ADDED      incoming 有、local 无（含新增的 rule/ 文件）
@@ -18,15 +18,32 @@
 # 退出码: 0 分类完成；1 目录无效或读取失败；2 用法错误
 
 set -eu
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+. "${SCRIPT_DIR}/common.sh"
 
+BASE=""
+PROFILE=""
+remaining=$#
+while [ "${remaining}" -gt 0 ]; do
+    arg="$1"; shift; remaining=$((remaining - 1))
+    case "${arg}" in
+        --base|--profile)
+            [ "${remaining}" -gt 0 ] || exit 2
+            if [ "${arg}" = --base ]; then BASE="$1"; else PROFILE="$1"; fi
+            shift; remaining=$((remaining - 1))
+            ;;
+        --*) exit 2 ;;
+        *) set -- "$@" "${arg}" ;;
+    esac
+done
 INCOMING="${1:-}"
 LOCAL="${2:-}"
-PROFILE="${3:-}"
 
-if [ -z "${INCOMING}" ] || [ -z "${LOCAL}" ] || [ "${PROFILE}" != "--profile" ] || [ "${4:-}" != "update" ]; then
+if [ $# -ne 2 ] || [ -z "${INCOMING}" ] || [ -z "${LOCAL}" ] || [ "${PROFILE}" != update ]; then
     echo "Usage: sh harness-diff.sh <incoming-harness> <local-harness> --profile update" >&2
     exit 2
 fi
+[ -z "${BASE}" ] || [ -d "${BASE}" ] || exit 2
 
 if [ ! -d "${INCOMING}" ]; then
     echo "Error: incoming harness dir not found: ${INCOMING}" >&2
@@ -53,10 +70,20 @@ trap 'rm -f "${TMP_A}" "${TMP_B}" "${TMP_ALL}"' EXIT HUP INT TERM
 ( cd "${INCOMING}" && find . -type f -print ) | sed 's|^\./||' | sort > "${TMP_A}"
 ( cd "${LOCAL}" && find . -type f -print ) | sed 's|^\./||' | sort > "${TMP_B}"
 sort -u "${TMP_A}" "${TMP_B}" > "${TMP_ALL}"
+if [ -n "${BASE}" ]; then
+    (cd "${BASE}" && find . -type f -print) | sed 's|^\./||' >> "${TMP_ALL}"
+    sort -u "${TMP_ALL}" > "${TMP_A}"
+    mv "${TMP_A}" "${TMP_ALL}"
+fi
 
 n_added=0; n_changed=0; n_same=0; n_local=0
 while IFS= read -r rel; do
     [ -n "${rel}" ] || continue
+    if [ -n "${BASE}" ] && [ -f "${BASE}/${rel}" ]; then
+        kind="$(tack_classify_file "${INCOMING}/${rel}" "${LOCAL}/${rel}" "${BASE}/${rel}")"
+        printf '%s\t%s\n' "${kind}" "${rel}"
+        continue
+    fi
     if [ -f "${INCOMING}/${rel}" ] && [ -f "${LOCAL}/${rel}" ]; then
         if cmp -s "${INCOMING}/${rel}" "${LOCAL}/${rel}"; then
             printf 'SAME\t%s\n' "${rel}"

@@ -10,7 +10,7 @@
 #   tack_agent_presets        每行 "name|detect_dir|skill_dir"；detect_dir 存在即视为该 agent 已安装
 #   tack_find_skill_dirs      逐行输出本机已安装的 skill 目录（须含 SKILL.md）
 #   tack_is_windows           输出 1/0（Git for Windows 的 MINGW/MSYS/CYGWIN 环境）
-#   tack_download_to          URL 下载到文件（curl → curl --ssl-no-revoke → wget）
+#   tack_download_to          URL 下载到文件（curl → curl --ssl-no-revoke → wget，带超时）
 #   tack_latest_release_tag   解析 GitHub releases/latest 的 302 目标 tag（V* 形式）
 #   tack_skill_version        读取 skill 根目录 SKILL.md front matter 的 version
 #   tack_sha256_file          输出文件 SHA-256（openssl → shasum）
@@ -18,6 +18,23 @@
 
 # 分发包清单：安装与升级链路共用
 TACK_SKILL_FILES="SKILL.md README.md README.en.md CHANGELOG.md CHANGELOG.en.md install.sh tack"
+
+# tack_classify_file <incoming> <local> <base>：升级三方分类的统一口径。
+tack_classify_file() {
+    if [ -f "$1" ] && [ -f "$2" ]; then
+        if cmp -s "$1" "$2"; then echo SAME
+        elif [ ! -f "$3" ]; then echo CHANGED
+        elif cmp -s "$2" "$3"; then echo UPSTREAM
+        elif cmp -s "$1" "$3"; then echo LOCAL
+        else echo CONFLICT
+        fi
+    elif [ -f "$1" ]; then
+        if [ -f "$3" ]; then echo LOCAL_DELETED; else echo ADDED; fi
+    elif [ -f "$2" ]; then
+        if [ -f "$3" ]; then echo UPSTREAM_DELETED; else echo LOCAL_ONLY; fi
+    else echo SAME
+    fi
+}
 
 # agent 预设：新增 agent 只改这里，安装/升级/检查三条链路同时生效
 tack_agent_presets() {
@@ -60,22 +77,30 @@ tack_is_windows() {
     esac
 }
 
-# tack_download_to <url> <outfile> — 三下载器回退；全部失败返回非零
+# 网络超时（秒）：连接阶段统一 10 秒；单次请求总时长分两档，环境变量可覆盖——
+#   TACK_NET_TIMEOUT       版本探测、CHANGELOG 等小请求（默认 20）
+#   TACK_DOWNLOAD_TIMEOUT  源码包下载（默认 300）
+TACK_CONNECT_TIMEOUT=10
+
+# tack_download_to <url> <outfile> [max-seconds] — 三下载器回退；全部失败或超时返回非零
 # --ssl-no-revoke 是 Git for Windows（schannel）专有回退，仅 Windows 使用
 tack_download_to() {
     _tack_url="$1"
     _tack_out="$2"
+    _tack_max="${3:-${TACK_DOWNLOAD_TIMEOUT:-300}}"
     if command -v curl >/dev/null 2>&1; then
-        if curl -fsSL "${_tack_url}" -o "${_tack_out}" 2>/dev/null; then
+        if curl -fsSL --connect-timeout "${TACK_CONNECT_TIMEOUT}" --max-time "${_tack_max}" \
+            "${_tack_url}" -o "${_tack_out}" 2>/dev/null; then
             return 0
         fi
         if [ "$(tack_is_windows)" -eq 1 ] \
-            && curl -fsSL --ssl-no-revoke "${_tack_url}" -o "${_tack_out}" 2>/dev/null; then
+            && curl -fsSL --ssl-no-revoke --connect-timeout "${TACK_CONNECT_TIMEOUT}" --max-time "${_tack_max}" \
+                "${_tack_url}" -o "${_tack_out}" 2>/dev/null; then
             return 0
         fi
     fi
     if command -v wget >/dev/null 2>&1; then
-        if wget -q -O "${_tack_out}" "${_tack_url}" 2>/dev/null; then
+        if wget -q -T "${_tack_max}" -O "${_tack_out}" "${_tack_url}" 2>/dev/null; then
             return 0
         fi
     fi
@@ -87,14 +112,17 @@ tack_download_to() {
 tack_latest_release_tag() {
     _tack_base="${1%/}"
     _tack_loc=""
+    _tack_max="${TACK_NET_TIMEOUT:-20}"
     if command -v curl >/dev/null 2>&1; then
-        _tack_loc="$(curl -fsSI -o /dev/null -w '%{redirect_url}' "${_tack_base}/releases/latest" 2>/dev/null || true)"
+        _tack_loc="$(curl -fsSI --connect-timeout "${TACK_CONNECT_TIMEOUT}" --max-time "${_tack_max}" \
+            -o /dev/null -w '%{redirect_url}' "${_tack_base}/releases/latest" 2>/dev/null || true)"
         if [ -z "${_tack_loc}" ] && [ "$(tack_is_windows)" -eq 1 ]; then
-            _tack_loc="$(curl -fsSI --ssl-no-revoke -o /dev/null -w '%{redirect_url}' "${_tack_base}/releases/latest" 2>/dev/null || true)"
+            _tack_loc="$(curl -fsSI --ssl-no-revoke --connect-timeout "${TACK_CONNECT_TIMEOUT}" --max-time "${_tack_max}" \
+                -o /dev/null -w '%{redirect_url}' "${_tack_base}/releases/latest" 2>/dev/null || true)"
         fi
     fi
     if [ -z "${_tack_loc}" ] && command -v wget >/dev/null 2>&1; then
-        _tack_loc="$(wget -q --spider --server-response -O /dev/null "${_tack_base}/releases/latest" 2>&1 | sed -n 's/^[[:space:]]*[Ll]ocation:[[:space:]]*//p' | tail -n 1 || true)"
+        _tack_loc="$(wget -q -T "${_tack_max}" --spider --server-response -O /dev/null "${_tack_base}/releases/latest" 2>&1 | sed -n 's/^[[:space:]]*[Ll]ocation:[[:space:]]*//p' | tail -n 1 || true)"
     fi
     [ -n "${_tack_loc}" ] || return 1
     _tack_tag=${_tack_loc%%[[:space:]]*}

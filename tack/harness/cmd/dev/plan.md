@@ -16,7 +16,7 @@ summary: 按 story 产出详细设计与施工图 story/<story>/plan.md——复
 ## 前置准入条件
 
 - 已确定当前工作区 `$work` 与目标 story（参数指定 `story/<story>`；未指定时若只有一个 story 直接使用，多个时由用户选择）
-- `$work/story/<story>/spec.md` 存在且已经用户确认（`progress.spec: true`），其中产品/测试相关决策已全部关闭
+- `$work/story/<story>/spec.md` 存在且确认回执有效（缺失时核对原文与已有授权补记），产品/测试相关决策已关闭
 - 执行前重新读取 `$work/status.yaml`、目标 story 的 analysis/spec，尊重本地最新内容
 - spec 之外的业务决策不在本环节自行决定：发现缺失时走 `fix` 回到 spec 补充
 
@@ -34,7 +34,12 @@ summary: 按 story 产出详细设计与施工图 story/<story>/plan.md——复
    - 输出: 一份「已有可复用资产」清单（类似逻辑、工具类、配置模式及其文件路径），后续设计优先复用或模仿
    - 按需参考 reference: `domain-modeling.md`、`codebase-design.md`、`research.md`、`to-tickets.md`
 
-3. **生成 plan.md 主体**
+3. **选定实现路线**
+   - 根据 spec、代码事实与可复用资产判断是否存在真实架构分歧；单一合理路线直接采用并说明理由。跨模块或多仓库本身只决定分析范围
+   - 存在两种以上合理路线时，先写紧凑对比（核心思路、改动面、复用度、兼容性、工作量、风险与回滚），推荐一个方案；需独立架构调查时才委派 2-3 个 architect，各自只返回差异与证据
+   - 工程取舍在用户已授权的范围内直接选择并记录；涉及业务/产品边界且现有约定不足的选择集中请用户决定。路线选定后进入第 4 步
+
+4. **生成选定路线的 plan.md 主体**
    - 输入: `story/<story>/spec.md` + `story/<story>/analysis.md` + `context.md` 相关片段 + `$root/wiki/<project>/` 与 `doc/analysis/` 命中内容 + 代码事实 + `$root/harness/template/plan.md`
    - 动作: 按模板在 `$work/story/<story>/plan.md` 输出：
      - 需求理解（关键约束与假设）
@@ -46,19 +51,6 @@ summary: 按 story 产出详细设计与施工图 story/<story>/plan.md——复
      - 逐环节编码落地：改动文件范围、实现要点、自测方式、风险与回滚
      - 测试策略提要
    - 纪律: 施工图粒度——文件路径、接口签名、SQL 语句、配置键、执行顺序与验证方式齐备，别人拿到即可直接编码
-
-4. **方案对比与选定（复杂任务门禁）**
-   - 复杂度判定:
-     - **可跳过**：单模块改动、存在明确可模仿的既有模式、无架构分歧的任务——一句话说明判定理由后直接采用推荐方案，仍在 plan.md 记录最终方案
-     - **必须多方案**：跨模块/多仓库协作、存在两种以上合理实现路线、影响既有架构或公共接口、含非平凡数据结构/事务/兼容性变更
-   - 动作（必须多方案时）:
-     - 先读取 `$root/harness/agents/code-architect.md`，通过 Task 子代理**并行委派 2-3 个 architect 实例**，分别持「最小改动 / 干净架构 / 务实平衡」取向独立出方案；委派 query 须包含仓库路径、spec 关键要求、第 2 步的可复用资产清单与只读约束
-     - 主 AI 汇总各方案，在 plan.md「方案对比与决策」小节输出：
-       - 每个方案：核心思路、改动清单（新增/修改文件与模块）、数据与接口变更、构建顺序、Pros/Cons、风险与回滚（格式要求见角色文件）
-       - **方案对比表**：对比维度至少含改动面、复用度、可维护性、兼容影响、工作量、主要风险
-       - **明确推荐一个方案并给出理由**（结合代码事实与项目现状，不做无立场罗列）
-     - 提交用户选定：说明推荐理由，请用户确认推荐方案或指定其他方案（也可要求补充方案）；**用户未选定前不进入模块划分**
-   - 边界: 本步骤处理架构级路线选择；实现级的局部选择（异常策略、配置方式、命名等）仍归第 7 步决策点
 
 5. **模块划分（低耦合优先）**
    - 动作: 将需求拆为**若干尽可能独立的模块**，在 plan.md 输出模块划分表：
@@ -78,37 +70,35 @@ summary: 按 story 产出详细设计与施工图 story/<story>/plan.md——复
    - 动作: 穷举开发中可能出现的选择（技术选型、方案分支、边界处理、异常策略、配置方式等），在 plan.md 设「决策记录」小节
    - 对每个决策点：给出**推荐方案 + 理由**，能依据代码事实或最佳实践确定的直接定为结论；确实需要业务/用户决断的，列给用户一次性确认
    - 约定：code 阶段若再遇本清单外的多方案选择，AI 自动按工程最优解实现并在提交说明中记录，不中断开发
-   - 分工: 架构级路线已在第 4 步关闭，本步骤只收实现级局部选择，不重复方案对比
+   - 分工: 架构级路线已在第 3 步关闭，本步骤只收实现级局部选择
 
 8. **设计上线流程**
    - 动作: 在 plan.md「上线流程」小节输出可执行步骤——发布顺序（服务/仓库/依赖）、数据库变更执行顺序与兼容窗口、配置项上线顺序、灰度/分批与开关策略、回滚步骤与判定、上线前检查项
    - 边界: 上线前检查项的逐项核对由 `release-check` 按需承接；本环节只给流程、顺序与回滚方案
 
 9. **同步任务清单到 status.yaml**
-   - 动作: 汇总 `$work/story/*/plan.md` 全部任务（本次 story 的最新任务与其它 story 已有任务，按 ID 去重）写成规范化 TSV（Tab 分隔，列：`id` / `title` / `module` / `repo` / `deps-csv` / `status`，deps 用逗号分隔）；先 `mkdir -p $root/.tack/tmp`，再用 `mktemp` 生成本次调用独有的临时文件（如 `TSV=$(mktemp "$root/.tack/tmp/tasks-<工作区目录名>.XXXXXX")`，Windows 在 Git for Windows bash 中执行同一条命令），TSV 写入该文件后执行
-     `sh $root/harness/script/work-status.sh $work/status.yaml tasks replace "$TSV"`
-   - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks validate`；退出码 4 时按 `ERROR<TAB>code<TAB>id<TAB>detail` 修复 TSV 后重试，不得绕过；导入与校验结束后执行 `rm -f "$TSV"` 清理（并发工作区互不共用临时文件，也不留残留文件被他人误读）
-   - 说明: 脚本按 id 保留已有 `acceptance` 字段，任务级状态不再手工编辑 YAML；验证方式保留在 plan.md 任务条目中；tasks 是工作区级全量清单，不得用单个 story 的任务覆盖其它 story
+   - 动作: 仅将本次 story 的任务写为六列 TSV（`id / title / module / repo / deps-csv / status`），在 `$root/.tack/tmp/` 用 `mktemp` 建独占文件，调用 `sh $root/harness/script/work-status.sh $work/status.yaml tasks import <story> "$TSV"` 后清理
+   - 脚本保留其它 story、同 ID 的已有状态与 acceptance，给新任务 pending，并在落盘前校验完整依赖图；退出码 4 时修复输入后重试。删任务需先确认依赖影响，再用全量 `tasks replace` 明确处理
 
 10. **澄清与确认（人类审阅关口）**
-   - 动作: 与用户逐条确认**第 4 步选定的实现方案**、技术取舍、模块边界、任务粒度、上线流程与第 7 步的待决策项；用户确认前不进入 code
+   - 动作: 一次展示选定方案、技术取舍、模块边界、任务粒度、上线流程与尚未关闭的决策项；已有明确授权的事项直接复用。审阅通过后执行 `sh $root/harness/script/command-context.sh confirm $root <workspace> <story> plan` 记录本 story 文档确认指纹
 
 11. **回写完成状态**
-   - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml set progress.plan true next "执行 code 开始逐任务开发（需要正式评审时先执行 tech-design）"`
+   - 动作: 由下方 finish 调用一次回写 progress.plan 与下一步，并提交本次产物
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): plan <branch>" "$work/story/<story>/plan.md" "$work/status.yaml"`，把 `story/<story>/plan.md` 与 status.yaml（tasks）的变更自动提交到 tack 空间根仓库；无变更自动跳过
+- 动作: 执行 `sh $root/harness/script/command-batch.sh finish $root <workspace> plan "执行 code；需正式评审时先 tech-design" "chore(tack): plan <branch>" "$work/story/<story>/plan.md"`，一次回写完成状态并提交 plan/status
 - 边界: 遵守 `harness/rule/git-boundary.md`
 
 ## 后置完成检验
 
 - [ ] `story/<story>/plan.md` 覆盖业务逻辑、数据层（含 SQL 与迁移）、逻辑层、接口层、上线流程、逐环节编码落地
 - [ ] 施工图粒度达标：文件路径、接口签名、SQL 语句、配置键、执行顺序与验证方式齐备
-- [ ] 方案门禁已履行：复杂任务有 ≥2 个方案、对比表与明确推荐，且用户已选定；简单任务已记录跳过理由与最终方案
+- [ ] 存在架构分歧时已比较路线并选定；只对选定路线生成详细设计
 - [ ] 模块划分低耦合、边界清晰，依赖关系无环
 - [ ] 每个任务有明确交付物、deps、验收标准与验证方式；任务 ID 在工作区内唯一
-- [ ] status.yaml 的 `tasks` 为全工作区汇总（含其它 story 已有任务），经 `tasks replace` 写入且 `tasks validate` 通过，初始均为 pending
+- [ ] 本 story 任务经 `tasks import` 增量导入且依赖校验通过，其它任务与已有状态保持完整
 - [ ] 「决策记录」中需用户决断的事项已全部关闭
 - [ ] 上线流程包含发布顺序、数据与配置上线顺序、灰度策略与回滚步骤
 - [ ] 已标注可复用资产；用户已审阅确认；未修改代码文件

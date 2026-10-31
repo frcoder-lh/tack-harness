@@ -222,11 +222,22 @@ function render_agents(   i, printed) {
 
 # 紧凑索引：名称/简写/触发词/短描述/路径，无表头对齐，供语义识别按需加载
 function render_index(   i) {
-    print "# 路由紧凑索引（type|name|short|triggers|summary|file）"
+    print "# 路由紧凑索引（type|name|short|triggers|summary|file；summary 为首个分句，完整说明用 show 查询）"
     for (i = 1; i <= n_ent; i++) {
         if (ent_type[i] == "agent") continue
-        print ent_type[i] "|" ent_name[i] "|" dash(ent_short[i]) "|" ent_trig[i] "|" ent_summ[i] "|" relpath(ent_file[i])
+        print ent_type[i] "|" ent_name[i] "|" dash(ent_short[i]) "|" ent_trig[i] "|" brief(ent_summ[i]) "|" relpath(ent_file[i])
     }
+}
+
+# brief <summary> — 取首个分句（跳过「按需命令（…）——」标记后，截到第一个「——」「；」「（」之前），供紧凑索引使用
+function brief(s,   cut, p, k, n, seps) {
+    if (index(s, "按需命令") == 1 && (p = index(s, "——")) > 0) s = substr(s, p + length("——"))
+    n = split("——,；,（", seps, ","); cut = 0
+    for (k = 1; k <= n; k++) {
+        p = index(s, seps[k])
+        if (p > 1 && (cut == 0 || p < cut)) cut = p
+    }
+    return cut ? substr(s, 1, cut - 1) : s
 }
 
 # exact_hit < lowercase-keyword > < index > — 名称/简写/触发词精确命中
@@ -245,7 +256,35 @@ function routeline(i) {
     return ent_type[i] "|" ent_group[i] "|" ent_file[i] "|" ent_name[i] "|" ent_short[i] "|" ent_trig[i] "|" ent_params[i] "|" ent_summ[i] "|" ARGS
 }
 
+# strip_polite <s> — 去掉句首口语前缀（请帮我/帮我/帮忙/麻烦/请），只剥一次
+function strip_polite(s,   p, n, k) {
+    n = split("请帮我,麻烦帮我,帮我,帮忙,麻烦,请", p, ",")
+    for (k = 1; k <= n; k++) {
+        if (index(s, p[k]) == 1 && length(s) > length(p[k])) {
+            s = substr(s, length(p[k]) + 1); sub(/^[[:space:]]+/, "", s)
+            return s
+        }
+    }
+    return s
+}
+
+# cjk_prefix_len <lowercase-input> <index> — 名称/简写/触发词中，含非 ASCII 且至少两个中文字、
+# 是输入前缀、且剩余部分不超过 4 个中文字的最长键长度；无则 0（resolve 在 C locale 下按字节计长）。
+# 剩余上限把命中限制在「提交代码」「代码审查一下」这类短指令，长句（「运行时报错是什么原因」）交语义识别
+function cjk_prefix_len(s, i,   keys, m, parts, k, key, best) {
+    keys = tolower(ent_name[i]) "," tolower(ent_short[i]) "," tolower(ent_trig[i])
+    m = split(keys, parts, ","); best = 0
+    for (k = 1; k <= m; k++) {
+        key = trim(parts[k])
+        if (key == "" || key ~ /^[ -~]+$/ || length(key) < 2 * CJK_UNIT) continue
+        if (length(s) - length(key) > 4 * CJK_UNIT) continue
+        if (index(s, key) == 1 && length(key) < length(s) && length(key) > best) best = length(key)
+    }
+    return best
+}
+
 BEGIN {
+    CJK_UNIT = length("中")
     n_ent = 0; n_grp = 0; ARGS = ""
 }
 
@@ -296,9 +335,15 @@ END {
     if (MODE == "resolve") {
         if (KEYWORD == "") { print "Error: resolve 需要传入 keyword" > "/dev/stderr"; exit 1 }
 
-        # 带参数输入：先取首个 token 做命令前缀精确识别，其余原样保留为 ARGS
+        # 剥可选的 /tack 前缀与口语前缀（请/帮我/麻烦…），与 hook 的剥离口径一致
         raw = KEYWORD
         sub(/^[[:space:]]+/, "", raw); sub(/[[:space:]]+$/, "", raw)
+        if (raw ~ /^\/[Tt][Aa][Cc][Kk]$/) raw = ""
+        else sub(/^\/[Tt][Aa][Cc][Kk][[:space:]]+/, "", raw)
+        raw = strip_polite(raw)
+        if (raw == "") { print "未找到匹配 \x27" KEYWORD "\x27 的工作流或命令" > "/dev/stderr"; exit 1 }
+
+        # 从最长词边界前缀逐步缩短，命中后保留原始参数。
         first = raw
         sub(/[[:space:]].*/, "", first)
         has_args = (first != raw)
@@ -310,21 +355,37 @@ END {
         exact_n = 0; fuzzy_n = 0
         delete exact; delete fuzzy
 
-        # 先按完整输入精确匹配（触发词本身含空格的情景），无命中再按命令前缀匹配
-        for (i = 1; i <= n_ent; i++) {
-            if (ent_type[i] == "agent") continue
-            if (exact_hit(tolower(raw), i)) { exact_n++; exact[exact_n] = i }
-        }
-        if (exact_n == 0 && has_args) {
+        prefix = raw
+        while (prefix != "") {
             for (i = 1; i <= n_ent; i++) {
                 if (ent_type[i] == "agent") continue
-                if (exact_hit(tolower(first), i)) { exact_n++; exact[exact_n] = i }
+                if (exact_hit(tolower(prefix), i)) { exact_n++; exact[exact_n] = i }
             }
-        } else if (exact_n > 0) {
-            ARGS = ""   # 完整输入即路由词，不带参数
+            if (exact_n > 0) {
+                ARGS = substr(raw, length(prefix) + 1)
+                sub(/^[[:space:]]+/, "", ARGS)
+                break
+            }
+            if (prefix !~ /[[:space:]]/) break
+            sub(/[[:space:]]+[^[:space:]]+$/, "", prefix)
         }
 
         kw = tolower(has_args ? first : raw)
+        # 中文触发词后直接接参数（如「提交代码」「推送到远端」）：无空格分隔时按最长中文触发词前缀命中，
+        # 剩余部分作参数原文；只认至少两个中文字的键，避免单字触发词把普通句子吞掉
+        if (exact_n == 0) {
+            lraw = tolower(raw); best = 0
+            for (i = 1; i <= n_ent; i++) {
+                if (ent_type[i] == "agent") continue
+                klen = cjk_prefix_len(lraw, i)
+                if (klen > best) { best = klen; exact_n = 0; delete exact }
+                if (klen > 0 && klen == best) { exact_n++; exact[exact_n] = i }
+            }
+            if (exact_n > 0) {
+                ARGS = substr(raw, best + 1)
+                sub(/^[[:space:]]+/, "", ARGS)
+            }
+        }
         if (exact_n == 0) {
             for (i = 1; i <= n_ent; i++) {
                 if (ent_type[i] == "agent") continue
@@ -371,9 +432,10 @@ AWK_PROG="${YAML_LIB}${AWK_PROG}"
 [ "$#" -gt 0 ] || set -- /dev/null
 
 if [ "${ACTION}" = "resolve" ] || [ "${ACTION}" = "show" ]; then
-    # awk 以退出码表达命中结果（0/1/2），需绕开 set -e
+    # awk 以退出码表达命中结果（0/1/2），需绕开 set -e；
+    # 匹配按字节进行（C locale）：各平台 awk 在 UTF-8 locale 下对中文的 length/区间/多字节转换口径不一
     set +e
-    awk -v MODE="${ACTION}" -v H="${HARNESS_DIR}" -v KEYWORD="${KEYWORD}" "${AWK_PROG}" "$@"
+    LC_ALL=C awk -v MODE="${ACTION}" -v H="${HARNESS_DIR}" -v KEYWORD="${KEYWORD}" "${AWK_PROG}" "$@"
     rc=$?
     exit "${rc}"
 fi

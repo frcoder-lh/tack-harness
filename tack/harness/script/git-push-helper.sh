@@ -15,6 +15,7 @@
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "${SCRIPT_DIR}/git-root.sh"
 
 usage() {
     echo "Usage: sh git-push-helper.sh <inspect|push> <repo-path>" >&2
@@ -37,7 +38,7 @@ if [ ! -d "${REPO}" ]; then
     echo "Error: repo path not found: ${REPO}" >&2
     exit 1
 fi
-if ! git -C "${REPO}" rev-parse --git-dir >/dev/null 2>&1; then
+if ! tack_is_repo_root "${REPO}"; then
     echo "Error: not a git repository: ${REPO}" >&2
     exit 1
 fi

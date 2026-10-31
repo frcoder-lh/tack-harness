@@ -26,11 +26,13 @@ jobs:
           zip -r "dist/tack-harness-${VERSION}.zip" . \
             -x '.git/*' \
             -x '.github/*' \
+            -x 'docs/*' \
             -x 'dist/*' \
             -x '.gitattributes' \
             -x '.gitignore'
           # 安装脚本按 releases/download/<tag>/tack-harness-<tag>.tar.gz 下载并核验
-          # 同名 .sha256；包内保留单层 tack-harness-<tag>/ 目录，解压路径与分支归档一致
+          # 同名 .sha256；包内保留单层 tack-harness-<tag>/ 目录，解压路径与分支归档一致；
+          # 排除项由 .gitattributes 的 export-ignore 声明，与上方 zip 排除清单一致
           git archive --format=tar.gz \
             --prefix="tack-harness-${VERSION}/" \
             -o "dist/tack-harness-${VERSION}.tar.gz" HEAD

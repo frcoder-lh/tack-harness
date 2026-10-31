@@ -8,6 +8,8 @@
 #                                                     clone 支持 -force 覆盖已存在仓库
 #   sh repo.sh fetch <root> [repo-name...]     # 更新全部（省略仓库名）或指定主仓库到远端最新；
 #                                                     逐仓库复用 git-fetch-helper.sh sync
+#   sh repo.sh create <root> <name> <project> <service> <purpose> [remote-url]
+#     建仓、生成最小说明、关联远端并登记；初始化提交通过正常 Git hooks
 #
 # fetch 退出码: 0 全部同步成功；1 存在普通失败；10 存在 pull 冲突；11 存在需人工介入项
 
@@ -58,6 +60,24 @@ link_dir() {
 }
 
 case "${ACTION}" in
+    create)
+        [ $# -ge 6 ] && [ $# -le 7 ] || exit 2
+        ROOT="$(cd "${ROOT}" && pwd -P)"
+        NAME="$3"; PROJECT="$4"; SERVICE="$5"; PURPOSE="$6"; REMOTE="${7:-}"
+        case "${NAME}" in ''|.|..|*[!A-Za-z0-9._-]*) echo "Error: invalid repository name" >&2; exit 2 ;; esac
+        sh "${SCRIPT_DIR}/project.sh" project-get "${ROOT}" "${PROJECT}" >/dev/null
+        TARGET="${ROOT}/repo/${NAME}"
+        [ ! -e "${TARGET}" ] || { echo "Error: repository already exists" >&2; exit 3; }
+        mkdir -p "${TARGET}"
+        git -C "${TARGET}" init
+        printf '# %s\n\n%s\n' "${NAME}" "${PURPOSE}" > "${TARGET}/README.md"
+        printf '.env\n.env.*\nlocal/\n' > "${TARGET}/.gitignore"
+        if [ -n "${REMOTE}" ]; then git -C "${TARGET}" remote add origin "${REMOTE}"; fi
+        git -C "${TARGET}" add -- README.md .gitignore
+        git -C "${TARGET}" commit -m "chore: initialize ${NAME}"
+        sh "${SCRIPT_DIR}/project.sh" project-service-repo "${ROOT}" "${PROJECT}" "${SERVICE}" "${NAME}" "${REMOTE}" "repo/${NAME}" --no-commit
+        printf 'CREATED=%s\n' "${TARGET}"
+        ;;
 
     scan)
         SCAN_DIR="$3"

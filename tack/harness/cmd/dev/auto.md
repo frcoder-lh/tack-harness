@@ -17,13 +17,13 @@ summary: 自动执行当前工作流剩余环节直到终态——开始前一�
 - 无 `$work` 时先执行 `work` 创建或切换工作区，本命令不新建工作区
 - `$work/status.yaml` 存在；当前工作流由 `workflow` / `status` 与 `progress` 判定（development / testing / bugfix / merge-conflict / branch-op）
 - 当前工作流不在 `blocked` 状态；已 blocked 时先补齐阻塞原因并解除，再进入第 1 步
-- 执行前重新读取 status.yaml 与已有产物，尊重本地最新内容
+- 执行前取得最新状态与 story 回执，按 `harness/rule/execution-efficiency.md` 补读变化的产物
 
 ## 指令内容
 
 1. **确认当前状态并推导剩余链路**
-   - 动作: 读取 `$work/status.yaml`（status / workflow / progress / tasks / current / branches / deploy）、已有产物（context、`story/*/analysis.md`、`story/*/spec.md`、`story/*/plan.md`、`doc/tech-design.md`、`doc/test.md`、`doc/code-review.md`）与当前工作流文档的「各环节与命令映射」
-   - 已完成的环节（progress 为 true 或产物已确认）不重跑；`in_progress` / `blocked` 的任务按状态续跑；工作区有多个 story 时，按 story 逐个完成 analyze → spec → plan，再统一进入 code
+   - 动作: 同一轮执行 `sh $root/harness/script/command-context.sh packet $root <workspace>` 与 `sh $root/harness/script/command-context.sh stories $root <workspace>`；按 workflow 的命令映射推导剩余环节，仅加载当前阶段相关正文
+   - story 回执有效的环节直接复用；缺失或变化时核对已有产物与授权，补齐确认。`in_progress` / `blocked` 的任务按状态续跑；多个 story 分别完成 analyze → spec → plan，再进入 code
    - 按工作流推导剩余链路（默认执行到该工作流终态，`close` 是否包含由第 2 步确认）：
 
      | 工作流 | 剩余链路（从当前环节起） | 默认终态 |
@@ -67,6 +67,7 @@ summary: 自动执行当前工作流剩余环节直到终态——开始前一�
    - 前置动作: 把第 3 步确认的执行约定写入 `$work/status.yaml` 的 `current.next`（执行 `sh $root/harness/script/work-status.sh $work/status.yaml set next "auto: <结束点与关键约定>"`）
    - 每个环节: 读取并严格执行对应 `harness/cmd/` 命令文件（准入、脚本调用、自动提交、安全禁令全部适用），按第 3 步授权完成该环节常规确认关口，不逐环节等待用户审阅
    - 环节衔接: 上一环节通过后置完成检验并回写 status.yaml 后进入下一环节；仓库未就绪时按 `code` 的仓库准入转 `repo` / `worktree`，完成后继续；push 遇 non-fast-forward 按 `push` 规则转 `fetch` / `solve` 后重试；合并冲突按 `merge` / `solve` 处理
+   - 合并等待: MR/PR 已创建但仍等待审批、CI 或平台合并时，记录链接、等待原因与恢复点，保持 `progress.merged: false`；取得全部仓库的实际合并证据后才满足 merged 终态。
    - 发现需求或实现偏差: 按 `fix` 修正后继续，修正内容与理由纳入最终汇报
    - 决策记录: 方案选择、跳过/降级项、冲突取舍、自动修正等写入对应产物（plan.md「决策记录」/「修订记录」、status.yaml `current.next` 或 `guidance`），并在最终汇报汇总
    - **不中断原则**: 除以下真实阻塞外不停止——

@@ -43,6 +43,13 @@
 #     共用固定路径导致把他人任务清单导入本工作区
 #   - 首行可为表头；写入前校验依赖图，非法则不落盘并退出码 4
 #   - 已存在同一 id 时保留其 acceptance 字段
+# 用法: sh work-status.sh <status.yaml> tasks import <story> <normalized-tsv>
+#   - 增量导入一个 story 的任务，保留其它任务、已有状态与 acceptance；新增任务为 pending
+# 用法: sh work-status.sh <status.yaml> tasks claim [task-id]
+# 用法: sh work-status.sh <status.yaml> tasks complete-next <task-id>
+#   - 持锁验证依赖，在副本上完成状态迁移后一次落盘；输出 CLAIMED=<id>（无就绪任务为空）
+# 用法: sh work-status.sh <status.yaml> tasks export
+#   - 输出规范化七列 TSV：id title module repo deps status story
 #
 # 用法: sh work-status.sh <status.yaml> deploy list
 #   - 输出部署登记，每行一条，TAB 分隔：repo / env / lane / route / build / url / status
@@ -83,9 +90,10 @@ usage() {
   echo "  sh work-status.sh <status.yaml> guidance <id> <applied|rejected> [落点路径 ..]" >&2
   echo "  sh work-status.sh <status.yaml> guidance list [pending|all]" >&2
   echo "  sh work-status.sh <root> guidance all [pending|all]" >&2
-  echo "  sh work-status.sh <status.yaml> tasks list|validate|ready|repos" >&2
+  echo "  sh work-status.sh <status.yaml> tasks list|export|validate|ready|repos|claim|complete-next" >&2
   echo "  sh work-status.sh <status.yaml> tasks set <task-id> <pending|in_progress|done|blocked>" >&2
   echo "  sh work-status.sh <status.yaml> tasks replace <normalized-tsv>" >&2
+  echo "  sh work-status.sh <status.yaml> tasks import <story> <normalized-tsv>" >&2
   echo "  sh work-status.sh <status.yaml> deploy list" >&2
   echo "  sh work-status.sh <status.yaml> deploy upsert <repo> <env> <lane> <route> <build> <url> <status>" >&2
   echo "  sh work-status.sh <status.yaml> deploy mark <repo> <env> <lane> <status>" >&2
@@ -194,6 +202,19 @@ if [ ! -f "${FILE}" ]; then
   exit 1
 fi
 
+# 写入操作共用空间锁；复合操作的子进程复用父锁。
+. "${SCRIPT_DIR}/space-lock.sh"
+case "${SUBCMD}:${1:-}" in
+  tasks:list|tasks:export|tasks:validate|tasks:ready|tasks:repos|guidance:list|deploy:list|branch:list) ;;
+  *)
+    LOCK_ROOT="$(cd "$(dirname "${FILE}")" && pwd -P)"
+    if [ -d "${LOCK_ROOT}/../../harness" ]; then
+      LOCK_ROOT="$(cd "${LOCK_ROOT}/../.." && pwd -P)"
+    fi
+    tack_space_lock_acquire "${LOCK_ROOT}"
+    ;;
+esac
+
 # 临时文件优先放 tack 空间 .tack/tmp/（不写系统 temp，退出即清）；
 # 仅当 FILE 不在规范空间布局内（<root>/space/<workspace>/status.yaml）时回退系统临时目录
 SPACE_ROOT="$(cd "$(dirname "${FILE}")/../.." 2>/dev/null && pwd)" || SPACE_ROOT=""
@@ -209,7 +230,9 @@ else
     PAIRS="$(mktemp "${TMPDIR:-/tmp}/tack-ws-pairs.XXXXXX")"
     TMP="$(mktemp "${TMPDIR:-/tmp}/tack-ws-out.XXXXXX")"
 fi
-trap 'rm -f "${PAIRS}" "${TMP}"; rmdir "${TMP_DIR}" 2>/dev/null || true' EXIT HUP INT TERM
+trap 'rm -f "${PAIRS}" "${TMP}" "${TMP}.tsv" "${TMP}.old" "${TMP}.new" "${TMP}.yaml"; tack_space_lock_release; rmdir "${TMP_DIR}" 2>/dev/null || true' EXIT HUP INT TERM
+: > "${PAIRS}"
+: > "${TMP}"
 
 # guidance 子命令：固化结论回写（applied 校验落点后仅置状态；rejected 仅置状态）
 if [ "${SUBCMD}" = "guidance" ]; then
@@ -345,9 +368,9 @@ fi
 if [ "${SUBCMD}" = tasks ]; then
   TACT="${1:-}"
   case "${TACT}" in
-    list|validate|ready|repos|set|replace) shift ;;
+    list|export|validate|ready|repos|set|replace|import|claim|complete-next) shift ;;
     *)
-      echo "work-status: tasks 子动作只支持 list|validate|ready|repos|set|replace: ${TACT}" >&2
+      echo "work-status: 未知 tasks 子动作: ${TACT}" >&2
       exit 2
       ;;
   esac
@@ -358,10 +381,10 @@ if [ "${SUBCMD}" = tasks ]; then
         if (!item_open) return
         n++
         ids[n] = cur_id; titles[n] = cur_title; modules[n] = cur_module
-        repos[n] = cur_repo; deps[n] = cur_deps
+        repos[n] = cur_repo; deps[n] = cur_deps; stories[n] = cur_story
         statuses[n] = (cur_status == "" ? "pending" : cur_status)
         item_open = 0; cur_id = ""; cur_title = ""; cur_module = ""
-        cur_repo = ""; cur_deps = ""; cur_status = ""
+        cur_repo = ""; cur_deps = ""; cur_status = ""; cur_story = ""
     }
     BEGIN { in_t = 0; item_open = 0; n = 0; cur_id = ""; cur_title = ""; cur_module = ""; cur_repo = ""; cur_deps = ""; cur_status = "" }
     /^[A-Za-z_][A-Za-z0-9_]*:/ {
@@ -385,6 +408,7 @@ if [ "${SUBCMD}" = tasks ]; then
             else if (key == "repo") cur_repo = v
             else if (key == "deps") cur_deps = norm_csv(v)
             else if (key == "status") cur_status = v
+            else if (key == "story") cur_story = v
             next
         }
         if (!item_open) next
@@ -398,6 +422,7 @@ if [ "${SUBCMD}" = tasks ]; then
             else if (key == "repo") cur_repo = v
             else if (key == "deps") cur_deps = norm_csv(v)
             else if (key == "status") cur_status = v
+            else if (key == "story") cur_story = v
             next
         }
         # 块格式 deps（- A-01）按逗号拼接
@@ -409,6 +434,11 @@ if [ "${SUBCMD}" = tasks ]; then
     }
     END {
         if (in_t) flush()
+        if (MODE == "export") {
+            for (i = 1; i <= n; i++)
+                printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", ids[i], titles[i], modules[i], repos[i], deps[i], statuses[i], stories[i]
+            exit 0
+        }
         if (MODE == "list") {
             for (i = 1; i <= n; i++)
                 printf "%s\t%s\t%s\t%s\t%s\n", ids[i], statuses[i], titles[i], repos[i], deps[i]
@@ -499,12 +529,64 @@ if [ "${SUBCMD}" = tasks ]; then
   TASKS_AWK="${YAML_LIB}${TASKS_AWK}"
 
   case "${TACT}" in
-    list|validate|ready|repos)
+    list|export|validate|ready|repos)
       if awk -v MODE="${TACT}" "${TASKS_AWK}" "${FILE}"; then
         exit 0
       else
         exit $?
       fi
+      ;;
+    claim|complete-next)
+      sh "${SCRIPT_DIR}/work-status.sh" "${FILE}" tasks validate >/dev/null
+      cp "${FILE}" "${TMP}.yaml"
+      if [ "${TACT}" = complete-next ]; then
+        [ -n "${1:-}" ] || { usage; exit 2; }
+        OLD="$(awk -v MODE=status -v ARG="$1" "${TASKS_AWK}" "${FILE}")"
+        [ "${OLD}" = in_progress ] || { echo "Error: complete-next requires in_progress" >&2; exit 4; }
+        sh "${SCRIPT_DIR}/work-status.sh" "${TMP}.yaml" tasks set "$1" done
+        shift
+      fi
+      READY="$(sh "${SCRIPT_DIR}/work-status.sh" "${TMP}.yaml" tasks ready)"
+      if [ -n "${1:-}" ]; then
+        PICK="$(printf '%s\n' "${READY}" | awk -F '\t' -v ID="$1" '$1 == ID {print $1}')"
+        [ -n "${PICK}" ] || { echo "Error: task is not ready: $1" >&2; exit 4; }
+      else
+        PICK="$(printf '%s\n' "${READY}" | awk -F '\t' 'NR == 1 {print $1}')"
+      fi
+      if [ -n "${PICK}" ]; then
+        sh "${SCRIPT_DIR}/work-status.sh" "${TMP}.yaml" tasks set "${PICK}" in_progress
+      fi
+      sh "${SCRIPT_DIR}/work-status.sh" "${TMP}.yaml" set task "${PICK}"
+      mv "${TMP}.yaml" "${FILE}"
+      printf 'CLAIMED=%s\n' "${PICK}"
+      sh "${SCRIPT_DIR}/work-status.sh" "${FILE}" tasks list
+      exit 0
+      ;;
+    import)
+      [ $# -eq 2 ] || { usage; exit 2; }
+      STORY="$1"; TSV_IN="$2"
+      case "${STORY}" in ''|*[!A-Za-z0-9._-]*) echo "Error: invalid story" >&2; exit 2 ;; esac
+      [ -f "${TSV_IN}" ] || { echo "Error: TSV not found" >&2; exit 1; }
+      awk -v MODE=export "${TASKS_AWK}" "${FILE}" > "${TMP}.old"
+      # 先合并完整图再校验，跨 story 依赖由 replace 的统一校验器处理。
+      if ! LC_ALL=C awk -F '\t' -v OFS='\t' -v STORY="${STORY}" -v OLD="${TMP}.old" '
+        FILENAME == OLD { old[$1]=$0; state[$1]=$6; owner[$1]=$7; order[++n]=$1; next }
+        $1 == "id" && $2 == "title" { next }
+        /^[[:space:]]*$/ { next }
+        {
+          if (NF != 6 || $1 == "" || $2 == "" || seen[$1]++) { bad=1; next }
+          if (owner[$1] != "" && owner[$1] != STORY) { bad=1; next }
+          if (!($1 in old)) order[++n]=$1
+          $6=($1 in state ? state[$1] : "pending"); $7=STORY; old[$1]=$0
+        }
+        END { if (bad) exit 4; for(i=1;i<=n;i++) print old[order[i]] }
+      ' "${TMP}.old" "${TSV_IN}" > "${TMP}.new"; then
+        echo "Error: invalid import or task owned by another story" >&2
+        exit 4
+      fi
+      sh "${SCRIPT_DIR}/work-status.sh" "${FILE}" tasks replace "${TMP}.new"
+      sh "${SCRIPT_DIR}/work-status.sh" "${FILE}" tasks list
+      exit 0
       ;;
     set)
       [ $# -ge 2 ] || { echo "work-status: tasks set 需要 <task-id> <pending|in_progress|done|blocked>" >&2; exit 2; }
@@ -588,7 +670,7 @@ if [ "${SUBCMD}" = tasks ]; then
         {
             if (first && tolower($1) == "id" && tolower($2) == "title") { first = 0; next }
             first = 0
-            if (NF != 6) { printf "ERROR\tbad-columns\t%s\t期望 6 列，实际 %d 列\n", $1, NF; bad = 1; next }
+            if (NF != 6 && NF != 7) { printf "ERROR\tbad-columns\t%s\t期望 6/7 列，实际 %d 列\n", $1, NF; bad = 1; next }
             if ($1 == "") { printf "ERROR\tmissing-id\t-\t第 %d 行缺少 id\n", NR; bad = 1 }
             if ($2 == "") { printf "ERROR\tmissing-title\t%s\t缺少 title\n", $1; bad = 1 }
             s = ($6 == "" ? "pending" : $6)
@@ -607,6 +689,7 @@ if [ "${SUBCMD}" = tasks ]; then
             print "    module: " esc(tmodule[i])
             print "    repo: " esc(trepo[i])
             print "    deps: " inline_list(tdeps[i])
+            if (tstory[i] != "") print "    story: " esc(tstory[i])
             if (tid[i] in acc) print "    acceptance: " esc(acc[tid[i]])
             print "    status: " esc(tstatus[i])
         }
@@ -621,6 +704,7 @@ if [ "${SUBCMD}" = tasks ]; then
                 tid[nt] = f[1]; ttitle[nt] = f[2]; tmodule[nt] = f[3]
                 trepo[nt] = f[4]; tdeps[nt] = f[5]
                 tstatus[nt] = (f[6] == "" ? "pending" : f[6])
+                tstory[nt] = f[7]
             }
             close(TSV)
             # 预读旧文件：保留同一 id 的 acceptance

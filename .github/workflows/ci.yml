@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   quality:
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -21,6 +22,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Shell syntax (sh -n)
         run: find . -name '*.sh' -not -path './.git/*' -print0 | xargs -0 -n1 sh -n
 
@@ -32,3 +38,15 @@ jobs:
 
       - name: Doc script signature lint
         run: sh tack/harness/script/lint-doc-scripts.sh tack/harness
+
+      - name: Command regression tests
+        run: sh .github/tests/run.sh --report "$RUNNER_TEMP/command-regression.xml"
+
+      - name: Upload regression report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: command-regression-${{ matrix.os }}
+          path: ${{ runner.temp }}/command-regression.xml
+          if-no-files-found: warn
+          retention-days: 14

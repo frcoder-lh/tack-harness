@@ -1,10 +1,10 @@
 # 版本检查规则（更新提醒）
 
-> `check-update.sh` 的挂载时机与输出消费约定。被 `close` / `evolution` / `record` / `help` 命令收尾环节引用。
+> `check-update.sh` 的挂载时机与输出消费约定。被 `close` / `help` 收尾环节与 `evolution` / `record` 落盘前环节引用。
 
 ## 调用
 
-- 时机：命令自身流程已完成、输出下一步建议之前，执行 `sh $root/harness/script/check-update.sh $root`
+- 时机：`close` / `help` 在自身流程完成、输出下一步建议之前；`evolution` / `record` 在审查或落盘之前（以便先 update 再改 harness），执行 `sh $root/harness/script/check-update.sh $root`
 - 非 tack 空间（无 `$root/AGENTS.md`）不调用
 
 ## 输出协议（AI 消费）
@@ -19,4 +19,4 @@
 
 ## 节流机制（仅理解，无需检查）
 
-脚本内部双节流：距上次真实检查不足 7 天不发网络请求；同一新版本只提醒一次。运行状态在 `$root/.tack/state/`，已被 `.gitignore` 排除。
+脚本内部双节流：距上次真实检查不足 7 天不发网络请求；同一新版本只提醒一次。网络请求带超时（默认 20 秒），超时按失败处理并同样记录检查时间。运行状态在 `$root/.tack/state/`，已被 `.gitignore` 排除。

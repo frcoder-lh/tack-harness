@@ -15,11 +15,13 @@ summary: 合并前独立深度审查——以 story/<story>/plan.md 与 doc/tech
 ## 前置准入条件
 
 - 已确定当前工作区 `$work`
-- `$work/story/*/plan.md` 已确认（`progress.plan: true`）；`$work/doc/tech-design.md`（或多 story 时的 `doc/tech-design-<story>.md`）存在（无则在报告头部注明规范来源仅 plan.md）
-- 各涉及仓库当前分支改动已 `commit`（审查基于提交事实，未提交改动不进入范围）；建议先 `fetch`
+- 涉及 story 的 plan 已确认且回执有效；存在的 tech-design 文档一并作为规范输入，无则在报告头部注明规范来源仅 plan
+- 审查范围包含当前分支提交及暂存、未暂存、未跟踪改动，报告记录 HEAD 与证据指纹；建议先 `fetch`
 - **Git 作用域**：遵守 `harness/rule/git-boundary.md`——只读操作仅在 `$work/repo/<repo-name>/` 内执行
 
 ## 指令内容
+
+先按 `harness/rule/execution-efficiency.md` 调用 `command-context.sh evidence`（label=`code-review`），复用仍有效的报告证据；变化时按 manifest 确定需重读的文档、仓库及关联影响。首轮完整评审，复审沿用问题清单逐项核验；评审结束用 `accept` 记录已验证输入。diff 输出目录按工作区隔离。
 
 1. **回写环节状态**
    - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml set stage review task 代码审查 next 生成doc/code-review.md`（自动刷新 updated_at）；不改变 `status`
@@ -27,7 +29,8 @@ summary: 合并前独立深度审查——以 story/<story>/plan.md 与 doc/tech
 2. **确定审查范围并导出 diff 事实**
    - 输入: 目标分支参数（默认主干 master/main，由脚本自动探测）
    - 仓库清单取 `sh $root/harness/script/work-status.sh $work/status.yaml tasks repos`（可按需与 `story/*/plan.md` 模块划分「所属仓库」列合并），执行批量导出：
-     `sh $root/harness/script/git-diff-context.sh batch $work $root/.tack/tmp/review [目标分支]`
+     `sh $root/harness/script/git-diff-context.sh batch $work $root/.tack/tmp/review/<workspace> [目标分支]`
+   - 导出包含已提交 diff、暂存/未暂存补丁与未跟踪路径，按实际存在的文件分别审查
      解析每仓库输出行 `target_ref`、`merge_base`、`head`、`empty`、`files_changed`、`diff_file`、`stat_file` 与汇总行 `summary_*`
    - 退出码: 0 至少一个仓库有差异；3 全部无差异（中止并提示「与目标分支无差异，无需审查」）；1 部分仓库失败；11 目标分支不存在
    - `empty: true` 的仓库向用户说明后跳过

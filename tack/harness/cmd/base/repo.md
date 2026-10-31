@@ -29,14 +29,14 @@ summary: 管理代码主仓库（$root/repo/）——新建并纳入项目空间
    - 动作: 结合项目关键词与用途，给出 2-3 个英文 kebab-case 仓库名建议（命名遵守 `harness/rule/naming.md`），用户选择或自行输入后确认
 
 3. **创建仓库**
-   - 动作: `mkdir -p $root/repo/<name>` 后在其中执行 `git init`；生成最小 README（仓库名 + 一句话用途）与合适的 .gitignore（按技术栈）
+   - 动作: 项目、名称、服务、用途与可选远端地址一次确定后，执行 `sh $root/harness/script/repo.sh create $root <name> <project> <service> "<用途>" [remote-url]`，完成建仓、最小 README/.gitignore、初始提交与映射登记；再按技术栈补充必要忽略规则
 
 4. **关联远端（可选）**
    - 输入: 用户是否已有远端仓库地址
-   - 动作: 有地址则执行 `git remote add origin <url>`；没有则提示先在代码平台建仓，稍后可补
+   - 动作: 建仓时已有地址由 create 一并配置；后续补充地址时执行 `git remote add origin <url>`
 
 5. **登记映射**
-   - 动作: 执行 `sh $root/harness/script/project.sh project-service-repo $root "<项目名>" "<服务名称>" "<repo 名>" "<repo_git，未关联远端则空串>" "repo/<name>"` 追加当前项目的 `service_repo_mapping`，并按 `harness/rule/wiki-write.md` 物化/更新 `wiki/<project>/config/services.md` 与 `wiki/<project>/code/repos.md` 的仓库/服务真实行，同步登记分类索引；环境、账号、配置等事实有真实来源才填写，不臆造锚点；提示用户补全服务信息
+   - 动作: 复用 create 的映射登记，按 `harness/rule/wiki-write.md` 更新服务/仓库的真实 wiki 行并同步索引；只补有来源的信息
 
 ### 更新仓库（fetch）
 
@@ -56,7 +56,7 @@ summary: 管理代码主仓库（$root/repo/）——新建并纳入项目空间
 
 ## 框架自动提交（无需用户操作）
 
-- 新建仓库: 第 5 步 `project.sh project-service-repo` 执行时自动把 `tack.yaml` 映射变更提交到 tack 空间根仓库（无变更自动跳过）；wiki 物化变更随后执行 `sh $root/harness/script/space.sh commit $root "chore(tack): register repo <name>" "$root/wiki"` 统一收尾
+- 新建仓库: wiki 物化后，执行 `sh $root/harness/script/space.sh commit $root "chore(tack): register repo <name>" "$root/tack.yaml" <本次wiki文件...>` 统一提交登记与实际修改的 wiki 文件
 - 更新仓库: `repo/` 已被 .gitignore 忽略，同步不产生空间仓库变更，无需提交
 - 边界: 遵守 `harness/rule/git-boundary.md`；新代码仓库内的 README / .gitignore 首次提交由用户经 `commit` 命令发起，框架不代提
 

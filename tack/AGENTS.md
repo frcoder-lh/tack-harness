@@ -27,7 +27,7 @@ Github：https://github.com/frcoder-lh/tack-harness
 2. **语义识别**：执行 `scan-routes index "$root/harness"` 取得紧凑索引（名称、简写、触发词、短描述、路径），与输入做语义匹配，挑最可能的 1-3 条向用户确认；仍不明确时列候选让用户选择；与 tack 工作流无关的请求直接正常回答。
 3. **确认工作区与项目**（见「工作区与项目确认」），识别意图所属 workflow 并按状态机引导。
 
-缓存：上下文已有命令正文或紧凑索引时直接复用，不重复读取；用户提示文件已改动或进入新的修改阶段时重新读取。用户请求帮助时，用 `scan-routes list "$root/harness"` 展示完整路由表。
+缓存：上下文已有命令正文或紧凑索引时直接复用；文件变化或上下文缺失时重新读取。help 无参数时展示完整路由表，带名称时直接 show。命令上下文包、确认回执、增量评审与合并收尾统一按 `harness/rule/execution-efficiency.md` 执行。
 
 ## AGENT 核心约束
 

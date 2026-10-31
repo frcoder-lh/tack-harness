@@ -28,6 +28,8 @@
 #   11 缺少 remote、upstream 或默认主干，需要介入
 
 set -eu
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+. "${SCRIPT_DIR}/git-root.sh"
 
 usage() {
     echo "Usage: sh git-facts.sh <repos|status|default-branch|conflicts|freshness> <args...>" >&2
@@ -41,7 +43,7 @@ require_repo() {
         echo "Error: repo path not found: ${1:-}" >&2
         exit 1
     fi
-    if ! git -C "$1" rev-parse --git-dir >/dev/null 2>&1; then
+    if ! tack_is_repo_root "$1"; then
         echo "Error: not a git repository: $1" >&2
         exit 1
     fi
@@ -79,7 +81,7 @@ repos)
     for d in "${WORK_DIR}/repo"/*/; do
         [ -d "${d}" ] || continue
         [ -e "${d}/.git" ] || continue
-        if git -C "${d}" rev-parse --git-dir >/dev/null 2>&1; then
+        if tack_is_repo_root "${d}"; then
             printf '%s\t%s\n' "$(basename "${d}")" "${d%/}"
             found=1
         fi

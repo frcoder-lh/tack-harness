@@ -4,7 +4,7 @@
 
 ## 先扫描，再决定融合或新建
 
-- 执行 `sh $root/harness/script/scan-routes.sh commands $root/harness` 全量列出命令，结合记录内容做语义匹配
+- 执行 `sh $root/harness/script/scan-routes.sh index $root/harness`，按名称、触发词与摘要筛选相关命令，再读取命中文件
 - **命中相关条目**：读取对应内容，与用户确认如何**融合修正**——最小化修改，不重写无关内容
 - **确无合适条目**：才进入新建
 

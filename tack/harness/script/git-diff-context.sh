@@ -33,6 +33,8 @@
 #                    3 全部无差异或无仓库；11 目标分支在所有仓库均不存在
 
 set -eu
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+. "${SCRIPT_DIR}/git-root.sh"
 
 if [ $# -lt 2 ]; then
     echo "Usage: $0 <repo-path> <out-dir> [target-branch]" >&2
@@ -131,7 +133,7 @@ esac
 
 cd "${REPO}"
 
-if ! git rev-parse --git-dir >/dev/null 2>&1; then
+if ! tack_is_repo_root .; then
     echo "Error: not a git repository: ${REPO}" >&2
     exit 1
 fi
@@ -184,6 +186,9 @@ STAT_FILE="${OUT_BASE}.stat"
 
 git diff "${MERGE_BASE}...HEAD" > "${DIFF_FILE}"
 git diff --stat "${MERGE_BASE}...HEAD" > "${STAT_FILE}"
+git diff --cached --no-ext-diff > "${OUT_BASE}.staged.diff"
+git diff --no-ext-diff > "${OUT_BASE}.unstaged.diff"
+git ls-files --others --exclude-standard > "${OUT_BASE}.untracked"
 
 # 汇总统计（numstat 对二进制文件输出 "-"，awk 转数值按 0 计）
 STATS="$(git diff --numstat "${MERGE_BASE}...HEAD" | awk '{ i += $1; d += $2; n++ } END { printf "%d %d %d", n + 0, i + 0, d + 0 }')"
@@ -198,6 +203,7 @@ if [ "${FILES_CHANGED}" -eq 0 ]; then
 else
     EMPTY=false
 fi
+if [ -s "${OUT_BASE}.staged.diff" ] || [ -s "${OUT_BASE}.unstaged.diff" ] || [ -s "${OUT_BASE}.untracked" ]; then EMPTY=false; fi
 
 echo "repo: ${REPO_NAME}"
 echo "target_ref: ${TARGET_REF}"
@@ -209,3 +215,6 @@ echo "insertions: ${INSERTIONS}"
 echo "deletions: ${DELETIONS}"
 echo "diff_file: ${DIFF_FILE}"
 echo "stat_file: ${STAT_FILE}"
+echo "staged_diff_file: ${OUT_BASE}.staged.diff"
+echo "unstaged_diff_file: ${OUT_BASE}.unstaged.diff"
+echo "untracked_file: ${OUT_BASE}.untracked"

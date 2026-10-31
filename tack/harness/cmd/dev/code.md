@@ -15,7 +15,7 @@ summary: 编码前先判定涉及仓库并确保就绪（主仓库缺失转 repo
 ## 前置准入条件
 
 - 已确定当前工作区 `$work`
-- `$work/story/*/plan.md` 中至少一个已确认（`progress.plan: true`），`$work/status.yaml` 的 `tasks` 列表非空
+- 待执行任务所属 story 的 plan 已确认且回执有效，`$work/status.yaml` 的 tasks 列表非空；准入按 `execution-efficiency.md` 核对
 - plan.md 的「决策记录」中需用户决断的事项已关闭
 - **仓库准入已判定**：已汇总本批任务涉及的仓库清单；仓库模式（默认）下各仓库在 `$root/repo/<name>` 存在且 `$work/repo/<name>` 有可用 worktree，未就绪须先转 `repo` / `worktree`（见指令内容第 1 步）；片段模式（用户明确选择）豁免本项
 - 仓库模式下所有代码改动只能在 `$work/repo/<repo-name>/`（git worktree）内，禁止直接修改 `$root/repo/`；片段模式不创建、不改动任何仓库文件，仅在回复中交付代码片段
@@ -38,11 +38,11 @@ summary: 编码前先判定涉及仓库并确保就绪（主仓库缺失转 repo
      - 用户拒绝新建或补建、准入无法满足：相关任务置 `blocked` 并在 `current.next` 写明原因；不得降级为直接修改 `$root/repo/`
 
 2. **制定本批执行顺序并回写状态**
-   - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks ready` 取得 deps 已全部 done 的 pending 任务：
-     - 参数指定任务 ID：仅执行该任务（其 deps 必须均为 done，否则提示先完成依赖）
-     - 未指定：从 ready 列表开始，按依赖层级连续推进；每轮重新执行 `tasks ready` 以纳入刚完成的任务
+   - 动作: 先从最新任务快照与 `current.task` 判定续跑对象，结合会话交接和执行记录核对执行者及断点；归属不明或仍由其他执行者处理时先澄清。
+     - 参数指定任务 ID：in_progress 且确认由本次负责时直接恢复；pending 时执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks claim <任务ID>` 检查依赖并领取；done / blocked 先明确是否重开及阻塞处理。
+     - 未指定：优先恢复本次负责的 in_progress 任务；无可恢复任务时执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks claim`，输出 `CLAIMED` 与任务快照；后续使用 `complete-next` 返回的下一项。
    - 无依赖关系的任务可并行（不同模块/仓库优先）；有依赖的严格按顺序
-   - 执行 `sh $root/harness/script/work-status.sh $work/status.yaml set status developing stage code next "<本批目标>"`（自动刷新 updated_at）；本批首个任务执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks set <任务ID> in_progress`
+   - 执行 `sh $root/harness/script/work-status.sh $work/status.yaml set status developing stage code task "<本次任务ID>" next "<本批目标>"`
 
 3. **加载规则**
    - 动作: 按任务涉及的代码类型（后端/前端/配置/SQL/脚本等）加载 `$root/harness/rule/` 匹配规则：加载 `coding-standards.md` 中**已有实质条目的小节**（空小节不构成约束，无内容可加载时直接跳过，以模仿仓库既有代码模式为默认基线）；任务涉及某语言时，若存在对应语言规则文件 `coding-standards-<语言>.md`（如 `coding-standards-python.md`）则一并加载——这些文件按需新建，不存在即该语言无项目级约束；再加载类型专属规则（项目可自行扩展）
@@ -56,7 +56,7 @@ summary: 编码前先判定涉及仓库并确保就绪（主仓库缺失转 repo
      1. 向用户**简述**本任务目标与涉及仓库（一句话，不等待确认，直接开始）
      2. grep 定位改动点与可复用资产；**代码中已有类似逻辑时，优先复用或严格模仿其模式**（命名、分层、异常处理、日志、配置方式），不另造风格
      3. 严格按所属 story 的 `plan.md` 落地方案、决策记录与任务验收标准编码：仓库模式涉及多仓库时按依赖顺序改动；片段模式按依赖顺序组织片段，逐段标注所属仓库与建议落点路径
-     4. 仓库模式：本地构建/相关测试通过后执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks set <任务ID> done`；**片段模式：不编译、不运行、不测试，片段交付即置 done**；随后将下一个就绪任务置 `in_progress`，继续开发
+     4. 仓库模式通过本地构建/相关测试、片段模式完成约定交付后，连续执行范围内调用 `sh $root/harness/script/work-status.sh $work/status.yaml tasks complete-next <任务ID>`，一次完成当前任务并领取下一项；用户限定单任务或本批结束时使用 `tasks set <任务ID> done`。并行任务由各执行者分别 claim，禁止领取后交给无人负责的流程
    - 纪律:
      - 不修改 spec/plan 等规划文档（发现需求问题应走 `fix` 命令，不擅自改需求）
      - Git 安全禁令（force push、`reset --hard`、`--no-verify`）见 `harness/rule/git-boundary.md`
@@ -66,8 +66,8 @@ summary: 编码前先判定涉及仓库并确保就绪（主仓库缺失转 repo
    - 仅以下情况中断并询问：
      - 任务 `status` 需置 `blocked`：执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks set <任务ID> blocked`，原因写入 `current.next`
      - 出现 plan 未覆盖且无法用工程常识判定的**业务/产品**决策
-     - 一个模块的全部任务完成（模块里程碑：汇总该模块改动，允许用户选择审阅或继续下一模块）
-   - 其余情况连续完成本批任务，不逐任务等待审核
+     - 用户预先指定的审阅点已到达
+   - 模块完成时简述改动与验证结果，继续已授权范围；其余情况连续完成本批任务
 
 6. **批次收尾与回写**
    - 动作: 本批任务全部完成后：

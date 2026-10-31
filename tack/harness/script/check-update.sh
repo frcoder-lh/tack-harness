@@ -23,10 +23,11 @@
 #   AGENTS.md 旧版项目信息区块（无 tack.yaml 的老空间）->
 #   本机已安装 skill 的 SKILL.md front matter version（agent 预设与提取逻辑由 common.sh 统一维护）。
 # 检查目标: <update-url>/releases/latest 的 302 重定向地址尾段（单次 HEAD 请求，
-#   不走 GitHub API、无响应体）。变更说明同时取 <update-url>/raw/master/CHANGELOG.md
+#   不走 GitHub API、无响应体）。变更说明同时取 <update-url>/raw/<最新 tag>/CHANGELOG.md
 #   与 CHANGELOG.en.md 中「本机版本(不含)→最新版本」区间的全部版本段落，中英双语分别展示
-#   （任一语言拉取失败只缺失该语言段落，不阻塞提醒）。update-url 默认取出厂仓库地址，
-#   环境变量 TACK_UPDATE_URL 可覆盖（隔离测试用）。
+#   （任一语言拉取失败只缺失该语言段落，不阻塞提醒）。全部网络请求带超时
+#   （common.sh 的 TACK_NET_TIMEOUT，默认 20 秒），断网或代理挂起时按失败静默返回。
+#   update-url 默认取出厂仓库地址，环境变量 TACK_UPDATE_URL 可覆盖（隔离测试用）。
 # 状态文件: <root>/.tack/state/update-state（本机运行时状态，.gitignore 已排除），行格式:
 #   last_check=<epoch 秒>   上次发起真实检查的时间（含失败尝试）
 #   notified=<tag>          已提醒过的版本
@@ -197,14 +198,14 @@ case "${_old}" in V*|v*) ;; *) _old="V${_old}" ;; esac
 
 _changes_zh=""
 _tmp_zh="${TMP_DIR}/changelog.zh"
-if tack_download_to "${UPDATE_URL%/}/raw/master/CHANGELOG.md" "${_tmp_zh}"; then
+if tack_download_to "${UPDATE_URL%/}/raw/${_tag}/CHANGELOG.md" "${_tmp_zh}" "${TACK_NET_TIMEOUT:-20}"; then
     _changes_zh="$(cl_section "${_tmp_zh}" "${_tag}" "${_old}")"
 fi
 rm -f "${_tmp_zh}"
 
 _changes_en=""
 _tmp_en="${TMP_DIR}/changelog.en"
-if tack_download_to "${UPDATE_URL%/}/raw/master/CHANGELOG.en.md" "${_tmp_en}"; then
+if tack_download_to "${UPDATE_URL%/}/raw/${_tag}/CHANGELOG.en.md" "${_tmp_en}" "${TACK_NET_TIMEOUT:-20}"; then
     _changes_en="$(cl_section "${_tmp_en}" "${_tag}" "${_old}")"
 fi
 rm -f "${_tmp_en}"

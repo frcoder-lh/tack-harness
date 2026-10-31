@@ -93,9 +93,15 @@ ensure_git
 
 mkdir -p "${ROOT}"
 
-# 复制 tack 骨架全部内容到目标目录：骨架内文件已位于最终位置，复制即物化
-# -n: 目标已存在的文件跳过，不覆盖用户内容；重复执行安全
-cp -rn "${TACK_DIR}/." "${ROOT}/"
+# 按路径补齐骨架；显式判断存在性，使三平台的跳过行为与返回码一致。
+find "${TACK_DIR}" -type d -print | while IFS= read -r dir; do
+    rel="${dir#"${TACK_DIR}"}"
+    mkdir -p "${ROOT}${rel}"
+done
+find "${TACK_DIR}" -type f -print | while IFS= read -r file; do
+    rel="${file#"${TACK_DIR}/"}"
+    if [ ! -e "${ROOT}/${rel}" ]; then cp "${file}" "${ROOT}/${rel}"; fi
+done
 
 # space/ 工作空间、repo/ 代码主仓库、wiki/ 公共知识目录在骨架中均为空目录
 # （Git 不跟踪空目录；wiki 文件由 init 命令按需物化），显式创建
@@ -117,6 +123,7 @@ fi
 # 目录，预建让布局显式化；tmp/ 不预建——各脚本按需 mkdir -p、退出时空目录顺手
 # 移除（重复执行安全）
 mkdir -p "${ROOT}/.tack/log" "${ROOT}/.tack/backup" "${ROOT}/.tack/state"
+sh "${ROOT}/harness/script/harness-baseline.sh" seed "${ROOT}" "${TACK_DIR}"
 
 # README.md（及英文版 README.en.md）是 skill 安装目录根的使用说明，物化到 harness/ 目录
 # （已存在则跳过）；不放空间根——根目录 README.md 位置留给用户项目自身。

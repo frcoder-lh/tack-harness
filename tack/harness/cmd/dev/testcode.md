@@ -31,6 +31,8 @@ summary: 按需命令（非开发必经环节，用户需要时触发）——�
 
 ## 指令内容
 
+执行与覆盖率采集按 `harness/rule/execution-efficiency.md` 汇总为一批：通过/失败数、覆盖率、相关未覆盖行及报告路径；只补读失败和覆盖缺口的日志片段，输入或实现变化后才重复对应验证。
+
 1. **确定范围并回写状态**
    - 输入: 任务 ID（未指定则取最近完成、尚未补测试的任务）
    - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks list` 取得任务清单，结合代码 diff 圈定本任务新增/修改逻辑；执行 `sh $root/harness/script/work-status.sh $work/status.yaml set stage testcode task "<任务ID>" next "需求-代码一致性审查 + 缺陷发现 + 覆盖率达标"`

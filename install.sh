@@ -79,20 +79,20 @@ bootstrap_fetch() {
     _bootstrap_url="$1"
     _bootstrap_out="$2"
     if command -v curl >/dev/null 2>&1; then
-        if curl -fsSL "${_bootstrap_url}" -o "${_bootstrap_out}" 2>/dev/null; then
+        if curl -fsSL --connect-timeout 10 --max-time 60 "${_bootstrap_url}" -o "${_bootstrap_out}" 2>/dev/null; then
             return 0
         fi
         # Windows Git Bash 的 schannel 后端在受限网络下需关闭证书吊销检查
         case "$(uname -s 2>/dev/null)" in
             MINGW*|MSYS*|CYGWIN*)
-                if curl -fsSL --ssl-no-revoke "${_bootstrap_url}" -o "${_bootstrap_out}" 2>/dev/null; then
+                if curl -fsSL --ssl-no-revoke --connect-timeout 10 --max-time 60 "${_bootstrap_url}" -o "${_bootstrap_out}" 2>/dev/null; then
                     return 0
                 fi
                 ;;
         esac
     fi
     if command -v wget >/dev/null 2>&1; then
-        if wget -q -O "${_bootstrap_out}" "${_bootstrap_url}" 2>/dev/null; then
+        if wget -q -T 60 -O "${_bootstrap_out}" "${_bootstrap_url}" 2>/dev/null; then
             return 0
         fi
     fi

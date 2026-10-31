@@ -11,6 +11,8 @@
 # Usage:
 #   sh git-fetch-helper.sh fetch <repo-path>
 #   sh git-fetch-helper.sh sync <repo-path>
+#   sh git-fetch-helper.sh batch <work/repo-dir>
+#     顺序处理全部仓库，失败即停，已完成仓库输出 FETCH_REPO=<name>:ok
 #
 # 结果行（stdout 末尾）：FETCH_RESULT=ok|conflict|detached|no-remote|no-upstream|failed
 # 退出码: 0 成功；1 普通失败；2 用法错误；10 pull 冲突（需 solve）；
@@ -20,6 +22,27 @@ set -e
 
 ACTION="$1"
 REPO_PATH="$2"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+. "${SCRIPT_DIR}/git-root.sh"
+
+if [ "${ACTION}" = batch ]; then
+    [ -d "${REPO_PATH}" ] || exit 2
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+    COUNT=0
+    for repo in "${REPO_PATH}"/*/; do
+        [ -d "${repo}" ] || continue
+        COUNT=$((COUNT + 1))
+        if sh "${SCRIPT_DIR}/git-fetch-helper.sh" sync "${repo}"; then
+            printf 'FETCH_REPO=%s:ok\n' "$(basename "${repo}")"
+        else
+            RC=$?
+            printf 'FETCH_REPO=%s:failed\n' "$(basename "${repo}")"
+            exit "${RC}"
+        fi
+    done
+    [ "${COUNT}" -gt 0 ] || { echo "Error: no repositories" >&2; exit 2; }
+    exit 0
+fi
 
 if { [ "${ACTION}" != "fetch" ] && [ "${ACTION}" != "sync" ]; } || [ -z "${REPO_PATH}" ]; then
     echo "Usage: $0 <fetch|sync> <repo-path>" >&2
@@ -32,7 +55,7 @@ if [ ! -d "${REPO_PATH}" ]; then
 fi
 
 # 必须是 git 仓库（worktree 或普通仓库）
-if ! git -C "${REPO_PATH}" rev-parse --git-dir >/dev/null 2>&1; then
+if ! tack_is_repo_root "${REPO_PATH}"; then
     echo "Error: not a git repository: ${REPO_PATH}" >&2
     exit 1
 fi

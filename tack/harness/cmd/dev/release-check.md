@@ -19,12 +19,14 @@ summary: 上线前检查清单——以 story/<story>/plan.md 与 doc/tech-desig
 
 ## 指令内容
 
+先按 `harness/rule/execution-efficiency.md` 调用 `command-context.sh evidence`（label=`release-check`），已有代码审查证据可共享；变化项按 manifest 刷新，本地证据核验后用 `accept` 记录。CI、MR、部署和发布窗口当次查询，diff 输出目录按工作区隔离。
+
 1. **回写环节状态**
    - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml set stage review task 上线检查 next 生成release-check.md`（自动刷新 updated_at）；不改变 `status`
 
 2. **确定范围并导出 diff 事实**
    - 动作: 与 `code-review` 第 2 步相同——仓库清单取 `work-status.sh tasks repos`，执行：
-     `sh $root/harness/script/git-diff-context.sh batch $work $root/.tack/tmp/review [目标分支]`
+     `sh $root/harness/script/git-diff-context.sh batch $work $root/.tack/tmp/review/<workspace> [目标分支]`
      `empty: true` 的仓库说明后跳过；退出码 3（全部无差异）时中止并提示「与目标分支无差异」；11 目标分支不存在
    - 若已有 `$work/doc/code-review.md` 且其头部基准与本次 merge-base/HEAD 一致，可复用其 diff 结论，仅补充检查项识别
 

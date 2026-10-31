@@ -17,7 +17,7 @@ summary: 拉取当前工作区各仓库远端最新代码并同步到本地分�
 ## 指令内容
 
 1. **逐仓库同步远端**
-   - 动作: 遍历 `$work/repo/<repo-name>/`，对每个仓库执行 `sh $root/harness/script/git-fetch-helper.sh sync "$work/repo/<repo-name>"`
+   - 动作: 执行 `sh $root/harness/script/git-fetch-helper.sh batch "$work/repo"`，在脚本内逐仓库同步；首个失败即停，已完成仓库返回 `FETCH_REPO=<name>:ok`；恢复时只对失败和未执行仓库调用 `sync`
    - 脚本职责（每仓库内顺序执行）：
      - `git fetch --all --prune` 拉取全部远端引用并清理已删除分支
      - 检查当前分支上游跟踪，目标固定为 `origin/<同当前分支名>`：已正确跟踪同名分支则直接通过；上游缺失或跟踪了**不同名分支**（如本地 `feat-x` 跟踪 `origin/master`）时，远端同名分支存在则自动 `git branch --set-upstream-to=origin/<同当前分支名>` 纠正；`origin/<同当前分支名>` 不存在则停止该仓库同步（不 pull，避免合错分支），列出远端候选分支请用户先 `git push -u origin <分支>` 或手动设置上游

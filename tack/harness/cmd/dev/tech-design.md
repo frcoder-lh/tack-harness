@@ -15,10 +15,12 @@ summary: 仅在需要正式评审时，按技术模板将目标 story 已确认�
 ## 前置准入条件
 
 - 已确定当前工作区 `$work` 与目标 story（参数指定；未指定时只有一个 story 直接使用，多个时由用户选择）
-- `$work/story/<story>/spec.md` 已确认（`progress.spec: true`）；同 story 的 `plan.md` 已确认（`progress.plan: true`）
+- 目标 story 的 spec/plan 已确认且回执有效，缺失回执时按已有文档与授权补核
 - 已确认本次需要正式评审（用户或团队评审流程触发）
 
 ## 指令内容
+
+按 `harness/rule/execution-efficiency.md` 先建立目标章节到已确认 spec/plan 小节的映射；迭代时只读取变化来源及受影响章节，统一审阅新增决策。目标 story 的准入按确认回执核对。
 
 1. **回写环节状态**
    - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml set stage tech-design next "生成并确认 doc/tech-design.md"`（自动刷新 updated_at）

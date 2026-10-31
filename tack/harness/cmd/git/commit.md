@@ -17,18 +17,18 @@ summary: 提交工作区内各仓库的本地改动；非 git 目录先初始化
 ## 指令内容
 
 1. **检查改动**
-   - 动作: 遍历 `$work/repo/<repo-name>/`，执行 `sh $root/harness/script/git-commit-helper.sh inspect "$work/repo/<repo-name>"` 取得分支、detached、dirty、冲突与 staged/unstaged/untracked 计数；无改动的仓库跳过，全部仓库均无改动时提示"无改动可提交"并结束
+   - 动作: 对各仓库在同一轮调用 `sh $root/harness/script/git-commit-helper.sh prepare "$work/repo/<repo-name>"`，一次取得状态、暂存与未暂存 diff、未跟踪路径和最近提交风格；按输出只补读未跟踪文件或缺失片段，无改动仓库跳过
 2. **补初始化（若需要）**
    - 动作: 若某仓库目录不是 git 仓库，先执行 `git init`，再继续提交流程
 3. **生成提交说明**
-   - 输入: 用户参数优先；未提供参数时结合 `git diff --staged`（暂存前可用 `git diff` / `git status`）实际改动与 status.yaml 中 current.task 对应的任务内容
+   - 输入: 用户参数优先；未提供参数时复用 prepare 输出与 status.yaml 中 current.task 对应的任务内容
    - 动作: 按 `harness/rule/git-standards.md` 的 Commit 信息约定（Conventional Commits，如 `feat(scope): ...`）生成提交信息，生成后直接进入下一步提交，**不暂停等待用户确认**
 4. **逐仓库提交**
    - 动作: 按仓库规范暂存本次改动文件后，执行 `sh $root/harness/script/git-commit-helper.sh commit "$work/repo/<repo-name>" "<提交信息>"`；脚本只提交已暂存内容，不自动 add；不推送远端
    - 结果处理: `COMMIT_RESULT=ok` 取 `COMMIT=` 哈希回报；退出码 3（无已暂存内容）回到暂存步骤；10（冲突）先转 `solve`；11（detached）停止并提示用户介入
    - 安全禁令（禁止 `--no-verify` 等）见 `harness/rule/git-boundary.md`，钩子失败时修复后重新提交
 5. **汇报提交结果**
-   - 动作: 提交完成后逐仓库展示 commit hash、提交信息、改动文件清单（须基于 `git show --stat` / `git status` 实际结果，禁止臆测）；若用户事后对提交内容有异议，再按用户指令处理，命令本身不预留确认回环
+   - 动作: 复用 commit helper 返回的 hash、show --stat 与剩余状态展示结果；若用户事后对提交内容有异议，按用户指令处理
 
 ## 后置完成检验
 

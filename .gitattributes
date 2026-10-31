@@ -8,3 +8,10 @@
 # PowerShell .ps1 handles LF fine and stays under the rule above.
 *.bat text eol=crlf
 *.cmd text eol=crlf
+
+# Release tarball (git archive) carries only the distributable skill; repository
+# tooling, CI and the project site stay out, matching the zip package excludes.
+.github/ export-ignore
+docs/ export-ignore
+.gitattributes export-ignore
+.gitignore export-ignore

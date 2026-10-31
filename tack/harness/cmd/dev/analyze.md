@@ -61,7 +61,7 @@ summary: 新建工作区后、spec 之前的需求分析——前置为用户已
    - 边界: 需求变更影响 story 边界时，先在清单中说明调整并请用户确认，再改写 analysis
 
 7. **汇总与审阅**
-   - 动作: 列出本次新建/更新的 story 目录、analysis 摘要与待确认问题；提示用户逐份审阅
+   - 动作: 汇总本次变化的 story 边界、analysis 摘要与待确认问题，集中审阅；通过后逐 story 执行 `sh $root/harness/script/command-context.sh confirm $root <workspace> <story> analysis`
    - 边界: 用户可直接修改文档；分析有误时重查对应章节并据实更新
 
 8. **回写完成状态**

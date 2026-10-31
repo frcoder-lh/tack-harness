@@ -588,6 +588,28 @@ cmd_work_list() {
     ' "${STORE}"
 }
 
+# work-resolve <root> <query>：最高优先级候选；0 唯一、1 无命中、2 多候选。
+cmd_work_resolve() {
+    QUERY="${3:-}"
+    [ -n "${QUERY}" ] || return 2
+    # 登记行来自同一解析器；按最高优先级返回全部候选，歧义交给调用方。
+    cmd_work_list work-list "${ROOT}" "" | LC_ALL=C awk -F '\t' -v Q="${QUERY}" '
+      {
+        rank=0
+        if ($2==Q || $5==Q) rank=4
+        n=split($8,t,",")
+        for(i=1;i<=n;i++) {
+          if(t[i]==Q && rank<3) rank=3
+          else if(t[i]!="" && (index(t[i],Q)||index(Q,t[i])) && rank<2) rank=2
+        }
+        if(index($7,Q) && rank<1) rank=1
+        if(rank>best) {best=rank; count=0}
+        if(rank>0 && rank==best) rows[++count]=$0
+      }
+      END {for(i=1;i<=count;i++) print rows[i]; if(count==0) exit 1; if(count>1) exit 2}
+    '
+}
+
 # work-get: 输出单个工作区条目详情（不读其他条目）
 cmd_work_get() {
     ID="$3"
@@ -1000,6 +1022,19 @@ cmd_work_reconcile() {
         for d in "${ROOT}/space"/*/; do
             [ -d "${d}" ] || continue
             dn=$(basename "${d}")
+            if [ -f "${d}status.yaml" ]; then
+                parent="$(awk "${YAML_LIB}"'/^parent_workspace:/ {print val($0); exit}' "${d}status.yaml")"
+                invalid_parent=0
+                case "${parent}" in
+                    '') ;;
+                    .|..|*/*|*\\*|"${dn}") invalid_parent=1 ;;
+                    *) [ -f "${ROOT}/space/${parent}/status.yaml" ] || invalid_parent=1 ;;
+                esac
+                if [ "${invalid_parent}" -eq 1 ]; then
+                    printf 'DANGLING_PARENT\t%s\t%s\n' "${dn}" "${parent}"
+                    issues=$((issues+1))
+                fi
+            fi
             if grep -qxF "${dn}" "${tmp_seen}"; then
                 continue
             fi
@@ -1268,6 +1303,7 @@ case "${ACTION}" in
     work-reconcile)        NO_COMMIT=1; cmd_work_reconcile "$@" ;;
     work-list)             NO_COMMIT=1; cmd_work_list "$@" ;;
     work-get)              NO_COMMIT=1; cmd_work_get "$@" ;;
+    work-resolve)          NO_COMMIT=1; cmd_work_resolve "$@" ;;
     work-services)         cmd_work_services "$@" ;;
     work-trigger)          cmd_work_trigger "$@" ;;
     *) echo "Error: 未知动作 '${ACTION}'（支持 ensure / migrate / store-path / space-info / project-add / project-set / project-keywords / project-service-repo / project-list / project-get / repo-list / skill-version / work-add / work-set / work-remove / work-path / work-rename / work-reconcile / work-list / work-get / work-services / work-trigger）" >&2; exit 1 ;;

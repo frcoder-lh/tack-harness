@@ -22,6 +22,9 @@
 #       workspace 为相对 root 的工作区目录（space/<YYYYMMDD>-<branch>）；输出 KEY=VALUE 结果行
 #       source-ref / target-ref: auto（默认，远端优先、本地兜底）/ local（只取本地分支）/ remote（只取远端分支）
 #       用于区分「合并本地分支」与「合并远程分支」：local 保留未推送提交，remote 只取已推送提交
+#   sh branch-op.sh register <root> <workspace> <op> <source> <target> <source-ref> <repo:source-tmp:target-tmp> [...]
+#       prepare 全部成功后一次写入 status.yaml：branch_op 区块、status=preparing、stage=prepare，
+#       并把每仓库两个临时分支登记到 branches（role=tmp, source=branch-op）；重跑时整体覆盖 branch_op 区块
 #   sh branch-op.sh integrate <root> <workspace> <repo> <op> <source-tmp> <target-tmp>
 #   sh branch-op.sh continue <root> <workspace> <repo> <op>
 #   sh branch-op.sh abort <root> <workspace> <repo> <op>
@@ -31,6 +34,8 @@
 # Windows 经 run.ps1 调用；参数一律使用正斜杠路径。
 
 set -e
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+. "${SCRIPT_DIR}/git-root.sh"
 
 fail() {
     echo "branch-op: $*" >&2
@@ -52,6 +57,10 @@ paths() {
     REPO_PATH="${ROOT}/repo/${REPO}"
     WT_PATH="${ROOT}/${WS}/repo/${REPO}"
     [ -d "${REPO_PATH}" ] || fail "仓库不存在: ${REPO_PATH}（先 init 接入）"
+    tack_is_repo_root "${REPO_PATH}" || fail "不是仓库根目录: ${REPO_PATH}"
+    if [ -d "${WT_PATH}" ]; then
+        tack_is_repo_root "${WT_PATH}" || fail "不是工作树根目录: ${WT_PATH}"
+    fi
 }
 
 run_prepare() {
@@ -129,7 +138,7 @@ exec_integrate() {
     set -e
     if [ "${rc}" -ne 0 ]; then
         if conflict_present "${WT}"; then
-            echo "branch-op: 出现冲突，转 solve 处理后执行 continue" >&2
+            echo "branch-op: 出现冲突，转 solve 解决并继续操作" >&2
             exit 10
         fi
         fail "integrate 失败（退出码 ${rc}），非冲突类错误，见上方 git 输出"
@@ -157,7 +166,7 @@ run_continue() {
     set -e
     if [ "${rc}" -ne 0 ]; then
         if conflict_present "${WT_PATH}"; then
-            echo "branch-op: 仍有冲突，继续 solve 后再次 continue" >&2
+            echo "branch-op: 仍有冲突，由 solve 处理下一轮并继续操作" >&2
             exit 10
         fi
         fail "continue 失败（退出码 ${rc}），见上方 git 输出"
@@ -217,16 +226,75 @@ run_cleanup() {
     done
 }
 
+run_register() {
+    [ $# -ge 7 ] || fail "register 需要 <root> <workspace> <op> <source> <target> <source-ref> <repo:source-tmp:target-tmp>..."
+    ROOT="$1"; WS="$2"; OP="$3"; SRC="$4"; TGT="$5"; SRC_REF="$6"
+    shift 6
+    [ "${OP}" = merge ] || [ "${OP}" = rebase ] || fail "op 必须是 merge 或 rebase: ${OP}"
+    case "${SRC_REF}" in auto|local|remote) ;; *) fail "source-ref 取值必须是 auto|local|remote: ${SRC_REF}" ;; esac
+    STATUS="${ROOT}/${WS}/status.yaml"
+    [ -f "${STATUS}" ] || fail "status.yaml 不存在: ${STATUS}"
+
+    . "${SCRIPT_DIR}/space-lock.sh"
+    tack_space_lock_acquire "${ROOT}"
+    mkdir -p "${ROOT}/.tack/tmp"
+    TMP="$(mktemp "${ROOT}/.tack/tmp/branch-op.XXXXXX")"
+    trap 'rm -f "${TMP}" "${TMP}.status"; tack_space_lock_release' EXIT
+    trap 'exit 130' HUP INT TERM
+
+    TS=""
+    {
+        printf 'branch_op:\n  op: "%s"\n  source: "%s"\n  target: "%s"\n  source_ref: "%s"\n' "${OP}" "${SRC}" "${TGT}" "${SRC_REF}"
+        printf '  ts: "@TS@"\n  repos:\n'
+        for spec in "$@"; do
+            case "${spec}" in *?:?*:?*) ;; *) fail "仓库参数格式应为 <repo>:<source-tmp>:<target-tmp>: ${spec}" ;; esac
+            repo="${spec%%:*}"; rest="${spec#*:}"; stmp="${rest%%:*}"; ttmp="${rest#*:}"
+            case "${repo}:${stmp}:${ttmp}" in *\"*|*\\*) fail "参数含非法字符: ${spec}" ;; esac
+            [ -n "${repo}" ] && [ -n "${stmp}" ] && [ -n "${ttmp}" ] && [ "${ttmp}" = "${ttmp%%:*}" ] \
+                || fail "仓库参数格式应为 <repo>:<source-tmp>:<target-tmp>: ${spec}"
+            if [ "${OP}" = merge ]; then working="${ttmp}"; else working="${stmp}"; fi
+            printf '    - repo: "%s"\n      source_tmp: "%s"\n      target_tmp: "%s"\n      working: "%s"\n      pushed: false\n' \
+                "${repo}" "${stmp}" "${ttmp}" "${working}"
+        done
+        printf '  force_lease_authorized: false\n  cleaned: false\n'
+    } > "${TMP}"
+    # 时间戳取首个仓库源临时分支的后缀（prepare 以 <source>-<ts> 命名）
+    first="${1#*:}"; TS="${first%%:*}"; TS="${TS#"${SRC}-"}"
+
+    # 只替换顶层 branch_op 字段及其缩进子行，模板注释与其它字段原样保留
+    LC_ALL=C awk -v B="${TMP}" -v TS="${TS}" '
+        skip && /^[[:space:]]/ { next }
+        { skip = 0 }
+        /^branch_op:/ {
+            while ((getline l < B) > 0) { sub(/@TS@/, TS, l); print l }
+            skip = 1; seen = 1; next
+        }
+        { print }
+        END { if (!seen) exit 3 }
+    ' "${STATUS}" > "${TMP}.status" || fail "status.yaml 缺少 branch_op 字段: ${STATUS}"
+    mv "${TMP}.status" "${STATUS}"
+
+    # 子脚本提示转 stderr，stdout 只保留 KEY=VALUE 结果行
+    sh "${SCRIPT_DIR}/work-status.sh" "${STATUS}" set status preparing stage prepare next "执行 branch-op.sh integrate" >&2
+    for spec in "$@"; do
+        repo="${spec%%:*}"; rest="${spec#*:}"
+        sh "${SCRIPT_DIR}/work-status.sh" "${STATUS}" branch register "${repo}" "${rest%%:*}" tmp branch-op >&2
+        sh "${SCRIPT_DIR}/work-status.sh" "${STATUS}" branch register "${repo}" "${rest#*:}" tmp branch-op >&2
+    done
+    echo "BRANCH_OP_REGISTERED=$#"
+}
+
 ACTION="$1"
-[ -n "${ACTION}" ] || fail "缺少子命令（prepare|integrate|continue|abort|push|cleanup）"
+[ -n "${ACTION}" ] || fail "缺少子命令（prepare|register|integrate|continue|abort|push|cleanup）"
 shift
 
 case "${ACTION}" in
     prepare)   run_prepare "$@" ;;
+    register)  run_register "$@" ;;
     integrate) run_integrate "$@" ;;
     continue)  run_continue "$@" ;;
     abort)     run_abort "$@" ;;
     push)      run_push "$@" ;;
     cleanup)   run_cleanup "$@" ;;
-    *) fail "未知子命令: ${ACTION}（prepare|integrate|continue|abort|push|cleanup）" ;;
+    *) fail "未知子命令: ${ACTION}（prepare|register|integrate|continue|abort|push|cleanup）" ;;
 esac

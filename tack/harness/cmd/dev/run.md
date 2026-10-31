@@ -68,15 +68,16 @@ summary: 按需命令（非开发必经环节，用户需要时触发）——ru
 触发条件：`$work/run/run.md` 存在且用户未传 `init`、未要求新增/修改指令。
 
 1. **识别目标指令**
-   - 动作: 读取 `$work/run/run.md` 的「指令索引」与「识别规则」，按用户输入（指令名、触发词或用途）匹配目标指令；用户指定多个时按「依赖」列排序
+   - 动作: 读取 `$work/run/run.md` 的「指令索引」与「识别规则」；索引缺失或需核对目录时调用 `sh $root/harness/script/run-plan.sh index $work/run`。按用户输入匹配目标，多个指令按依赖排序
    - 未命中或多命中: 列出索引请用户选择，不臆造指令
 
 2. **前置检查**
-   - 动作: 对每条目标指令读取其 `run.md`，执行 `sh $root/harness/script/run-plan.sh check $work/run/<指令>`（退出码含义同模式 2 第 5 步），并确认 `requires` 列出的凭据文件已就绪（缺失则提示用户补充，不臆造、不继续执行）
+   - 动作: 对每条目标指令读取其 `run.md`，确认命令用途与本次授权一致；执行器会在运行前统一校验清单、依赖与必需文件
 
 3. **按编排顺序执行**
-   - 动作: 按「依赖」顺序逐条执行各指令的机器可读清单；每条脚本执行前向用户简述用途，执行后报告退出码与关键输出
-   - 边界: 某条脚本退出码非 0 时停止后续脚本与后续指令，报告失败原因，由用户决定修复后重跑或中止；需要人工介入的步骤等待用户确认
+   - 动作: 简述本批用途后执行 `sh $root/harness/script/run-plan.sh execute $work/run/<指令>`，按返回的 STEP/EXIT/LOG 汇总；成功步骤只报告摘要，失败时按路径读取相关日志片段并隐藏敏感值
+   - 恢复: 失败停止后续指令；确认处理方式后用 `--resume` 续跑，已完成步骤跳过。计划/脚本/数据变化须重新审阅并用 `--new` 开始；被中断且副作用不确定的步骤先核对事实，再用 `--resume --retry <seq>`
+   - 人工步骤: 清单中 `script` 填 `@manual`，`command` 填操作说明；返回 MANUAL 时等待操作完成并确认，再用 `--resume --ack <seq>` 继续
 
 4. **回写状态**
    - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml set stage run progress.run true next "<执行结果摘要>"`（初始化与新增指令模式不置 `progress.run`）

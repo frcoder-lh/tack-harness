@@ -6,6 +6,8 @@
 #
 # Usage:
 #   sh git-commit-helper.sh inspect <repo-path>
+#   sh git-commit-helper.sh prepare <repo-path>
+#     一次返回状态、暂存/未暂存 diff、未跟踪路径和最近提交风格
 #     输出 git-facts.sh status 的全部事实，并追加：
 #       staged_files / unstaged_files / untracked_files / has_staged
 #   sh git-commit-helper.sh commit <repo-path> <message>
@@ -17,9 +19,10 @@
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "${SCRIPT_DIR}/git-root.sh"
 
 usage() {
-    echo "Usage: sh git-commit-helper.sh <inspect|commit> <repo-path> [message]" >&2
+    echo "Usage: sh git-commit-helper.sh <inspect|prepare|commit> <repo-path> [message]" >&2
 }
 
 ACTION="${1:-}"
@@ -30,7 +33,7 @@ if [ ! -d "${REPO}" ]; then
     echo "Error: repo path not found: ${REPO}" >&2
     exit 1
 fi
-if ! git -C "${REPO}" rev-parse --git-dir >/dev/null 2>&1; then
+if ! tack_is_repo_root "${REPO}"; then
     echo "Error: not a git repository: ${REPO}" >&2
     exit 1
 fi
@@ -40,7 +43,7 @@ count_lines() {
 }
 
 case "${ACTION}" in
-inspect)
+inspect|prepare)
     set +e
     FACTS="$(sh "${SCRIPT_DIR}/git-facts.sh" status "${REPO}")"
     RC=$?
@@ -55,6 +58,12 @@ inspect)
     echo "unstaged_files: ${unstaged}"
     echo "untracked_files: ${untracked}"
     echo "has_staged: ${has_staged}"
+    if [ "${ACTION}" = prepare ]; then
+        git -C "${REPO}" diff --cached --no-ext-diff
+        git -C "${REPO}" diff --no-ext-diff
+        git -C "${REPO}" ls-files --others --exclude-standard
+        git -C "${REPO}" log -5 --format='%h %s' 2>/dev/null || true
+    fi
     exit "${RC}"
     ;;
 commit)
@@ -85,6 +94,8 @@ commit)
     fi
     echo "COMMIT=$(git -C "${REPO}" rev-parse HEAD)"
     echo "COMMIT_RESULT=ok"
+    git -C "${REPO}" show --format=short --stat HEAD
+    git -C "${REPO}" status --short
     exit 0
     ;;
 *)

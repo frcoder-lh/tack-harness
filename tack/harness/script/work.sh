@@ -2,7 +2,8 @@
 # work.sh — 新建工作区（space/<YYYYMMDD>-<branch>/）
 #
 # Usage:
-#   sh work.sh [--no-worktree] <root> <project> <branch> [repo-name ...]
+#   sh work.sh [--no-worktree] [--no-commit] <root> <project> <branch> [repo-name ...]
+#     --no-commit：由调用方在补齐登记与上下文后统一提交
 #     project 必须已在 tack.yaml projects 数组中登记（work 条目与项目 wiki 的归属依据）
 #     repo-name 可传多个；不传则默认为 root/repo 下的全部仓库创建 worktree
 #     --no-worktree：只创建工作区目录、status.yaml 与 context.md，不创建任何 worktree
@@ -12,7 +13,7 @@
 #
 #   sh work.sh rename <root> <old-work-id> <new-work-id> [new-branch] --dry-run|--apply
 #     工作区重命名事务：目录（保留日期前缀）、各仓库分支、status.yaml（work_id/work_dir/branch）、
-#     tack.yaml 工作条目、branches[] 一并更新；中途失败自动回滚并输出 ROLLBACK=complete|incomplete。
+#     tack.yaml 工作条目、branches[]、子工作区 parent_workspace 一并更新；中途失败自动回滚。
 #     dry-run 只输出变更计划；apply 成功后输出 RENAME_RESULT=applied 与 RECONCILE=ok。
 #
 #   sh work.sh purge <root> <workspace>
@@ -76,6 +77,11 @@ if [ "${1:-}" = "purge" ]; then
     if [ ! -d "${TARGET}" ]; then
         echo "Error: 工作区目录不存在: ${TARGET}" >&2
         exit 1
+    fi
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+    if [ -f "${TARGET}/status.yaml" ]; then
+        PENDING="$(sh "${SCRIPT_DIR}/work-status.sh" "${TARGET}/status.yaml" guidance list pending)" || exit 1
+        [ -z "${PENDING}" ] || { echo "Error: pending guidance requires disposition before purge" >&2; exit 1; }
     fi
     # 门禁 2：目标物理父目录必须等于 space/ 的物理路径（防 symlink 逃逸）
     SPACE_REAL=$(cd "${ROOT}/space" && pwd -P)
@@ -261,6 +267,14 @@ if [ "${1:-}" = "rename" ]; then
     echo "  status.yaml: work_id / branch / work_dir"
     echo "  tack.yaml:   work entry work_id / branch / work_path"
     echo "  branches[]:  ${OLD_BRANCH} -> ${SAFE_NEW_BRANCH}"
+    for sf in "${ROOT}/space"/*/status.yaml; do
+        [ -f "${sf}" ] || continue
+        parent="$(awk "${YAML_LIB}"'/^parent_workspace:/ {print val($0); exit}' "${sf}")"
+        [ "${parent}" = "${OLD_DIR}" ] || continue
+        [ "${sf}" != "${STATUS}" ] || { echo "Error: workspace cannot parent itself" >&2; exit 4; }
+        [ -w "${sf}" ] && [ -w "$(dirname "${sf}")" ] || { echo "Error: child status is not writable: ${sf}" >&2; exit 4; }
+        echo "  child: ${sf} parent_workspace ${OLD_DIR} -> ${NEW_DIR}"
+    done
 
     if [ "${MODE}" = "--dry-run" ]; then
         echo "RENAME_RESULT=dry-run"
@@ -274,12 +288,21 @@ if [ "${1:-}" = "rename" ]; then
     cp "${STORE}" "${TXN}/store" || exit 1
     : > "${TXN}/br.log"
     : > "${TXN}/wt.log"
+    : > "${TXN}/children"
+    mkdir "${TXN}/children-backup"
+    for sf in "${ROOT}/space"/*/status.yaml; do
+        [ -f "${sf}" ] || continue
+        parent="$(awk "${YAML_LIB}"'/^parent_workspace:/ {print val($0); exit}' "${sf}")"
+        [ "${parent}" = "${OLD_DIR}" ] || continue
+        child="$(basename "$(dirname "${sf}")")"
+        cp "${sf}" "${TXN}/children-backup/${child}" || exit 1
+        printf '%s\n' "${child}" >> "${TXN}/children"
+    done
     ROLLBACK_OK=1
 
     rollback() {
         reason="$1"
         echo "Error: ${reason}" >&2
-        cp "${TXN}/status.yaml" "${STATUS}" 2>/dev/null || ROLLBACK_OK=0
         cp "${TXN}/store" "${STORE}" 2>/dev/null || ROLLBACK_OK=0
         if [ "${NEW_DIR}" != "${OLD_DIR}" ] && [ -d "${NEW_PATH}" ] && [ -d "${OLD_PATH}" ]; then
             for entry in "${NEW_PATH}"/*; do
@@ -309,6 +332,10 @@ if [ "${1:-}" = "rename" ]; then
             rmdir "${NEW_PATH}/repo" 2>/dev/null || true
             rmdir "${NEW_PATH}" 2>/dev/null || true
         fi
+        cp "${TXN}/status.yaml" "${STATUS}" 2>/dev/null || ROLLBACK_OK=0
+        while IFS= read -r child; do
+            cp "${TXN}/children-backup/${child}" "${ROOT}/space/${child}/status.yaml" 2>/dev/null || ROLLBACK_OK=0
+        done < "${TXN}/children"
         if [ "${ROLLBACK_OK}" -eq 1 ]; then
             echo "ROLLBACK=complete"
         else
@@ -367,12 +394,20 @@ if [ "${1:-}" = "rename" ]; then
 
     sh "${SCRIPT_DIR}/work-status.sh" "${NEW_PATH}/status.yaml" branch rename "${OLD_BRANCH}" "${SAFE_NEW_BRANCH}" \
         >/dev/null || rollback "更新 branches[] 失败"
+    while IFS= read -r child; do
+        sh "${SCRIPT_DIR}/work-status.sh" "${ROOT}/space/${child}/status.yaml" set parent_workspace "${NEW_DIR}" \
+            || rollback "更新子工作区 ${child} 关联失败"
+    done < "${TXN}/children"
 
     if [ "${NEW_DIR}" != "${OLD_DIR}" ]; then
         rmdir "${OLD_PATH}/repo" 2>/dev/null || true
         rmdir "${OLD_PATH}" 2>/dev/null || rollback "移除旧工作区目录失败"
     fi
 
+    set -- "${OLD_PATH}" "${NEW_PATH}" "${STORE}"
+    while IFS= read -r child; do
+        set -- "$@" "${ROOT}/space/${child}/status.yaml"
+    done < "${TXN}/children"
     rm -rf "${TXN}"
 
     RECON="$(sh "${SCRIPT_DIR}/project.sh" work-reconcile "${ROOT}" 2>/dev/null || true)"
@@ -386,18 +421,20 @@ if [ "${1:-}" = "rename" ]; then
     fi
 
     sh "${SCRIPT_DIR}/space.sh" commit "${ROOT}" "chore(tack): rename workspace ${OLD_ID} -> ${NEW_ID}" \
-        "${OLD_PATH}" "${NEW_PATH}" "${STORE}" \
+        "$@" \
         || echo "WARN: 空间仓库自动提交失败，请检查工作区后重试" >&2
     exit 0
 fi
 
 # --no-worktree 可出现在任意位置：逐参数轮转过滤，其余参数按原顺序留在位置参数中
 NO_WORKTREE=0
+NO_COMMIT=0
 _remaining=$#
 while [ "${_remaining}" -gt 0 ]; do
     _arg="$1"; shift
     case "${_arg}" in
         --no-worktree) NO_WORKTREE=1 ;;
+        --no-commit) NO_COMMIT=1 ;;
         *) set -- "$@" "${_arg}" ;;
     esac
     _remaining=$((_remaining - 1))
@@ -544,6 +581,8 @@ echo "BRANCH=${GIT_BRANCH}"
 echo "NEW_BRANCHES=${NEW_BRANCHES}"
 
 # 框架自动提交空间仓库（space/*/repo/ 已被 .gitignore 排除，只提交工作区文档）
-sh "${SCRIPT_DIR}/space.sh" commit "${ROOT}" "chore(tack): create workspace ${WORK_BASENAME}" "${BRANCH_DIR}"
+if [ "${NO_COMMIT}" -eq 0 ]; then
+    sh "${SCRIPT_DIR}/space.sh" commit "${ROOT}" "chore(tack): create workspace ${WORK_BASENAME}" "${BRANCH_DIR}"
+fi
 
 echo "下一步: 1) 执行 project.sh work-add 登记工作  2) 向 context.md 录入需求  3) 执行 analyze 生成 story 分析  4) 逐 story 执行 spec"

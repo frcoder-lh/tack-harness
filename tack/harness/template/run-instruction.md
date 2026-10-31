@@ -21,6 +21,7 @@
 > seq 为正整数且按文件顺序严格递增；deps 为前置步骤 seq（逗号分隔，必须小于当前 seq）；
 > requires 为相对本目录的必需文件（逗号分隔，通常为 local/ 下凭据文件）。
 > script 与 requires 一律使用相对本目录的路径；可选参数不写入清单。
+> 人工步骤使用 script=`@manual`、command=操作说明；执行器暂停后由用户完成，再用 `--resume --ack <seq>` 继续。
 
 <!-- run-plan:start -->
 seq	script	command	deps	requires
@@ -29,5 +30,7 @@ seq	script	command	deps	requires
 ## 执行约定
 
 - 脚本退出码非 0 时停止后续步骤并报告
-- 需要人工介入的步骤在脚本中标注并等待确认
+- 使用 `run-plan.sh execute` 执行；已有记录时明确选择 `--resume` 或 `--new`
+- 中断中的步骤核对副作用后用 `--resume --retry <seq>`；脚本与数据变化时重新审阅
+- 人工步骤在清单中标注并等待确认
 - 执行结果（输出、日志）写入 `local/` 或控制台，不回写本文件

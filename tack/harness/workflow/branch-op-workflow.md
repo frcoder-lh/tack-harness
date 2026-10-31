@@ -34,7 +34,7 @@ summary: 无需求/无分析/无测试的分支级 merge、rebase 状态机—�
 ```
 initialized → preparing → integrating → pushing → completed
                               ↕ resolving        │
-                           （冲突时 solve →      │
+                           （solve 负责解决与    │
                              continue，仍冲突     │
                              则留在 resolving）   │
                                               close 时 cleanup（删 worktree 与两个临时分支）
@@ -57,10 +57,10 @@ initialized → preparing → integrating → pushing → completed
 | # | 环节 | 执行 | 完成后状态 |
 |---|------|------|------------|
 | 1 | 解析意图与确认仓库 | `work` 分流：解析 op（合并→merge，变基→rebase）、A、B；逐仓库校验分支存在并由用户确认 | initialized |
-| 2 | 创建工作区与 prepare | `work.sh --no-worktree <root> <project> <branch>` 创建工作区目录、status.yaml 与 context.md（project 由 work 命令确定，其它目录按需创建）→ `branch-op.sh prepare ... [auto|local|remote]`（每仓库一次，源分支引用区分本地/远程），解析输出的临时分支名 | preparing |
+| 2 | 创建工作区与 prepare | `command-batch.sh work-create ... branch-op` 创建并登记工作区（仅 status.yaml 与 context.md，project 由 work 命令确定，其它目录按需创建）→ `branch-op.sh prepare ... [auto|local|remote]`（每仓库一次，源分支引用区分本地/远程）→ `branch-op.sh register ...` 一次写入 `branch_op` 区块并登记临时分支 | preparing |
 | 3 | 集成 | `branch-op.sh integrate ...`；退出码 10 → 第 4 步 | integrating |
 | 4 | 解决冲突 | `solve`：展示双方差异与意图，用户拍板，禁止静默取舍 | resolving |
-| 5 | 继续 | `branch-op.sh continue ...`；退出码 10 回第 4 步；用户放弃则 `abort` 后置 blocked | integrating |
+| 5 | 核验恢复 | solve 负责 `branch-op.sh continue ...`；返回后采集 operation，仍冲突回第 4 步，完成则推送；用户放弃则 `abort` 后置 blocked | integrating |
 | 6 | 推送 | `branch-op.sh push ...`（授权要求见下） | pushing → completed |
 | 7 | 清理 | `close` 时 `branch-op.sh cleanup ...`（worktree 有改动时经用户确认方可 force） | — |
 

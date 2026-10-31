@@ -27,21 +27,21 @@ HARNESS_DIR="$(cd "${HARNESS_DIR}" && pwd)"
 
 ROOT_DIR="$(cd "${HARNESS_DIR}/.." && pwd)"
 
-FILES=""
+set --
 for f in "${HARNESS_DIR}/workflow"/*.md "${HARNESS_DIR}/agents"/*.md \
          "${HARNESS_DIR}/reference"/*.md "${HARNESS_DIR}/rule"/*.md \
          "${ROOT_DIR}/AGENTS.md"; do
-    [ -f "${f}" ] && FILES="${FILES} ${f}"
+    [ -f "${f}" ] && set -- "$@" "${f}"
 done
 if [ -d "${HARNESS_DIR}/cmd" ]; then
     for g in "${HARNESS_DIR}/cmd"/*/; do
         [ -d "${g}" ] || continue
-        for f in "${g}"*.md; do
-            [ -f "${f}" ] && FILES="${FILES} ${f}"
+        for f in "${g}"*.md "${g}"*/*.md; do
+            [ -f "${f}" ] && set -- "$@" "${f}"
         done
     done
 fi
-[ -n "${FILES}" ] || { echo "lint-doc-scripts: 未找到待扫描文档" >&2; exit 1; }
+[ $# -gt 0 ] || { echo "lint-doc-scripts: 未找到待扫描文档" >&2; exit 1; }
 
 # macOS BSD awk 在 UTF-8 locale 下读长中文行会触发 towc 多字节转换失败；
 # 本脚本的签名解析只依赖 ASCII 语法标记，固定 C locale 按字节处理
@@ -77,9 +77,9 @@ LC_ALL=C awk -v H="${HARNESS_DIR}" '
     function check_flags(base, FL, NFL, file,   i, f, ok) {
         for (i = 1; i <= NFL; i++) {
             f = FL[i]
-            if (base == "work.sh") ok = (f == "--no-worktree" || f == "--dry-run" || f == "--apply")
+            if (base == "work.sh") ok = (f == "--no-worktree" || f == "--no-commit" || f == "--dry-run" || f == "--apply")
             else if (base == "project.sh") ok = (f == "--no-commit" || f == "--if-empty")
-            else if (base == "harness-diff.sh") ok = (f == "--profile")
+            else if (base == "harness-diff.sh") ok = (f == "--profile" || f == "--base")
             else if (base == "scan-secrets.sh") ok = (f == "--changed")
             else if (base == "branch-clean.sh") ok = (f == "--apply" || f == "--trunk")
             else if (base == "skill-update.sh") ok = (f == "--skill-root" || f == "--tack-root")
@@ -89,6 +89,28 @@ LC_ALL=C awk -v H="${HARNESS_DIR}" '
         }
     }
     function check_sig(base, P, NP, FL, NFL, file,   sc, sub2, min) {
+        if (base == "command-batch.sh" || base == "command-context.sh" || base == "harness-baseline.sh") {
+            sc=P[1]; if(sc ~ /\|/) return
+            min=0
+            if(base=="command-batch.sh") {
+                if(sc=="finish") min=7
+                else if(sc=="work-create") min=8
+                else if(sc=="attach") min=5
+                else if(sc=="register" || sc=="guidance" || sc=="close-remove") min=4
+                else if(sc=="close-facts") min=3
+            } else if(base=="command-context.sh") {
+                if(sc=="packet" || sc=="stories" || sc=="analysis" || sc=="roster") min=3
+                else if(sc=="confirm" || sc=="check") min=5
+                else if(sc=="evidence") min=4
+                else if(sc=="accept") min=6
+            } else {
+                if(sc=="seed" || sc=="classify" || sc=="apply-clean") min=3
+                else if(sc=="record") min=4
+            }
+            if(min==0) warn(file,base,"未知子命令: " sc)
+            else if(NP<min) warn(file,base,sc " 参数不足")
+            return
+        }
         if (base == "work-status.sh") {
             # work-status 的第一位置参数是 status.yaml（related 为空间根），子命令在其后
             if (NP < 2) { warn(file, base, "需要 <status.yaml> <子命令>"); return }
@@ -113,9 +135,10 @@ LC_ALL=C awk -v H="${HARNESS_DIR}" '
                 if (NP < 3) { warn(file, base, "tasks 缺少子动作"); return }
                 sub2 = P[3]
                 if (sub2 ~ /\|/) return
-                if (sub2 == "list" || sub2 == "validate" || sub2 == "ready" || sub2 == "repos") min = 3
+                if (sub2 == "list" || sub2 == "export" || sub2 == "validate" || sub2 == "ready" || sub2 == "repos" || sub2 == "claim") min = 3
                 else if (sub2 == "set") min = 5
-                else if (sub2 == "replace") min = 4
+                else if (sub2 == "import") min = 5
+                else if (sub2 == "replace" || sub2 == "complete-next") min = 4
                 else { warn(file, base, "未知 tasks 子动作: " sub2); return }
                 if (NP < min) warn(file, base, "tasks " sub2 " 参数不足")
             } else if (sc == "deploy") {
@@ -171,6 +194,7 @@ LC_ALL=C awk -v H="${HARNESS_DIR}" '
             else if (sc == "work-reconcile") min = 2
             else if (sc == "work-list") min = 2
             else if (sc == "work-get") min = 3
+            else if (sc == "work-resolve") min = 3
             else if (sc == "work-services") min = 4
             else if (sc == "work-trigger") min = 4
             else { warn(file, base, "未知子命令: " sc); return }
@@ -200,7 +224,7 @@ LC_ALL=C awk -v H="${HARNESS_DIR}" '
             return
         }
         if (base == "git-fetch-helper.sh") {
-            if (P[1] != "sync" && P[1] != "fetch" && P[1] !~ /\|/) warn(file, base, "未知子命令: " P[1])
+            if (P[1] != "sync" && P[1] != "fetch" && P[1] != "batch" && P[1] !~ /\|/) warn(file, base, "未知子命令: " P[1])
             if (NP < 2) warn(file, base, P[1] " 需要 <repo-path>")
             return
         }
@@ -208,13 +232,14 @@ LC_ALL=C awk -v H="${HARNESS_DIR}" '
             if (NP < 1) { warn(file, base, "缺少子命令"); return }
             sc = P[1]; if (sc ~ /\|/) return
             if (sc == "scan" || sc == "link" || sc == "clone") min = 3
+            else if (sc == "create") min = 6
             else if (sc == "fetch") min = 2
             else { warn(file, base, "未知子命令: " sc); return }
             if (NP < min) warn(file, base, sc " 至少需要 " (min - 1) " 个参数")
             return
         }
         if (base == "git-commit-helper.sh") {
-            if (P[1] != "inspect" && P[1] != "commit" && P[1] !~ /\|/) { warn(file, base, "未知子命令: " P[1]); return }
+            if (P[1] != "inspect" && P[1] != "prepare" && P[1] != "commit" && P[1] !~ /\|/) { warn(file, base, "未知子命令: " P[1]); return }
             min = (P[1] == "commit") ? 3 : 2
             if (NP < min) warn(file, base, P[1] " 至少需要 " (min - 1) " 个参数")
             return
@@ -252,6 +277,7 @@ LC_ALL=C awk -v H="${HARNESS_DIR}" '
             if (NP < 1) { warn(file, base, "缺少子命令"); return }
             sc = P[1]; if (sc ~ /\|/) return
             if (sc == "prepare" || sc == "integrate") min = 7
+            else if (sc == "register") min = 8
             else if (sc == "continue" || sc == "abort") min = 5
             else if (sc == "push") min = 9
             else if (sc == "cleanup") min = 6
@@ -287,7 +313,7 @@ LC_ALL=C awk -v H="${HARNESS_DIR}" '
             return
         }
         if (base == "run-plan.sh") {
-            if (P[1] != "check" && P[1] !~ /\|/) { warn(file, base, "未知子命令: " P[1]); return }
+            if (P[1] != "check" && P[1] != "execute" && P[1] != "index" && P[1] !~ /\|/) { warn(file, base, "未知子命令: " P[1]); return }
             if (NP < 2) warn(file, base, "check 需要 <instruction-dir>")
             return
         }
@@ -386,6 +412,6 @@ LC_ALL=C awk -v H="${HARNESS_DIR}" '
         }
     }
     END { printf "lint-doc-scripts: %d warning(s)\n", n_warn }
-' ${FILES}
+' "$@"
 
 exit 0

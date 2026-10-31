@@ -40,15 +40,15 @@ summary: 按 story 做需求规划——读 context.md、story/<story>/analysis.
    - 纪律: 对原始需求只做格式整理与梳理，不篡改原始含义；候选实现方式只到路线级，不写数据结构、接口签名、编码步骤等实现细节（属于 plan.md）
 
 4. **澄清与确认（人类审阅关口）**
-   - 动作: 逐条提出待澄清问题并回写答案；与研发、产品、测试共同确认边界、验收标准、测试要点与估时，产品/测试相关决策在本环节全部关闭；spec.md 必须经用户明确确认
+   - 动作: 集中展示待澄清问题、推荐取值与依据并回写答案；与研发、产品、测试确认边界、验收标准、测试要点与估时，复用已有授权。审阅通过后执行 `sh $root/harness/script/command-context.sh confirm $root <workspace> <story> spec`
    - 边界: 本环节之后产品与测试退场，后续环节新出现的业务决策走 `fix` 回到本环节，不在 plan 中自行决定；澄清中发现的代码事实补回 `story/<story>/analysis.md` 的待确认问题区
 
 5. **回写完成状态**
-   - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml set progress.spec true stage spec next "对同一 story 执行 plan，或切换到下一个 story"`
+   - 动作: 由下方 finish 调用一次回写 progress.spec、stage 与下一步
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): spec <branch>" "$work/story/<story>/spec.md" "$work/status.yaml"`，把 `story/<story>/spec.md` 与 status.yaml 的变更自动提交到 tack 空间根仓库；无变更自动跳过
+- 动作: 执行 `sh $root/harness/script/command-batch.sh finish $root <workspace> spec "对同一 story 执行 plan，或切换 story" "chore(tack): spec <branch>" "$work/story/<story>/spec.md"`，一次回写完成状态并提交 spec/status；本次修改 analysis 时将其路径一并传入
 - 边界: 遵守 `harness/rule/git-boundary.md`
 
 ## 后置完成检验

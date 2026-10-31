@@ -32,11 +32,12 @@ summary: 后续环节发现需求不明确或实现不正确时进行修正—�
 
 ### 路径 A：需求修正（文档先行，spec → plan → 代码）
 
-1. **回写状态**：执行 `sh $root/harness/script/work-status.sh $work/status.yaml set stage fix task 需求修正 next "修正 story/<story>/spec.md"`（自动刷新 updated_at）；受影响任务执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks set <任务ID> blocked`
+1. **回写状态**：执行 `sh $root/harness/script/work-status.sh $work/status.yaml set stage fix task 需求修正 next "修正 story/<story>/spec.md"`；已 done 的受影响任务先 `tasks set <任务ID> pending` 重开，确有阻塞时再置 blocked
 2. **修正 spec.md**：按用户修正内容更新目标 story 的需求规划（边界、功能场景、验收标准等相关章节）；只改受影响部分，保留修订说明（修正点、原因、日期）
 3. **修正 plan.md**：更新该 story 受影响的设计章节与「决策记录」，调整模块划分与任务清单：新增/删除/修改任务，重算 deps 与并行关系
-4. **同步 status.yaml 的 tasks**：按全部 story 的 plan.md 最终任务清单生成规范化 TSV（列：id / title / module / repo / deps-csv / status）；先 `mkdir -p $root/.tack/tmp`，再用 `mktemp` 生成本次调用独有的临时文件（如 `TSV=$(mktemp "$root/.tack/tmp/tasks-<工作区目录名>.XXXXXX")`，Windows 在 Git for Windows bash 中执行同一条命令），TSV 写入该文件后执行
-   `sh $root/harness/script/work-status.sh $work/status.yaml tasks replace "$TSV"`，再执行 `tasks validate`（退出码 4 时修复后重试）；导入与校验结束后执行 `rm -f "$TSV"` 清理（并发工作区互不共用临时文件，避免读到他人任务清单）；
+4. **同步 status.yaml 的 tasks**：在 `$root/.tack/tmp/` 用 `mktemp` 创建独占 TSV，按变更类型选择写入方式，退出码 4 时修复依赖图后重试，最后删除 TSV：
+   - 新增或修改：将受影响 story 的任务写成六列 TSV，执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks import <story> "$TSV"`，保留已有状态与验收信息。
+   - 删除任务：先通过 `sh $root/harness/script/work-status.sh $work/status.yaml tasks export` 取得全工作区七列清单（含 story），确认全部依赖影响，移除目标任务并同步调整引用，保留其它 story、任务状态及归属；执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks replace "$TSV"`，由脚本校验完整依赖图后一次落盘。
    - 新增任务 `pending`；已 done 但受影响的任务执行 `tasks set <任务ID> pending` 回退（或新增修正任务），原因写入 `current.next`
 5. **修正代码**：对受影响的任务重新执行 code 的实现纪律（复用优先、按依赖顺序、grep 定位），使代码与修正后的文档一致
 6. 用户审阅确认后恢复原环节状态
@@ -47,7 +48,7 @@ summary: 后续环节发现需求不明确或实现不正确时进行修正—�
 2. **修正代码**：
    - grep 定位问题代码与类似正确实现；优先复用既有模式
    - 仅改动实现使行为正确；不擅自改 spec/plan
-   - 相关任务置 `in_progress`，构建/测试通过后置回 `done`
+   - 已 done 的相关任务先置 pending，再通过 `tasks claim <任务ID>` 校验依赖并置 in_progress，构建/测试通过后置回 done
 3. **评估需求一致性**：代码修正后核对目标 story 的 spec.md / plan.md：
    - 若实现修正**未改变**需求与计划（纯粹 bug/实现偏差）：文档不动，仅记录修正说明
    - 若修正中**暴露出需求或计划需要相应调整**：告知用户差异，按路径 A 的第 2-4 步同步修正该 story 的 spec.md、plan.md 与 tasks
