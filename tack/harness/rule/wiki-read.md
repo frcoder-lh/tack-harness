@@ -5,13 +5,13 @@
 
 ## 零、检索准备（一轮并行取回）
 
-`ask` 与其他按本规则检索的命令先做一次并行准备，不串行往返：
+`ask` 与其他按本规则检索的命令先做一次并行准备，不串行往返。准备范围按命令与执行分支取最小集：只取当前分支真正会用到的项（如 `ask` 的 summarize 只读 status.yaml 与文档头部，verify 才补目标仓库 HEAD 对比，overview 才要全仓结构与 git log），未用到的仓库与 Git 检查不提前发出。
 
 1. **文档头部**：`$work/status.yaml`（project / workflow / 分支）、`$work/doc/analysis/*.md` 与 `$work/story/*/analysis.md` 的头部（主题、基准 commit、最近更新）；只列文件与头部，不读全文。
-2. **实际仓库路径**：先确认 `$work/repo/<repo-name>/` 是否存在；缺失时登记 `$root/repo/<repo-name>/`（只读）。路径确定后才开始检索。
-3. **Git 状态**：目标仓库的 HEAD、分支与工作区状态（`git -C <repo> rev-parse --short HEAD`、`git -C <repo> status -sb`）。
+2. **实际仓库路径**：需要检索代码前，先确认 `$work/repo/<repo-name>/` 是否存在；缺失时登记 `$root/repo/<repo-name>/`（只读）。路径确定后才开始检索。
+3. **Git 状态**：需要判断结论新鲜度或修改代码时，读取目标仓库的 HEAD、分支与工作区状态（`git -C <repo> rev-parse --short HEAD`、`git -C <repo> status -sb`）。
 
-三项无依赖，同一轮并行发出；结果确定检索范围后，再进入索引检索或代码补查。
+取最小集后仍无依赖的项同一轮并行发出；结果确定检索范围后，再进入索引检索或代码补查。
 
 ## 一、先走索引，再读文件
 
