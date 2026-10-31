@@ -164,6 +164,17 @@ if [ "${1:-}" = "rename" ]; then
 
     SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
     YAML_LIB="$(cat "${SCRIPT_DIR}/yamlib.awk")"
+    # 重命名事务在空间级锁内执行：目录、status.yaml、tack.yaml、分支与最终提交协调一致，
+    # 锁内重新读取登记快照；project.sh / space.sh 由 TACK_SPACE_LOCK_HELD 跳过重复加锁
+    if [ ! -f "${SCRIPT_DIR}/space-lock.sh" ]; then
+        echo "Error: 缺少空间锁实现: ${SCRIPT_DIR}/space-lock.sh" >&2
+        exit 1
+    fi
+    . "${SCRIPT_DIR}/space-lock.sh"
+    tack_space_lock_acquire "${ROOT}"
+    trap 'tack_space_lock_release' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
     # 空间登记文件（tack.yaml 或旧版 AGENTS.md 区块），重命名事务需整体备份与回滚
     STORE="$(sh "${SCRIPT_DIR}/project.sh" store-path "${ROOT}" 2>/dev/null | sed -n 's/^STORE=//p')"
     if [ -z "${STORE}" ] || [ ! -f "${STORE}" ]; then
@@ -375,6 +386,7 @@ if [ "${1:-}" = "rename" ]; then
     fi
 
     sh "${SCRIPT_DIR}/space.sh" commit "${ROOT}" "chore(tack): rename workspace ${OLD_ID} -> ${NEW_ID}" \
+        "${OLD_PATH}" "${NEW_PATH}" "${STORE}" \
         || echo "WARN: 空间仓库自动提交失败，请检查工作区后重试" >&2
     exit 0
 fi
@@ -532,6 +544,6 @@ echo "BRANCH=${GIT_BRANCH}"
 echo "NEW_BRANCHES=${NEW_BRANCHES}"
 
 # 框架自动提交空间仓库（space/*/repo/ 已被 .gitignore 排除，只提交工作区文档）
-sh "${SCRIPT_DIR}/space.sh" commit "${ROOT}" "chore(tack): create workspace ${WORK_BASENAME}"
+sh "${SCRIPT_DIR}/space.sh" commit "${ROOT}" "chore(tack): create workspace ${WORK_BASENAME}" "${BRANCH_DIR}"
 
 echo "下一步: 1) 执行 project.sh work-add 登记工作  2) 向 context.md 录入需求  3) 执行 analyze 生成 story 分析  4) 逐 story 执行 spec"

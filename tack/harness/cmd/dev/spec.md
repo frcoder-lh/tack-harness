@@ -48,7 +48,7 @@ summary: 按 story 做需求规划——读 context.md、story/<story>/analysis.
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): spec <branch>"`，把 `story/<story>/spec.md` 与 status.yaml 的变更自动提交到 tack 空间根仓库；无变更自动跳过
+- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): spec <branch>" "$work/story/<story>/spec.md" "$work/status.yaml"`，把 `story/<story>/spec.md` 与 status.yaml 的变更自动提交到 tack 空间根仓库；无变更自动跳过
 - 边界: 遵守 `harness/rule/git-boundary.md`
 
 ## 后置完成检验

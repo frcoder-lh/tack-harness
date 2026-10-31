@@ -91,7 +91,7 @@ summary: 学习外部 skill 或仓库的设计，提炼可借鉴点并直接优�
    - 用户反馈: 要求调整/回退部分文件时，按反馈修改，重新执行第 5 步自验证后再次给出预览，直到用户明确确认；用户明确否决的文件从备份恢复
 
 7. **确认后提交（无需用户操作 git）**
-   - 动作: 用户确认全部变更后，执行 `sh $root/harness/script/space.sh commit $root "chore(tack): study from <来源标识>"` 自动提交到 tack 空间根仓库；无变更自动跳过
+   - 动作: 用户确认全部变更后，执行 `sh $root/harness/script/space.sh commit $root "chore(tack): study from <来源标识>" "$root/harness" "$root/AGENTS.md" "$root/wiki"` 自动提交到 tack 空间根仓库；无变更自动跳过
    - 用户整体否决: 执行 `sh $root/harness/script/harness-backup.sh restore $root <BACKUP_DIR>`，随后 `verify` 确认逐文件一致；不提交，并保留分析结论供用户参考
    - 收尾: 删除本次临时克隆目录（`$root/.tack/tmp/study-clone-<时间戳>`，仅删本次创建的目录）；`.tack/backup/study-<timestamp>/` 是回滚备份、保留不删；本地素材目录不删不动
    - 边界: 遵守 `harness/rule/git-boundary.md`

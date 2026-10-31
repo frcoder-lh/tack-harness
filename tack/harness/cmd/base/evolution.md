@@ -104,7 +104,7 @@ summary: 进化 harness——校准 AGENTS.md 工作区登记与 space/ 实际�
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 仅审查、未落盘时无需提交；空间模式下产生 rule/reference/script/cmd 改动（含第 6 步 sh 三平台即修项，即使用户最终未选任何候选），或第 3 步工作区校准、第 4 步 wiki 索引补录产生变更后，执行 `sh $HARNESS_DIR/script/space.sh commit $root "chore(tack): harness evolution"` 自动提交（无变更自动跳过；第 3 步校准动作均以 `--no-commit` 调用，统一在本步提交）；源仓库模式不执行框架自动提交，按源仓库自身提交约定处理
+- 动作: 仅审查、未落盘时无需提交；空间模式下产生 rule/reference/script/cmd 改动（含第 6 步 sh 三平台即修项，即使用户最终未选任何候选），或第 3 步工作区校准、第 4 步 wiki 索引补录产生变更后，执行 `sh $HARNESS_DIR/script/space.sh commit $root "chore(tack): harness evolution" "$root/harness" "$root/wiki" "$root/AGENTS.md" "$root/tack.yaml"` 自动提交（无变更自动跳过；第 3 步校准动作均以 `--no-commit` 调用，统一在本步提交）；源仓库模式不执行框架自动提交，按源仓库自身提交约定处理
 - 边界: 遵守 `$HARNESS_DIR/rule/git-boundary.md`
 
 ## 后置完成检验

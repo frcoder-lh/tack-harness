@@ -69,7 +69,7 @@ summary: 新建工作区后、spec 之前的需求分析——前置为用户已
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): requirement analysis <branch>"`，把 `context.md`、`story/*/analysis.md` 与 status.yaml 的变更自动提交到 tack 空间根仓库；无变更自动跳过
+- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): requirement analysis <branch>" "$work/context.md" "$work/story" "$work/status.yaml"`，把 `context.md`、`story/*/analysis.md` 与 status.yaml 的变更自动提交到 tack 空间根仓库；无变更自动跳过
 - 边界: 遵守 `harness/rule/git-boundary.md`
 
 ## 后置完成检验

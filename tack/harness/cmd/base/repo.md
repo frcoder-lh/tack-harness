@@ -56,7 +56,7 @@ summary: 管理代码主仓库（$root/repo/）——新建并纳入项目空间
 
 ## 框架自动提交（无需用户操作）
 
-- 新建仓库: 第 5 步 `project.sh project-service-repo` 执行时自动把 `tack.yaml` 映射变更提交到 tack 空间根仓库（无变更自动跳过）；wiki 物化变更随后执行 `sh $root/harness/script/space.sh commit $root "chore(tack): register repo <name>"` 统一收尾
+- 新建仓库: 第 5 步 `project.sh project-service-repo` 执行时自动把 `tack.yaml` 映射变更提交到 tack 空间根仓库（无变更自动跳过）；wiki 物化变更随后执行 `sh $root/harness/script/space.sh commit $root "chore(tack): register repo <name>" "$root/wiki"` 统一收尾
 - 更新仓库: `repo/` 已被 .gitignore 忽略，同步不产生空间仓库变更，无需提交
 - 边界: 遵守 `harness/rule/git-boundary.md`；新代码仓库内的 README / .gitignore 首次提交由用户经 `commit` 命令发起，框架不代提
 

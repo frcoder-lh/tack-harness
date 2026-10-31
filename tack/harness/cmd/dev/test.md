@@ -47,7 +47,7 @@ summary: 按需命令（非开发必经环节，用户需要时触发）——�
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): workspace state <branch>"`，把本命令对 status.yaml 与 test.md 的变更自动提交到 tack 空间根仓库；无变更自动跳过
+- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): workspace state <branch>" "$work/doc/test.md" "$work/run" "$work/status.yaml"`，把本命令对 status.yaml、test.md 与测试脚本的变更自动提交到 tack 空间根仓库；无变更自动跳过
 - 边界: 遵守 `harness/rule/git-boundary.md`；测试脚本属于工作区产物，由本步骤一并提交（凭据目录 `run/<指令>/local/` 不入库，见 `harness/rule/security.md`）
 
 ## 后置完成检验

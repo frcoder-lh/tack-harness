@@ -39,6 +39,8 @@
 #   - 按允许的迁移图改单条状态；任务不存在退出码 3；非法迁移退出码 4
 # 用法: sh work-status.sh <status.yaml> tasks replace <normalized-tsv>
 #   - normalized-tsv 为文件路径（- 表示 stdin），列：id title module repo deps-csv status
+#   - 调用方须用 mktemp 生成工作区/调用独有的临时文件并在导入后清理，避免并发工作区
+#     共用固定路径导致把他人任务清单导入本工作区
 #   - 首行可为表头；写入前校验依赖图，非法则不落盘并退出码 4
 #   - 已存在同一 id 时保留其 acceptance 字段
 #

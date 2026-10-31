@@ -43,7 +43,7 @@ summary: 仅在需要正式评审时，按技术模板将目标 story 已确认�
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): tech-design <branch>"`，把 `doc/tech-design*.md` 与 status.yaml 的变更自动提交到 tack 空间根仓库；无变更自动跳过
+- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): tech-design <branch>" "$work/doc/tech-design.md" "$work/doc/tech-design-<story>.md" "$work/status.yaml"`，把 `doc/tech-design*.md` 与 status.yaml 的变更自动提交到 tack 空间根仓库；无变更自动跳过
 - 边界: 遵守 `harness/rule/git-boundary.md`
 
 ## 后置完成检验

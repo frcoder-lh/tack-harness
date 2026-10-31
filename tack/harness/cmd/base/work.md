@@ -150,7 +150,7 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 新建与重命名的提交均由 work.sh / project.sh 自动完成；其余直接编辑过 `tack.yaml` / status.yaml 的路径，结束前执行 `sh $root/harness/script/space.sh commit $root "chore(tack): workspace <branch>"` 兜底（无变更自动跳过）
+- 动作: 新建与重命名的提交均由 work.sh / project.sh 自动完成；其余直接编辑过 `tack.yaml` / status.yaml 的路径，结束前执行 `sh $root/harness/script/space.sh commit $root "chore(tack): workspace <branch>" "$root/tack.yaml" "$work/status.yaml"` 兜底（无变更自动跳过；无当前工作区时只传 `$root/tack.yaml`）
 - 边界: 遵守 `harness/rule/git-boundary.md`；重命名同时作用于工作区目录与各代码仓库的分支，目录与 worktree 迁移由 work.sh 事务完成
 
 ## 后置完成检验

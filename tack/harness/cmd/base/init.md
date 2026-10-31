@@ -161,7 +161,7 @@ summary: 初始化项目上下文——先确定目标项目，再自动识别�
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): init global context"`，把本次物化的 wiki/、AGENTS.md 项目信息等空间变更自动提交到 tack 空间根仓库；无变更自动跳过
+- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): init global context" "$root/harness" "$root/wiki" "$root/AGENTS.md" "$root/tack.yaml" "$root/.gitignore"`，把本次物化的 wiki/、AGENTS.md 项目信息等空间变更自动提交到 tack 空间根仓库；无变更自动跳过
 - 边界: 遵守 `harness/rule/git-boundary.md`；代码仓库接入（clone/link）不属于空间提交内容（`repo/` 已被忽略）
 
 ## 后置完成检验

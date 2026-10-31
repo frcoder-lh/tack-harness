@@ -35,8 +35,8 @@ summary: 后续环节发现需求不明确或实现不正确时进行修正—�
 1. **回写状态**：执行 `sh $root/harness/script/work-status.sh $work/status.yaml set stage fix task 需求修正 next "修正 story/<story>/spec.md"`（自动刷新 updated_at）；受影响任务执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks set <任务ID> blocked`
 2. **修正 spec.md**：按用户修正内容更新目标 story 的需求规划（边界、功能场景、验收标准等相关章节）；只改受影响部分，保留修订说明（修正点、原因、日期）
 3. **修正 plan.md**：更新该 story 受影响的设计章节与「决策记录」，调整模块划分与任务清单：新增/删除/修改任务，重算 deps 与并行关系
-4. **同步 status.yaml 的 tasks**：按全部 story 的 plan.md 最终任务清单生成规范化 TSV（列：id / title / module / repo / deps-csv / status），落 `$root/.tack/tmp/tasks.tsv`（目录不存在先 `mkdir -p`），执行
-   `sh $root/harness/script/work-status.sh $work/status.yaml tasks replace $root/.tack/tmp/tasks.tsv`，再执行 `tasks validate`（退出码 4 时修复后重试）；
+4. **同步 status.yaml 的 tasks**：按全部 story 的 plan.md 最终任务清单生成规范化 TSV（列：id / title / module / repo / deps-csv / status）；先 `mkdir -p $root/.tack/tmp`，再用 `mktemp` 生成本次调用独有的临时文件（如 `TSV=$(mktemp "$root/.tack/tmp/tasks-<工作区目录名>.XXXXXX")`，Windows 在 Git for Windows bash 中执行同一条命令），TSV 写入该文件后执行
+   `sh $root/harness/script/work-status.sh $work/status.yaml tasks replace "$TSV"`，再执行 `tasks validate`（退出码 4 时修复后重试）；导入与校验结束后执行 `rm -f "$TSV"` 清理（并发工作区互不共用临时文件，避免读到他人任务清单）；
    - 新增任务 `pending`；已 done 但受影响的任务执行 `tasks set <任务ID> pending` 回退（或新增修正任务），原因写入 `current.next`
 5. **修正代码**：对受影响的任务重新执行 code 的实现纪律（复用优先、按依赖顺序、grep 定位），使代码与修正后的文档一致
 6. 用户审阅确认后恢复原环节状态
@@ -61,7 +61,7 @@ summary: 后续环节发现需求不明确或实现不正确时进行修正—�
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): fix and sync docs <branch>"`，把 `story/<story>/spec.md`、`plan.md` 与 status.yaml 的修正自动提交到 tack 空间根仓库；无变更自动跳过
+- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): fix and sync docs <branch>" "$work/story/<story>/spec.md" "$work/story/<story>/plan.md" "$work/status.yaml"`，把 `story/<story>/spec.md`、`plan.md` 与 status.yaml 的修正自动提交到 tack 空间根仓库；无变更自动跳过
 - 边界: 遵守 `harness/rule/git-boundary.md`
 
 ## 后置完成检验

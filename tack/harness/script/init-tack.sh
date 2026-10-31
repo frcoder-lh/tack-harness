@@ -156,7 +156,10 @@ else
     echo "Warning: 未在 ${SKILL_ROOT}/SKILL.md front matter 找到 version 字段，skill_version 留空（可稍后执行 update 修正）" >&2
 fi
 
-# 首次/补漏自动提交（space.sh 内部判断无变更则跳过，重复执行安全）
-sh "${ABS_ROOT}/harness/script/space.sh" commit "${ABS_ROOT}" "chore(tack): initialize tack space"
+# 首次/补漏自动提交（space.sh 内部判断无变更则跳过，重复执行安全）：
+# 只提交本脚本物化的骨架文件，不把用户预置的其它根目录文件带入首次提交
+sh "${ABS_ROOT}/harness/script/space.sh" commit "${ABS_ROOT}" "chore(tack): initialize tack space" \
+    "${ABS_ROOT}/harness" "${ABS_ROOT}/AGENTS.md" "${ABS_ROOT}/tack.yaml" \
+    "${ABS_ROOT}/.gitignore" "${ABS_ROOT}/wiki" "${ABS_ROOT}/space"
 
 echo "Tack space initialized at: ${ABS_ROOT}"

@@ -41,7 +41,7 @@ summary: 代码理解——入口先选定「总结已有讨论 / 回答新问�
 
 4. **统一收尾（脚本承接）**
    - 回写: `sh $root/harness/script/work-status.sh $work/status.yaml set progress.ask true next "等待用户继续提问或进入下一环节"`
-   - 提交: `sh $root/harness/script/space.sh commit $root "chore(tack): code analysis <branch>"`（无变更自动跳过；含 `$work/doc/analysis/` 与 status.yaml，不含 worktree 代码，边界见 `harness/rule/git-boundary.md`）
+   - 提交: `sh $root/harness/script/space.sh commit $root "chore(tack): code analysis <branch>" "$work/doc/analysis" "$work/status.yaml"`（无变更自动跳过；含 `$work/doc/analysis/` 与 status.yaml，不含 worktree 代码，边界见 `harness/rule/git-boundary.md`）
    - 输出: 分析文档路径与摘要，或当场回答
 
 ## 后置完成检验

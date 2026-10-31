@@ -94,7 +94,7 @@ summary: 对比版本并更新 harness 与 AGENTS.md，检测本地改动并提�
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 更新落盘并通过验证后，执行 `sh $root/harness/script/space.sh commit $root "chore(tack): update harness"`，把 harness 更新结果与 skill_version 变更自动提交到 tack 空间根仓库；无变更自动跳过；`.tack/` 已被忽略不入库
+- 动作: 更新落盘并通过验证后，执行 `sh $root/harness/script/space.sh commit $root "chore(tack): update harness" "$root/harness" "$root/AGENTS.md" "$root/tack.yaml" "$root/.gitignore"`，把 harness 更新结果与 skill_version 变更自动提交到 tack 空间根仓库；无变更自动跳过；`.tack/` 已被忽略不入库
 - 边界: 遵守 `harness/rule/git-boundary.md`
 
 ## 后置完成检验

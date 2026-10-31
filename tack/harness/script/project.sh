@@ -54,10 +54,19 @@ END_MARK='<!-- tack:info:end -->'
 # 当前生效的数据文件与存储类型（resolve_store 设定）
 STORE=""
 STORE_KIND=""
+# 本次动作在空间登记之外额外写入的文件（如 work-services 同步的 status.yaml），纳入提交清单
+EXTRA_COMMIT=""
 
 # 共享 YAML 标量/行内列表函数（唯一事实源 script/yamlib.awk）
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 YAML_LIB="$(cat "${SCRIPT_DIR}/yamlib.awk")"
+
+# 空间级互斥锁：登记写入与空间仓库提交全程串行，锁内重新读取最新登记
+if [ ! -f "${SCRIPT_DIR}/space-lock.sh" ]; then
+    echo "Error: 缺少空间锁实现: ${SCRIPT_DIR}/space-lock.sh" >&2
+    exit 1
+fi
+. "${SCRIPT_DIR}/space-lock.sh"
 
 if [ -z "${ACTION}" ] || [ -z "${ROOT}" ]; then
     echo "Usage: sh project.sh <ensure|migrate|store-path|space-info|project-add|project-set|project-keywords|project-service-repo|project-list|project-get|repo-list|skill-version|work-add|work-set|work-remove|work-path|work-rename|work-reconcile|work-list|work-get|work-services|work-trigger> <root> [args...]" >&2
@@ -72,7 +81,7 @@ fi
 # 失败或中断都不会把半成品留在 AGENTS.md 同目录，被空间仓库自动提交带走
 mkdir -p "${ROOT}/.tack/tmp"
 TMP_DIR="$(mktemp -d "${ROOT}/.tack/tmp/project.XXXXXX")"
-cleanup_tmp() { rm -rf "${TMP_DIR}"; }
+cleanup_tmp() { tack_space_lock_release; rm -rf "${TMP_DIR}"; }
 trap cleanup_tmp EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
@@ -1146,6 +1155,8 @@ cmd_work_services() {
             rm -f "${tmp_s}"; exit 1
         }
         mv "${tmp_s}" "${SYNC}"
+        # 同步写入的 status.yaml 一并纳入本次提交清单
+        EXTRA_COMMIT="${SYNC}"
         echo "已同步 ${SYNC} 的 services"
     fi
     echo "已更新工作服务列表: ${ID}"
@@ -1228,6 +1239,14 @@ cmd_work_trigger() {
     echo "已更新工作触发词: ${ID}"
 }
 
+# 写登记的动作先加空间级锁，后续 resolve_store/extract_body 均在锁内重新读取最新内容；
+# 覆盖新增（ensure/project-add/work-add）、更新、删除（work-remove）、迁移与回滚（migrate）
+case "${ACTION}" in
+    ensure|migrate|project-add|project-set|project-keywords|project-service-repo|skill-version|work-add|work-set|work-remove|work-path|work-rename|work-services|work-trigger)
+        tack_space_lock_acquire "${ROOT}"
+        ;;
+esac
+
 case "${ACTION}" in
     ensure)                cmd_ensure ;;
     migrate)               cmd_migrate ;;
@@ -1254,8 +1273,19 @@ case "${ACTION}" in
     *) echo "Error: 未知动作 '${ACTION}'（支持 ensure / migrate / store-path / space-info / project-add / project-set / project-keywords / project-service-repo / project-list / project-get / repo-list / skill-version / work-add / work-set / work-remove / work-path / work-rename / work-reconcile / work-list / work-get / work-services / work-trigger）" >&2; exit 1 ;;
 esac
 
-# 空间登记（tack.yaml 或旧区块）变更后，框架自动提交空间仓库（无变更时 space.sh 内部跳过）；
-# --no-commit 时交由复合流程（init-tack、update）统一收尾提交
+# 空间登记（tack.yaml 或旧区块）变更后，在同一空间锁内精确提交本次写过的登记文件
+# （space.sh 内部跳过无变更；--no-commit 时交由复合流程（init-tack、update）统一收尾提交）
 if [ "${NO_COMMIT}" -ne 1 ]; then
-    sh "${SCRIPT_DIR}/space.sh" commit "${ROOT}" "chore(tack): project ${ACTION}"
+    case "${ACTION}" in
+        ensure)
+            sh "${SCRIPT_DIR}/space.sh" commit "${ROOT}" "chore(tack): project ${ACTION}" "${STORE_FILE}" ;;
+        migrate)
+            sh "${SCRIPT_DIR}/space.sh" commit "${ROOT}" "chore(tack): project ${ACTION}" "${STORE_FILE}" "${AGENTS}" ;;
+        *)
+            if [ -n "${EXTRA_COMMIT}" ]; then
+                sh "${SCRIPT_DIR}/space.sh" commit "${ROOT}" "chore(tack): project ${ACTION}" "${STORE}" "${EXTRA_COMMIT}"
+            else
+                sh "${SCRIPT_DIR}/space.sh" commit "${ROOT}" "chore(tack): project ${ACTION}" "${STORE}"
+            fi ;;
+    esac
 fi

@@ -105,7 +105,7 @@ summary: 工作区收尾——状态判定与关闭确认、同步关闭关联�
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 上述收尾完成后，执行 `sh $root/harness/script/space.sh commit $root "chore(tack): close workspace <branch>"`，把工作区归档（summary.md、`history/<workspace>/run/` 与用户选择移入的文件）与 wiki 沉淀、第 7 步自进化对 harness（workflow/cmd/rule/script）的固化改动、tack.yaml work 条目移除与 `space/<workspace>/` 目录删除自动提交到 tack 空间根仓库；无变更自动跳过
+- 动作: 上述收尾完成后，执行 `sh $root/harness/script/space.sh commit $root "chore(tack): close workspace <branch>" "$root/wiki" "$root/harness" "$root/AGENTS.md" "$root/tack.yaml" "$work"`，把工作区归档（summary.md、`history/<workspace>/run/` 与用户选择移入的文件）与 wiki 沉淀、第 7 步自进化对 harness（workflow/cmd/rule/script）的固化改动、tack.yaml work 条目移除与 `space/<workspace>/` 目录删除自动提交到 tack 空间根仓库；无变更自动跳过
 - 边界: 遵守 `harness/rule/git-boundary.md`；移除 worktree、清理分支与删除工作区目录均由框架脚本（`git-worktree-helper.sh` / `branch-op.sh` / `branch-clean.sh` / `work.sh purge`）完成（属框架管理，不需用户操作）；代码仓库的提交/推送状态在第 3 步交付检查中确认，本步骤不代为操作
 
 ## 后置完成检验

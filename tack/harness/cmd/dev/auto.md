@@ -88,7 +88,7 @@ summary: 自动执行当前工作流剩余环节直到终态——开始前一�
 ## 框架自动提交（无需用户操作）
 
 - 各环节按被调命令自带的 `space.sh commit` 完成提交；`auto` 不新增产物文件
-- 中断时对 `current.next` 的回写，若所在环节未提交，执行 `sh $root/harness/script/space.sh commit $root "chore(tack): auto state <branch>"` 收口，保持空间仓库无未提交残留
+- 中断时对 `current.next` 的回写，若所在环节未提交，执行 `sh $root/harness/script/space.sh commit $root "chore(tack): auto state <branch>" "$work/status.yaml"` 收口，保持空间仓库无未提交残留
 
 ## 后置完成检验
 

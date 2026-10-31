@@ -85,9 +85,9 @@ summary: 按 story 产出详细设计与施工图 story/<story>/plan.md——复
    - 边界: 上线前检查项的逐项核对由 `release-check` 按需承接；本环节只给流程、顺序与回滚方案
 
 9. **同步任务清单到 status.yaml**
-   - 动作: 汇总 `$work/story/*/plan.md` 全部任务（本次 story 的最新任务与其它 story 已有任务，按 ID 去重）写成规范化 TSV（Tab 分隔，列：`id` / `title` / `module` / `repo` / `deps-csv` / `status`，deps 用逗号分隔），先 `mkdir -p $root/.tack/tmp` 再落 `$root/.tack/tmp/tasks.tsv`；执行
-     `sh $root/harness/script/work-status.sh $work/status.yaml tasks replace $root/.tack/tmp/tasks.tsv`
-   - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks validate`；退出码 4 时按 `ERROR<TAB>code<TAB>id<TAB>detail` 修复 TSV 后重试，不得绕过
+   - 动作: 汇总 `$work/story/*/plan.md` 全部任务（本次 story 的最新任务与其它 story 已有任务，按 ID 去重）写成规范化 TSV（Tab 分隔，列：`id` / `title` / `module` / `repo` / `deps-csv` / `status`，deps 用逗号分隔）；先 `mkdir -p $root/.tack/tmp`，再用 `mktemp` 生成本次调用独有的临时文件（如 `TSV=$(mktemp "$root/.tack/tmp/tasks-<工作区目录名>.XXXXXX")`，Windows 在 Git for Windows bash 中执行同一条命令），TSV 写入该文件后执行
+     `sh $root/harness/script/work-status.sh $work/status.yaml tasks replace "$TSV"`
+   - 动作: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml tasks validate`；退出码 4 时按 `ERROR<TAB>code<TAB>id<TAB>detail` 修复 TSV 后重试，不得绕过；导入与校验结束后执行 `rm -f "$TSV"` 清理（并发工作区互不共用临时文件，也不留残留文件被他人误读）
    - 说明: 脚本按 id 保留已有 `acceptance` 字段，任务级状态不再手工编辑 YAML；验证方式保留在 plan.md 任务条目中；tasks 是工作区级全量清单，不得用单个 story 的任务覆盖其它 story
 
 10. **澄清与确认（人类审阅关口）**
@@ -98,7 +98,7 @@ summary: 按 story 产出详细设计与施工图 story/<story>/plan.md——复
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): plan <branch>"`，把 `story/<story>/plan.md` 与 status.yaml（tasks）的变更自动提交到 tack 空间根仓库；无变更自动跳过
+- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): plan <branch>" "$work/story/<story>/plan.md" "$work/status.yaml"`，把 `story/<story>/plan.md` 与 status.yaml（tasks）的变更自动提交到 tack 空间根仓库；无变更自动跳过
 - 边界: 遵守 `harness/rule/git-boundary.md`
 
 ## 后置完成检验

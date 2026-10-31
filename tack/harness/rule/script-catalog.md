@@ -8,7 +8,8 @@
 | 脚本 | 作用 |
 |------|------|
 | `init-tack.sh` | 确保 Git 可用、物化空间骨架、初始化空间仓库并首次提交 |
-| `space.sh commit` | 空间根仓库的唯一自动提交入口（含凭据扫描） |
+| `space.sh commit` | 空间根仓库的唯一自动提交入口：按调用方文件清单精确暂存并校验归属（含凭据扫描） |
+| `space-lock.sh` | 空间级互斥锁：登记写入与空间提交串行（被 project.sh / space.sh / work.sh source） |
 | `scan-routes.sh` | 扫描 workflow/cmd/agents；`list` 完整表、`index` 紧凑索引、`show` 单个定义、`resolve` 路由解析 |
 | `common.sh` | 安装/升级/版本检查共享函数（分发清单、下载回退、版本提取） |
 | `yamlib.awk` | YAML 标量与行内列表解析库（被多个脚本 source） |

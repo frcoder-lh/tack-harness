@@ -224,7 +224,8 @@ sh "${SKILL_ROOT}/tack/harness/script/hook/install-hooks.sh" "${ROOT}" >/dev/nul
 sh "${SKILL_ROOT}/tack/harness/script/scan-routes.sh" list "${ROOT}/harness" >/dev/null
 echo ">> 路由校验通过"
 sh "${SKILL_ROOT}/tack/harness/script/project.sh" skill-version "${ROOT}" "${NEW_VER}" --no-commit
-sh "${SKILL_ROOT}/tack/harness/script/space.sh" commit "${ROOT}" "chore(tack): resync harness"
+sh "${SKILL_ROOT}/tack/harness/script/space.sh" commit "${ROOT}" "chore(tack): resync harness" \
+    "${ROOT}/harness" "${ROOT}/AGENTS.md" "${ROOT}/tack.yaml" "${ROOT}/.gitignore"
 
 echo "✅ 空间框架已同步到 ${NEW_VER}；备份: ${BACKUP_DIR}"
 echo "   回滚: sh ${SKILL_ROOT}/tack/harness/script/harness-backup.sh restore ${ROOT} ${BACKUP_DIR}"

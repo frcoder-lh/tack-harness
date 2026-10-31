@@ -52,7 +52,7 @@ summary: 上线前检查清单——以 story/<story>/plan.md 与 doc/tech-desig
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): release check <branch>"`，把 `doc/release-check.md` 与 status.yaml 变更自动提交到空间根仓库；无变更自动跳过
+- 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): release check <branch>" "$work/doc/release-check.md" "$work/status.yaml"`，把 `doc/release-check.md` 与 status.yaml 变更自动提交到空间根仓库；无变更自动跳过
 - 边界: 遵守 `harness/rule/git-boundary.md`；`.tack/tmp/review/` 的 diff 临时文件不入库、可随时清理
 
 ## 后置完成检验

@@ -2,7 +2,8 @@
 
 ## 空间根仓库（tack 空间）
 
-- 空间根仓库 `$root` 的提交由框架脚本 `harness/script/space.sh commit` 自动完成。
+- 空间根仓库 `$root` 的提交由框架脚本 `harness/script/space.sh commit` 自动完成；调用方必须传入本次任务的文件清单，脚本只暂存清单范围并在提交前校验暂存区不含清单外文件。
+- 空间登记写入（`project.sh`）与空间提交在同一空间级锁（`harness/script/space-lock.sh`）内串行执行，并发命令不会丢失登记更新、不会出现 Git index 冲突，也不会把其它工作区的改动混入本次提交。
 - **禁止**直接对 `$root` 执行 `git add / commit / push / merge` 等操作。
 - 自动提交前会经 `scan-secrets.sh --changed` 对本次全部变更文件做凭据扫描。
 

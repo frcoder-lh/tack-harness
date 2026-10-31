@@ -65,7 +65,7 @@ summary: 沉淀知识或扩展能力——先确定工作区与项目；能力�
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 人工审阅生效后，执行 `sh $root/harness/script/space.sh commit $root "chore(tack): record distilled knowledge"`，把新增/融合的 cmd、workflow、rule、wiki、AGENTS.md 沉淀条目自动提交到 tack 空间根仓库；无变更自动跳过
+- 动作: 人工审阅生效后，执行 `sh $root/harness/script/space.sh commit $root "chore(tack): record distilled knowledge" "$root/harness" "$root/wiki" "$root/AGENTS.md"`，把新增/融合的 cmd、workflow、rule、wiki、AGENTS.md 沉淀条目自动提交到 tack 空间根仓库；无变更自动跳过
 - 边界: 遵守 `harness/rule/git-boundary.md`
 
 ## 后置完成检验
