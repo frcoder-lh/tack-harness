@@ -1,7 +1,7 @@
 ---
 name: "tack"
-version: "V0.0.21"
-description: "编程工作流 skill，本体只做引导：空目录执行即初始化 tack 空间（物化 AGENTS.md + harness 骨架），随后加载 AGENTS.md 完成命令路由。覆盖需求分析 analyze、需求规划 spec/plan、编码 code、改 bug、Git 提交/推送/合并/冲突、知识沉淀 record 等开发全流程；单测 testcode、系统测试 test、脚本执行 run 为按需命令，用户需要时才触发；命令支持中英文触发词与简写，可省略 /tack 前缀或用自然语言描述意图。"
+version: "V0.0.22"
+description: "编程工作流 skill，本体只做引导：空目录执行即初始化 tack 空间（物化 AGENTS.md、tack.yaml 与 harness 骨架），随后加载 AGENTS.md 完成命令路由。覆盖需求分析 analyze、需求规划 spec/plan、编码 code、改 bug、Git 提交/推送/合并/冲突、知识沉淀 record 等开发全流程；单测 testcode、系统测试 test、脚本执行 run 为按需命令，用户需要时才触发；命令支持中英文触发词与简写，可省略 /tack 前缀或用自然语言描述意图。"
 ---
 
 # tack —— 编程工作流引导器
@@ -22,7 +22,7 @@ skill 本体职责单一：**把 tack 安装进项目空间，并引导加载 AG
 
 ### 2. 按目录状态分流
 
-- **空目录（无 AGENTS.md 且目录为空）**：执行 `init-tack <目录>`——自动确保 Git 可用、物化 tack 空间骨架（AGENTS.md、harness/、wiki/、space/ 等）、将该目录初始化为 Git 仓库并完成框架首次提交；随后按 `init` 命令引导项目信息与仓库接入。
+- **空目录（无 AGENTS.md 且目录为空）**：执行 `init-tack <目录>`——自动确保 Git 可用、物化 tack 空间骨架（AGENTS.md、tack.yaml、harness/、wiki/、space/ 等）、将该目录初始化为 Git 仓库并完成框架首次提交；随后按 `init` 命令引导项目信息与仓库接入。
 - **非空且不是 tack 空间**：不改动任何文件，提示用户在空目录执行 `/tack`，或经用户显式确认后再初始化。
 - **已是 tack 空间**：进入第 3 步。
 
@@ -47,4 +47,4 @@ sh ~/.trae-cn/skills/tack/tack/harness/script/init-tack.sh /path/to/workspace
 
 ### 3. 加载并遵从 AGENTS.md
 
-读取 `$root/AGENTS.md`：若工作流与命令路由尚未加载，按其「加载 tack harness」一节执行 `scan-routes list`。此后的输入解析（`scan-routes resolve` 精确路由与语义识别兜底）、脚本跨平台调用约定、工作流状态引导与全部核心纪律，均以 `$root/AGENTS.md` 为唯一权威，本文件不再重复。
+读取 `$root/AGENTS.md`。会话启动时只需识别空间位置，不必预载全部路由；收到用户请求后按其「命令路由（按需加载）」执行 `scan-routes resolve`（唯一命中直取指令正文，无命中再用 `scan-routes index` 语义识别），完整路由表在用户请求帮助时展示。脚本跨平台调用约定、工作区与项目确认、核心约束与数据来源，均以 `$root/AGENTS.md` 为唯一权威，本文件不再重复。

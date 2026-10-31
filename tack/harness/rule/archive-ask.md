@@ -4,7 +4,7 @@
 
 ## 处理对象
 
-- `$work/doc/analysis/` 下的 `ask` 产物：`<repo>-analysis.md`、主题问答文档等
+- `$work/doc/analysis/` 下的全部 `ask` 产物：按主题命名，文件名不限后缀；按目录扫描 `.md` 并按头部「主题」匹配，不假定 `<repo>-analysis.md` 等固定文件名
 - `$work/story/*/analysis.md` 中的需求分析与讨论结论（只提炼其中可跨工作区复用的业务/代码结论）
 - 只处理有长期价值、且代码不应作为唯一载体的结论；无符合项时跳过，不生成空文件
 
@@ -42,5 +42,5 @@
 ## 审阅与来源
 
 - 展示拟归档条目（内容 | 落点 | 来源），经用户确认后写入
-- 来源标注：`space/<workspace>/doc/analysis/<文件>#<章节>`（需求分析来源为 `space/<workspace>/story/<story>/analysis.md#<章节>`），必要时附 `commit <short-hash>`
+- 来源标注：`space/<workspace>/doc/analysis/<文件>#<章节>`（需求分析来源为 `space/<workspace>/story/<story>/analysis.md#<章节>`），代码与文件引用用 `仓库/路径#L12-L15`，必要时附 `commit <short-hash>`
 - 融合去重、矛盾演变与禁写凭据要求同 `harness/rule/wiki-write.md`

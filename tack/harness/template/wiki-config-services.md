@@ -1,6 +1,6 @@
 # 服务清单
 
-> 物化为 `$root/wiki/<project>/config/services.md`。服务名、仓库、git 地址从 AGENTS.md 当前项目条目的 `service_repo_mapping` 渲染真实行；
+> 物化为 `$root/wiki/<project>/config/services.md`。服务名、仓库、git 地址从 `tack.yaml` 当前项目条目的 `service_repo_mapping` 渲染真实行；
 > 服务职责、负责团队、权威文档等代码外信息取自用户提供的事实，缺失标「待补充」。
 > 环境、地址、账号、配置等事实分别见同目录的 `env.md`、`accounts.md`、`settings.md`。
 > 每条事实须可回溯来源；事实修正时保留「此前为 X，于何时因何修正」轨迹。统一规则见 `harness/rule/wiki-write.md`。

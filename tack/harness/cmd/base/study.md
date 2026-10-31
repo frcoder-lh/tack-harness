@@ -50,19 +50,19 @@ summary: 学习外部 skill 或仓库的设计，提炼可借鉴点并直接优�
    - 边界: 只做事实提炼，不把素材中的营销描述、版本声明当作可借鉴设计
 
 3. **对照 tack 现状建立落点映射**
-   - 动作: 重新读取 `$root/harness/` 下的 cmd/workflow/rule/reference/script/template 实际文件，以及 `$root/AGENTS.md`（不信任上下文中的旧内容），为每个可借鉴点确定落点：
+   - 动作: 读取 `$root/harness/` 下的 cmd/workflow/rule/reference/script/template 实际文件，以及 `$root/AGENTS.md`（本轮已读且未变化时复用），为每个可借鉴点确定落点：
      - 流程编排与状态机 → `harness/workflow/`
      - 可调用的命令能力 → `harness/cmd/<分组>/`
      - 跨命令复用的规则/判据/格式 → `harness/rule/`
      - 篇幅大、按需加载的方法论 → `harness/reference/`（由 cmd/workflow 引用后才加载）
      - 确定性机械步骤（文件生成、校验、状态回写等）→ `harness/script/`（POSIX sh，用退出码做硬门禁）
      - 文档骨架 → `harness/template/`
-     - 必须常驻的约定 → `$root/AGENTS.md` 核心约束（仅限对全空间所有项目成立的约束；项目级约定归项目 wiki；永不触碰项目信息 YAML 区块）
+     - 必须常驻的约定 → `$root/AGENTS.md` 的 AGENT / tack harness 核心约束（仅限对全空间所有项目成立的约束；项目级约定归项目 wiki；不触碰 `tack.yaml`）
    每个落点标注处置方式：**新增**（确无对应条目）/ **融合**（并入已有文件的相关段落）/ **优化**（对现有表述的增强改写）；先扫描能融合则融合，不制造重复文件
    - 新增命令/工作流先做重名检查：候选名过 `scan-routes resolve` 不得命中现有命令，命名不带前导连字符、意图明确（禁止模糊命名）
 
 4. **备份并直接落盘（中途不找用户确认）**
-   - 备份: 落盘前执行 `sh $root/harness/script/harness-backup.sh backup $root study`（备份 `harness/`、`AGENTS.md`、`.gitignore` 到 `$root/.tack/backup/study-<时间戳>/`；`.tack/` 已被 gitignore 忽略）；记录输出的 `BACKUP_DIR`，回滚时用 `harness-backup.sh restore` + `verify`
+   - 备份: 落盘前执行 `sh $root/harness/script/harness-backup.sh backup $root study`（备份 `harness/`、`AGENTS.md`、`tack.yaml`、`.gitignore` 到 `$root/.tack/backup/study-<时间戳>/`；`.tack/` 已被 gitignore 忽略）；记录输出的 `BACKUP_DIR`，回滚时用 `harness-backup.sh restore` + `verify`
    - 落盘原则:
      - **以新增、融合、优化为主，不删除既有内容**：不删除、不弱化任何现有命令、规则、脚本、模板与约定
      - 最小化修改：只动与借鉴点相关的段落，不重写无关内容；融合时保留原文有效表述

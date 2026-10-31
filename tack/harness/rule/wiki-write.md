@@ -1,7 +1,7 @@
 # 写入项目 wiki 规则（公共写入指令）
 
 > 所有写入 `$root/wiki/<project>/` 的流程统一按本文件执行：`init`、`record`、`close`、`ask` 归档与 `evolution` 索引补录都引用本文件，不再各写一套。
-> 读取按 `harness/rule/wiki-read.md`；命名按 `harness/rule/naming.md`；项目由 `$work/status.yaml` 的 `project` 确定，无工作区时从 AGENTS.md `projects` 选择，不跨项目读写。
+> 读取按 `harness/rule/wiki-read.md`；命名按 `harness/rule/naming.md`；项目由 `$work/status.yaml` 的 `project` 确定，无工作区时用 `project.sh project-list` 从 `tack.yaml` 选择，不跨项目读写。
 
 ## 一、组织方式：索引 + 小文件
 

@@ -152,11 +152,16 @@ LC_ALL=C awk -v H="${HARNESS_DIR}" '
             sc = P[1]
             if (sc ~ /\|/) return
             if (sc == "ensure") min = 2
+            else if (sc == "migrate") min = 2
+            else if (sc == "store-path") min = 2
+            else if (sc == "space-info") min = 2
             else if (sc == "project-add") min = 3
             else if (sc == "project-set") min = 5
             else if (sc == "project-keywords") min = 4
             else if (sc == "project-service-repo") min = 7
             else if (sc == "project-list") min = 2
+            else if (sc == "project-get") min = 3
+            else if (sc == "repo-list") min = 3
             else if (sc == "skill-version") min = 3
             else if (sc == "work-add") min = 7
             else if (sc == "work-set") min = 4
@@ -164,6 +169,8 @@ LC_ALL=C awk -v H="${HARNESS_DIR}" '
             else if (sc == "work-path") min = 4
             else if (sc == "work-rename") min = 6
             else if (sc == "work-reconcile") min = 2
+            else if (sc == "work-list") min = 2
+            else if (sc == "work-get") min = 3
             else if (sc == "work-services") min = 4
             else if (sc == "work-trigger") min = 4
             else { warn(file, base, "未知子命令: " sc); return }
@@ -197,6 +204,15 @@ LC_ALL=C awk -v H="${HARNESS_DIR}" '
             if (NP < 2) warn(file, base, P[1] " 需要 <repo-path>")
             return
         }
+        if (base == "repo.sh") {
+            if (NP < 1) { warn(file, base, "缺少子命令"); return }
+            sc = P[1]; if (sc ~ /\|/) return
+            if (sc == "scan" || sc == "link" || sc == "clone") min = 3
+            else if (sc == "fetch") min = 2
+            else { warn(file, base, "未知子命令: " sc); return }
+            if (NP < min) warn(file, base, sc " 至少需要 " (min - 1) " 个参数")
+            return
+        }
         if (base == "git-commit-helper.sh") {
             if (P[1] != "inspect" && P[1] != "commit" && P[1] !~ /\|/) { warn(file, base, "未知子命令: " P[1]); return }
             min = (P[1] == "commit") ? 3 : 2
@@ -226,8 +242,8 @@ LC_ALL=C awk -v H="${HARNESS_DIR}" '
         if (base == "scan-routes.sh") {
             if (NP < 1) { warn(file, base, "缺少子命令"); return }
             sc = P[1]; if (sc ~ /\|/) return
-            if (sc == "resolve") min = 3
-            else if (sc == "list" || sc == "workflows" || sc == "commands" || sc == "agents") min = 2
+            if (sc == "resolve" || sc == "show") min = 3
+            else if (sc == "list" || sc == "index" || sc == "workflows" || sc == "commands" || sc == "agents") min = 2
             else { warn(file, base, "未知子命令: " sc); return }
             if (NP < min) warn(file, base, sc " 至少需要 " (min - 1) " 个参数")
             return

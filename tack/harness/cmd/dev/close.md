@@ -3,14 +3,14 @@ command: close
 short: cl
 triggers: 关闭工作区, 结束, close, close workspace, finish
 params: 无
-summary: 工作区收尾——状态判定与关闭确认、同步关闭关联工作区、交付检查、输出交付摘要、自动判定工作区归档（写入 wiki/<project>/history/<workspace>/summary.md、登记 history/index.md 并移入 run/）、提炼内容入 wiki（按分类与索引写入，含技术决策与 ask 记录归档）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、删除工作区目录并移除 AGENTS.md work 条目
+summary: 工作区收尾——状态判定与关闭确认、同步关闭关联工作区、交付检查、输出交付摘要、自动判定工作区归档（写入 wiki/<project>/history/<workspace>/summary.md、登记 history/index.md 并移入 run/）、提炼内容入 wiki（按分类与索引写入，含技术决策与 ask 记录归档）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、删除工作区目录并移除 tack.yaml work 条目
 ---
 
 # close 关闭工作区
 
 ## 前置准入条件
 
-- 已确定当前工作区 `$work` 与所属项目（`$work/status.yaml` 的 `project`）；项目为空或与 AGENTS.md `projects` 不一致时先向用户确认，再读取最新 status.yaml，不相信上下文里的旧内容
+- 已确定当前工作区 `$work` 与所属项目（`$work/status.yaml` 的 `project`）；项目为空或与 `tack.yaml` 的 `projects` 不一致时先向用户确认，再读取最新 status.yaml（上下文已有且未变化时复用）
 
 ## 指令内容
 
@@ -65,7 +65,7 @@ summary: 工作区收尾——状态判定与关闭确认、同步关闭关联�
    - **branch-op 工作流分流**：工作区无 story/spec/plan/tech-design 与 doc 产物，context.md 为空；`branch_op` 区块只是本次过程记录，不属于跨工作区知识。动作: 检查其中是否夹带代码外事实（一般没有），无候选时一句话说明并跳过本步，不展示空清单
    - 输入源: 工作区**原始产物**——context.md、`story/*/analysis.md`、`story/*/spec.md`、`story/*/plan.md`（含决策记录）、`doc/tech-design.md`、`doc/analysis/`、status.yaml（mr_url、tech_doc_url、meego 等）；**已有项目 wiki 页面只用于确定融合位置，不作为事实来源**（防合成内容循环放大，见 `harness/rule/wiki-write.md` 边界）
    - 动作: 从中提炼**跨工作区复用、且代码不应作为真源**的候选知识，按 `harness/rule/wiki-write.md`「分类与落点」归入 `$root/wiki/<project>/` 对应分类（业务背景、代码锚点、项目规则、项目配置的具体落点见该规则）
-   - **ask 记录归档**: 扫描 `$work/doc/analysis/` 下的 `<repo>-analysis.md` 与问答主题文档，按 `harness/rule/archive-ask.md` 转化后分流——业务名词解释进 `biz/glossary.md`、代码名词/导航进 `code/anchors.md` 与 `code/interfaces.md`、稳定代码外事实进 `config/`、项目级决策约定进 `rule/`、需求特定的「为什么/是否设计如此」融合进第 5 步的 `history/<workspace>/summary.md`；不原样复制，不保留可行性分析与找 bug 逻辑；无符合项时跳过
+   - **ask 记录归档**: 扫描 `$work/doc/analysis/` 目录下全部按主题命名的分析/问答文档（按目录与头部主题匹配，不假定 `-analysis` 后缀或固定文件名），按 `harness/rule/archive-ask.md` 转化后分流——业务名词解释进 `biz/glossary.md`、代码名词/导航进 `code/anchors.md` 与 `code/interfaces.md`、稳定代码外事实进 `config/`、项目级决策约定进 `rule/`、需求特定的「为什么/是否设计如此」融合进第 5 步的 `history/<workspace>/summary.md`；不原样复制，不保留可行性分析与找 bug 逻辑；无符合项时跳过
    - 边界: 易变的代码实现、调用链、模块内部行为**不进 wiki**（以代码为唯一真源）；工作区级参数（MR 地址、泳道、构建版本等）留在 `$work/status.yaml`，不写入项目 wiki；通用编码规范不进 `rule/decisions.md`（走第 7 步 rule）；来源不明、无法从工作区产物证实的内容不提炼
    - 询问: 以候选条目清单（含建议落点与**来源标注**）询问用户**是否记入项目 wiki**；用户可全部采纳、挑选部分或放弃
    - 落盘: 被采纳条目按 `harness/rule/wiki-write.md` 写入 `$root/wiki/<project>/` 对应分类文件——文件已存在则融合去重（不重复追加），不存在时按对应模板创建（`rule/decisions.md` 首条采纳时才创建）；每个新增文件同步登记分类索引与项目总索引；每条带来源（`space/<workspace>/<文件>`，`<workspace>` 即当前工作区目录名），与旧条目矛盾时按「矛盾与演变」规则保留轨迹；**必须经人工审阅确认后才生效**；用户放弃则跳过；落盘后执行 `sh $root/harness/script/wiki-index.sh check $root <project>` 确认退出码 0
@@ -74,7 +74,7 @@ summary: 工作区收尾——状态判定与关闭确认、同步关闭关联�
    - 输入: 执行 `sh $root/harness/script/work-status.sh $work/status.yaml guidance list pending` 取得本工作区全部 pending 条目（无 pending 条目则向用户一句话说明并跳过本步）
    - 动作: 逐条按 `harness/rule/record-classification.md` 判据评估——筛出**跨工作区可复用的操作习惯/流程修正**（应固化为 workflow/cmd/rule 的内容），一次性过程信息标记为不固化；汇总为候选清单：来源条目 id | 场景与用户引导 | 建议落点（workflow/cmd/rule 及具体文件）| 融合或新建
    - 询问: 向用户展示候选清单，可全部采纳、挑选部分或放弃（**落盘必须经用户确认**，本步不擅自改 harness）
-   - 落盘: 采纳项走 `record` 流程——先扫描对应 workflow/cmd/rule，**能融合则融合**，确无合适条目才新建；同时遵守核心约束第 10 条，发现确定性固定步骤一并提议固化为 script
+   - 落盘: 采纳项走 `record` 流程——先扫描对应 workflow/cmd/rule，**能融合则融合**，确无合适条目才新建；同时按「沉淀生命周期」的固化门槛检查，发现确定性固定步骤一并提议固化为 script
    - 回写: 落盘完成的条目执行 `sh $root/harness/script/work-status.sh $work/status.yaml guidance <id> applied <相对 $root 的落点路径...>`（多落点空格分隔，脚本校验落点文件存在后只置 `status: applied`），路径不存在时按报错修复后重试；放弃或评估为不固化的执行 `sh $root/harness/script/work-status.sh $work/status.yaml guidance <id> rejected`；用户暂缓决断的保留 `pending`（不阻塞关闭，可日后手动 `evolution`/`record` 处理）
    - 边界: guidance 只作为候选素材，事实存疑、无法从工作区过程证实的不固化；wiki 类知识已在第 6 步处理，本步只面向 workflow/cmd/rule
 
@@ -94,18 +94,18 @@ summary: 工作区收尾——状态判定与关闭确认、同步关闭关联�
      `sh $root/harness/script/work.sh purge $root <workspace>`
      删除整个 `$work` 目录（脚本内置三道安全门禁：workspace 为单层目录名、物理路径位于 `$root/space/` 内、`repo/` 下无残留 worktree；`run/` 已在第 5 步移入归档，剩余文件一并删除）；再执行
      `sh $root/harness/script/project.sh work-remove $root <work_id> --no-commit`
-     移除 AGENTS.md 项目信息区块中的 work 条目（目录删除由收尾的框架自动提交统一记录）
+     移除 `tack.yaml` 的 work 列表中的该条目（目录删除由收尾的框架自动提交统一记录）
    - 边界: purge 报告残留 worktree 时回到第 8 步清理，不得绕过脚本手工删目录；归档目录位于 `$root/wiki/<project>/history/` 下，不受 purge 影响；`work-remove` 报条目不存在（中断续跑场景）视为成功继续
 
 10. **清理上下文**
-   - 动作: 清空 `$work` 上下文变量，输出当前剩余工作区列表（直接读 AGENTS.md 项目信息区块的 work 条目，不扫描磁盘）
+   - 动作: 清空 `$work` 上下文变量，输出当前剩余工作区列表（执行 `sh $root/harness/script/project.sh work-list $root`，不扫描磁盘）
 
 11. **版本检查（更新提醒挂载点）**
    - 动作: 按 `harness/rule/update-check.md` 执行 `sh $root/harness/script/check-update.sh $root`；有新版本时在下一步建议中原样转述，并告知「说『更新』即可升级」
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 上述收尾完成后，执行 `sh $root/harness/script/space.sh commit $root "chore(tack): close workspace <branch>"`，把工作区归档（summary.md、`history/<workspace>/run/` 与用户选择移入的文件）与 wiki 沉淀、第 7 步自进化对 harness（workflow/cmd/rule/script）的固化改动、AGENTS.md work 条目移除与 `space/<workspace>/` 目录删除自动提交到 tack 空间根仓库；无变更自动跳过
+- 动作: 上述收尾完成后，执行 `sh $root/harness/script/space.sh commit $root "chore(tack): close workspace <branch>"`，把工作区归档（summary.md、`history/<workspace>/run/` 与用户选择移入的文件）与 wiki 沉淀、第 7 步自进化对 harness（workflow/cmd/rule/script）的固化改动、tack.yaml work 条目移除与 `space/<workspace>/` 目录删除自动提交到 tack 空间根仓库；无变更自动跳过
 - 边界: 遵守 `harness/rule/git-boundary.md`；移除 worktree、清理分支与删除工作区目录均由框架脚本（`git-worktree-helper.sh` / `branch-op.sh` / `branch-clean.sh` / `work.sh purge`）完成（属框架管理，不需用户操作）；代码仓库的提交/推送状态在第 3 步交付检查中确认，本步骤不代为操作
 
 ## 后置完成检验
@@ -121,7 +121,7 @@ summary: 工作区收尾——状态判定与关闭确认、同步关闭关联�
 - [ ] `git worktree list` 中不再有该工作区的 worktree
 - [ ] branch-op：`A-ts`、`B-ts` 两个临时分支均已删除
 - [ ] 其他工作流：`branch-clean.sh` 已执行，SUMMARY 无 failed；blocked 项（未合并主分支/保护分支/占用分支/主干不明）已原样告知用户并保留
-- [ ] `$root/space/<workspace>/` 目录已删除（`work.sh purge` 成功），AGENTS.md 项目信息区块中已无该 work 条目
+- [ ] `$root/space/<workspace>/` 目录已删除（`work.sh purge` 成功），`tack.yaml` 的 work 列表中已无该条目
 - [ ] 记入 `wiki/<project>/` 的内容符合 `harness/rule/wiki-write.md` 的分类、边界、来源链与索引要求，且经人工审阅；工作区归档符合 `archive-requirement.md` 与 `archive-ask.md`；工作区级参数未误写项目 wiki，用户放弃时未强行写入
 - [ ] guidance 的 pending 条目已逐条处理：固化项经用户确认落盘并置 applied，不固化项置 rejected；未确认落盘的条目保留 pending 且不阻塞关闭
 - [ ] `deploy` 区块无未回收泳道（deploying/deployed），或用户已确认处理方式

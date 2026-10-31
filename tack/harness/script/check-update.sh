@@ -11,7 +11,7 @@
 #   sh check-update.sh <root>
 #
 # 参数:
-#   root   tack 空间根目录（读 AGENTS.md 项目信息区块 skill_version 与状态文件）
+#   root   tack 空间根目录（读 tack.yaml 的 skill_version 与状态文件）
 #
 # 输出协议（AI 消费约定，见 close / evolution / record / help cmd）:
 #   退出 0 且无输出       -> 无事发生，AI 不提及
@@ -19,7 +19,8 @@
 #                            AI 在原样转述后引导用户执行 update 命令
 #   非零退出              -> 内部异常，AI 忽略，不向用户报错
 #
-# 版本事实源（依次回退）: AGENTS.md 项目信息区块 skill_version（project.sh 维护）->
+# 版本事实源（依次回退）: tack.yaml 的 skill_version（project.sh 维护）->
+#   AGENTS.md 旧版项目信息区块（无 tack.yaml 的老空间）->
 #   本机已安装 skill 的 SKILL.md front matter version（agent 预设与提取逻辑由 common.sh 统一维护）。
 # 检查目标: <update-url>/releases/latest 的 302 重定向地址尾段（单次 HEAD 请求，
 #   不走 GitHub API、无响应体）。变更说明同时取 <update-url>/raw/master/CHANGELOG.md
@@ -83,8 +84,12 @@ write_state() {
     mv "${_tmp}" "${STATE}"
 }
 
-# space_version — AGENTS.md 项目信息区块内的 skill_version（区块边界限定，防误伤正文）
+# space_version — 空间登记中的 skill_version：tack.yaml 优先，无该文件时读旧版 AGENTS.md 区块
 space_version() {
+    if [ -f "${ROOT}/tack.yaml" ]; then
+        sed -n 's/^skill_version:[[:space:]]*"\(.*\)"[[:space:]]*$/\1/p' "${ROOT}/tack.yaml" | head -n 1
+        return
+    fi
     sed -n '/<!-- tack:info:start -->/,/<!-- tack:info:end -->/ s/^skill_version:[[:space:]]*"\(.*\)"[[:space:]]*$/\1/p' "${ROOT}/AGENTS.md" | head -n 1
 }
 

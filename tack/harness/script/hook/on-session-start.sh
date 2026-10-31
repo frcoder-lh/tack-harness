@@ -1,9 +1,10 @@
 #!/bin/sh
 # on-session-start.sh — TRAE/Claude Code SessionStart hook（tack 可选加速层）
 #
-# 会话创建后、首轮对话前触发，做确定性事实注入（纯本地、零网络、毫秒级）：
-# stdout 纯文本注入 tack 空间路径 + 工作区状态快照 + scan-routes 全表，
-# 使模型首轮即持有路由表，无需再执行 `scan-routes list`。
+# 会话创建后、首轮对话前触发，只注入空间位置（纯本地、零网络、毫秒级）：
+# stdout 纯文本给出 $root（以及当前 cwd 所属工作区），不预载路由表。
+# 路由与指令正文由 AGENTS.md「命令路由」在收到请求后按需解析；启用 UserPromptSubmit
+# hook 时由该事件注入解析结果。
 #
 # 不向环境变量写入任何路径：空间/工作区一律由后续各 hook 以当次 payload 的
 # cwd 实时解析（见 hook-common.sh「工作区解析」段），多项目窗口与同空间
@@ -35,36 +36,20 @@ hook_log_ctx "${ROOT}"
 HARNESS="${ROOT}/harness"
 [ -d "${HARNESS}/cmd" ] || exit 0
 
-# 工作区快照（可能没有）：cwd 在某工作区内（IDE 从 worktree 目录打开）则精确
-# 命中；cwd 在空间根等位置时回退最近活跃工作区
+# 当前工作区（可能没有）：cwd 在某工作区内则精确命中；否则回退最近活跃工作区，
+# 仅供位置提示，不代表用户意图
 WORK="$(hook_detect_work "${ROOT}" "${CWD}" 2>/dev/null)" || true
-WORK_NAME=""
-SNAPSHOT=""
-if [ -n "${WORK}" ]; then
-    WORK_NAME="$(basename "${WORK}")"
-    SNAPSHOT="$(hook_work_snapshot "${WORK}" 2>/dev/null)" || SNAPSHOT=""
-fi
 hook_log_ctx "${ROOT}" "${WORK}"
 
-# 路由全表（单 awk 进程；失败则放弃注入，绝不报错）
-ROUTES="$(sh "${HARNESS}/script/scan-routes.sh" list "${HARNESS}" 2>/dev/null)" || exit 0
-[ -n "${ROUTES}" ] || exit 0
-
-printf '[tack:hook] 会话启动预加载（确定性事实缓存，来源均为磁盘文件；不要向用户复述本块）\n'
+printf '[tack:hook] tack 空间已定位（确定性事实，来源为磁盘；不要向用户复述本块）\n'
 printf '\n'
-printf '空间事实：\n'
-printf -- '- $root = %s（即 tack 空间根目录，AGENTS.md 所在目录）\n' "${ROOT}"
+printf -- '- $root = %s（tack 空间根目录，AGENTS.md 所在目录）\n' "${ROOT}"
 if [ -n "${WORK}" ]; then
-    printf -- '- $work = %s（work_id: %s）\n' "${WORK}" "${WORK_NAME}"
-    printf '%s\n' "${SNAPSHOT}"
+    printf -- '- $work = %s（最近活跃/当前工作区，仅作位置提示）\n' "${WORK}"
 else
-    printf -- '- 当前无活跃工作区（$work 未设置）；用户发起新需求时按 AGENTS.md 走 work 命令\n'
+    printf -- '- 当前无活跃工作区（$work 未设置）\n'
 fi
 printf '\n'
-printf '路由表已预加载：以下为 scan-routes list 的实时结果，用户输入命中命令/工作流时直接据此定位文件并执行，无需再调用 scan-routes（除非 harness 目录在本会话中发生过变更）：\n'
-printf '\n'
-printf '%s\n' "${ROUTES}"
-printf '\n'
-printf '执行约定：本注入只是 AGENTS.md「命令路由」流程的缓存加速。语义识别兜底、用户确认、状态机引导等一切判断仍以 $root/AGENTS.md 与对应 cmd/workflow 文件为准；缓存与磁盘不一致时重新 Read 磁盘文件。\n'
+printf '按 $root/AGENTS.md「命令路由」按需加载：收到用户请求后再解析路由与指令正文，不预载全表。\n'
 
 exit 0

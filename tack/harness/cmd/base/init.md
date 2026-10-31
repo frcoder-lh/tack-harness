@@ -3,7 +3,7 @@ command: init
 short: i
 triggers: 初始化, 初始化项目, init, 接入仓库, 整理文档, 项目信息, 登记服务, 接入代码, 添加仓库, initialize, init project, connect repo, organize docs, project info, register service, add repository
 params: [内容（可选：项目描述 / git地址 / 本地路径 / 业务文档 / 服务映射）]
-summary: 初始化项目上下文——先确定目标项目，再自动识别输入内容类型（项目信息/业务文档/git仓库/服务映射）并分类处理，AI 仅整理格式不篡改内容，按「索引 + 小文件」物化到 wiki/<project>/ 的分类文件与索引并写入 AGENTS.md 项目信息区块
+summary: 初始化项目上下文——先确定目标项目，再自动识别输入内容类型（项目信息/业务文档/git仓库/服务映射）并分类处理，AI 仅整理格式不篡改内容，按「索引 + 小文件」物化到 wiki/<project>/ 的分类文件与索引并写入 tack.yaml 空间登记
 ---
 
 # init 初始化全局上下文
@@ -11,7 +11,7 @@ summary: 初始化项目上下文——先确定目标项目，再自动识别�
 > tack 骨架（AGENTS.md、harness/、wiki/、space/ 等）已由 skill 调用 `harness/script/init-tack.sh` 复制完成；
 > Git 可用性由调用链保证：Windows 由启动器 `run.ps1` 定位 Git for Windows 的 bash.exe（缺失时经 winget 自动安装）后再执行脚本；Linux / macOS 由 `init-tack.sh` 自身确保（缺失时分别经系统包管理器 / Homebrew 安装）。
 > `init-tack.sh` 同时把 `$root` 初始化为 Git 仓库、由框架自动完成首次提交（已存在 `.git` 时跳过；空间仓库的 Git 操作全程框架自动，用户不直接操作）。
-> 本命令负责收集**当前项目**的上下文并物化为 `wiki/<project>/` 公共知识，同时把结构化项目信息写入 AGENTS.md 项目信息区块、把代码仓库接入 `$root/repo/`。
+> 本命令负责收集**当前项目**的上下文并物化为 `wiki/<project>/` 公共知识，同时把结构化项目信息写入 `$root/tack.yaml` 空间登记、把代码仓库接入 `$root/repo/`。
 > **首次初始化与后续补充都走本命令**：首次执行时 AI 主动询问用户补全项目 wiki；后续携带新材料（仓库/文档/映射）再次执行时只追加融合当前项目，不覆盖已有内容。
 > 一个 tack 空间可登记多个项目：输入指向新项目时新建项目条目，指向已有项目时补充该项目 wiki。
 >
@@ -27,7 +27,7 @@ summary: 初始化项目上下文——先确定目标项目，再自动识别�
 
 **先确定本次 init 的目标项目，再做内容分类**——项目级知识必须落到正确的 `wiki/<project>/`。
 
-- 输入: 用户输入中的项目名/业务线线索、当前 `$work`、AGENTS.md `projects`
+- 输入: 用户输入中的项目名/业务线线索、当前 `$work`、`tack.yaml` 的 projects（`project.sh project-list`）
 - 动作:
   0. 先执行 `sh $root/harness/script/project.sh ensure $root`（幂等；区块缺失时补齐，后续项目操作才有落点）
   1. 有 `$work` 且 `$work/status.yaml` 的 `project` 非空：默认以该项目为目标，向用户确认
@@ -37,7 +37,7 @@ summary: 初始化项目上下文——先确定目标项目，再自动识别�
      - 没有项目：请用户提供项目名称（英文 slug）与一句话描述，执行
        `sh $root/harness/script/project.sh project-add $root "<name>" "<描述>"`
   3. 用户输入明确指向新项目（与已有项目名称/描述均不匹配）时，按上一条新建项目
-- 边界: 不得自行编造项目名；项目确定前不写 `wiki/` 与项目信息区块；项目确定后确保 `$root/wiki/<project>/` 存在（`project-add` 已创建，已有条目但目录缺失时 `mkdir -p`）
+- 边界: 不得自行编造项目名；项目确定前不写 `wiki/` 与 `tack.yaml`；项目确定后确保 `$root/wiki/<project>/` 存在（`project-add` 已创建，已有条目但目录缺失时 `mkdir -p`）
 
 确定项目后，用户执行 `init` 时可能直接附带内容（参数或对话中的文本/链接/路径）。**对输入内容做类型识别，按类型自动分派处理，不要无脑走逐步引导**。
 
@@ -54,9 +54,9 @@ summary: 初始化项目上下文——先确定目标项目，再自动识别�
 
 识别后直接跳转到对应步骤执行，**已识别的类型不再重复询问**；执行完所有识别到的类型后，进入第 6 步整理物化。
 
-### 1. 确认项目信息区块
+### 1. 确认空间登记
 
-- 动作: 第 0 步已执行 `project.sh ensure`；此处只需确认 `projects` 字段存在（缺失时重新执行 ensure）
+- 动作: 第 0 步已执行 `project.sh ensure`；此处只需确认 `tack.yaml` 的 `projects` 字段存在（缺失时重新执行 ensure）
 
 ### 2. 收集项目整体信息
 
@@ -105,7 +105,7 @@ summary: 初始化项目上下文——先确定目标项目，再自动识别�
 - 落盘:
   - 每个仓库执行一次 `sh $root/harness/script/project.sh project-service-repo $root "<项目名>" "<服务名称>" "<repo 名>" "<repo_git，无则空串>" "<repo_path>"` 追加当前项目的映射（每条**仅含服务↔仓库映射字段**：service_name / repo_name / repo_git / repo_path）
   - 服务职责等代码外信息不进 YAML，在第 6 步物化到 `wiki/<project>/config/services.md`
-  - `projects[].repo_scan_path` 记录本地扫描目录（直接编辑对应项目条目该字段）
+  - `projects[].repo_scan_path` 记录本地扫描目录（无脚本接口，直接编辑 `tack.yaml` 对应项目条目该字段）
   - 提示用户人工审阅补全
 
 ### 6. AI 按事实物化到 wiki/<project>/（有内容才生成，不造空文件）
@@ -131,7 +131,7 @@ summary: 初始化项目上下文——先确定目标项目，再自动识别�
 | `wiki/<project>/rule/decisions.md` | `harness/template/wiki-rule-decisions.md` | 用户当场提供了明确的技术决策资料（历史 ADR 等）；**常规初始化不造本文件**——决策主要在后续 `close`/`record` 从工作区 plan 决策记录沉淀、`ask` 从 git history 发现候选 |
 | `wiki/<project>/rule/conventions.md` | `harness/template/wiki-rule-conventions.md` | 用户当场提供了明确的工程约定（团队约定文档等） |
 
-- **`config/services.md`**：从 AGENTS.md 当前项目条目的 `service_repo_mapping` 渲染——服务总览表与服务详情中的服务名、仓库、git 地址直接填真实行；
+- **`config/services.md`**：从 `tack.yaml` 当前项目条目的 `service_repo_mapping` 渲染——服务总览表与服务详情中的服务名、仓库、git 地址直接填真实行；
   服务职责、负责团队、权威文档取自第 5 步用户提供的信息（**不经过 mapping**），缺失标「待补充」；
   外部依赖与协作契约用户提供则记录，无则标「待补充」，只记跨团队依赖、不记代码可分析的普通调用链
 - **`config/env.md` / `config/accounts.md` / `config/settings.md`**：仅在用户提供了对应事实时填真实条目，各表带权威事实源、负责人、最近核验、复核条件；
@@ -154,7 +154,7 @@ summary: 初始化项目上下文——先确定目标项目，再自动识别�
   - 动作: 对照已物化内容列出「待补充」清单（如各服务职责、环境与中间件事实、租户/账号获取方式、业务背景资料等），**主动询问用户现在能否补全**
   - 用户当场能提供的：按本文件边界补充并融合进对应项目 wiki 文件；暂时没有的保留「待补充」，不反复催逼
 - **后续补充执行 init**：只处理当前项目新材料的追加融合，已有内容不重复询问
-- 动作: 展示本次物化/更新的 `wiki/<project>/` 文件（如有）与 AGENTS.md 项目信息区块，提示用户审阅
+- 动作: 展示本次物化/更新的 `wiki/<project>/` 文件（如有）与 `tack.yaml` 当前项目条目，提示用户审阅
 - 用户可直接修改文件；修改后无需重新执行 init
 
 ## 框架自动提交（无需用户操作）
@@ -166,7 +166,7 @@ summary: 初始化项目上下文——先确定目标项目，再自动识别�
 
 - [ ] `$root` 已是 Git 仓库（存在 `$root/.git`，`git -C "$root" status` 可执行；初始化脚本自动完成）
 - [ ] `$root/repo/` 下每个条目都可进入并执行 `git status`
-- [ ] 已确定目标项目：AGENTS.md `projects` 中存在同名条目，且本次只写入该项目的结构与 wiki
+- [ ] 已确定目标项目：`tack.yaml` 的 `projects` 中存在同名条目，且本次只写入该项目的结构与 wiki
 - [ ] 当前项目的名称、关键词、描述已填写
 - [ ] 当前项目的 `service_repo_mapping` 已记录全部已接入仓库，并经用户审阅
 - [ ] 已接入仓库时，`wiki/<project>/config/services.md`、`wiki/<project>/code/repos.md` 已按模板生成且含真实仓库行；未接入时二者不存在，项目目录中没有空壳文件
@@ -176,7 +176,7 @@ summary: 初始化项目上下文——先确定目标项目，再自动识别�
 - [ ] 用户提供的原始信息已整理入项目 wiki，或以来源资料索引登记，未被篡改或遗漏
 - [ ] 项目 wiki 只含代码外事实、导航锚点、业务背景与带来源的决策约定，未记录代码实现逻辑/调用链，未写入凭据明文
 - [ ] 首次初始化该项目时已主动询问用户补全 wiki（「待补充」清单已呈现）；后续补充时只追加融合
-- [ ] 区块外的 AGENTS.md 内容未被改动；其他项目的 wiki 未被误写
+- [ ] AGENTS.md 未被改动；其他项目的 wiki 未被误写
 
 ## 下一步建议
 

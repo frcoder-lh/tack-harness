@@ -1,7 +1,7 @@
 #!/bin/sh
 # harness-backup.sh — harness 修改前的统一备份与恢复（study / update 共用）
 #
-# 备份内容：$root/harness/、$root/AGENTS.md、$root/.gitignore（存在时）。
+# 备份内容：$root/harness/、$root/AGENTS.md、$root/tack.yaml、$root/.gitignore（存在时）。
 # 备份路径只能位于 $root/.tack/backup/ 下；同秒多次备份自动追加 -2/-3 后缀。
 #
 # Usage:
@@ -64,6 +64,7 @@ backup)
     mkdir -p "${DEST}"
     cp -R "${ROOT}/harness" "${DEST}/harness"
     [ -f "${ROOT}/AGENTS.md" ] && cp "${ROOT}/AGENTS.md" "${DEST}/AGENTS.md"
+    [ -f "${ROOT}/tack.yaml" ] && cp "${ROOT}/tack.yaml" "${DEST}/tack.yaml"
     [ -f "${ROOT}/.gitignore" ] && cp "${ROOT}/.gitignore" "${DEST}/.gitignore"
     write_manifest "${DEST}"
     echo "BACKUP_DIR=${DEST}"
@@ -111,6 +112,7 @@ restore|verify)
         rm -rf "${ROOT}/harness"
         cp -R "${TARGET_REAL}/harness" "${ROOT}/harness"
         [ -f "${TARGET_REAL}/AGENTS.md" ] && cp "${TARGET_REAL}/AGENTS.md" "${ROOT}/AGENTS.md"
+        [ -f "${TARGET_REAL}/tack.yaml" ] && cp "${TARGET_REAL}/tack.yaml" "${ROOT}/tack.yaml"
         [ -f "${TARGET_REAL}/.gitignore" ] && cp "${TARGET_REAL}/.gitignore" "${ROOT}/.gitignore"
         echo "RESTORE_RESULT=ok"
         echo "请执行 verify 校验逐文件一致：sh harness-backup.sh verify ${ROOT} ${TARGET_REAL}"

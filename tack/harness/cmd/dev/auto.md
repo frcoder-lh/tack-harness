@@ -13,7 +13,7 @@ summary: 自动执行当前工作流剩余环节直到终态——开始前一�
 
 ## 前置准入条件
 
-- 已确定当前工作区 `$work` 与所属项目（`$work/status.yaml` 的 `project`）；项目为空或与 AGENTS.md `projects` 不一致时先向用户确认
+- 已确定当前工作区 `$work` 与所属项目（`$work/status.yaml` 的 `project`）；项目为空或与 `tack.yaml` 的 `projects` 不一致时先向用户确认
 - 无 `$work` 时先执行 `work` 创建或切换工作区，本命令不新建工作区
 - `$work/status.yaml` 存在；当前工作流由 `workflow` / `status` 与 `progress` 判定（development / testing / bugfix / merge-conflict / branch-op）
 - 当前工作流不在 `blocked` 状态；已 blocked 时先补齐阻塞原因并解除，再进入第 1 步
@@ -66,7 +66,7 @@ summary: 自动执行当前工作流剩余环节直到终态——开始前一�
 4. **连续执行剩余链路**
    - 前置动作: 把第 3 步确认的执行约定写入 `$work/status.yaml` 的 `current.next`（执行 `sh $root/harness/script/work-status.sh $work/status.yaml set next "auto: <结束点与关键约定>"`）
    - 每个环节: 读取并严格执行对应 `harness/cmd/` 命令文件（准入、脚本调用、自动提交、安全禁令全部适用），按第 3 步授权完成该环节常规确认关口，不逐环节等待用户审阅
-   - 环节衔接: 上一环节通过后置完成检验并回写 status.yaml 后进入下一环节；仓库未就绪时按 `code` 的仓库准入转 `create-repo` / `worktree`，完成后继续；push 遇 non-fast-forward 按 `push` 规则转 `fetch` / `solve` 后重试；合并冲突按 `merge` / `solve` 处理
+   - 环节衔接: 上一环节通过后置完成检验并回写 status.yaml 后进入下一环节；仓库未就绪时按 `code` 的仓库准入转 `repo` / `worktree`，完成后继续；push 遇 non-fast-forward 按 `push` 规则转 `fetch` / `solve` 后重试；合并冲突按 `merge` / `solve` 处理
    - 发现需求或实现偏差: 按 `fix` 修正后继续，修正内容与理由纳入最终汇报
    - 决策记录: 方案选择、跳过/降级项、冲突取舍、自动修正等写入对应产物（plan.md「决策记录」/「修订记录」、status.yaml `current.next` 或 `guidance`），并在最终汇报汇总
    - **不中断原则**: 除以下真实阻塞外不停止——

@@ -46,7 +46,7 @@ Wiki 记录难以重建的语义、理由、约定和查询入口，不复制容
 | 项目级参数/代码外事实 | `$root/wiki/<project>/config/`（服务、环境、账号、配置等按主题分文件） | 各环境网关发布地址、租户、角色与申请方式、平台入口、服务映射 |
 | 工作区级参数 | `$work/status.yaml` 的 `mr_url` / `deploy` / `meego` / `tech_doc_url` 等 | 本次需求的 MR 地址、泳道、构建版本、需求链接 |
 
-- 项目由 `$work/status.yaml` 的 `project` 确定；无工作区时从 AGENTS.md `projects` 选择
+- 项目由 `$work/status.yaml` 的 `project` 确定；无工作区时用 `project.sh project-list` 从 `tack.yaml` 选择
 - 工作区级参数随需求变化，**不得**写入 harness 模板或项目 wiki；项目级参数跨需求复用，**不得**写入单个工作区的 status.yaml
 
 ## wiki 内部的文件分工（均位于 `$root/wiki/<project>/`）

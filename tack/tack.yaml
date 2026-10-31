@@ -1,0 +1,14 @@
+# ============================================================
+# tack 空间登记（$root/tack.yaml）
+#
+# 定位：空间级结构化登记的唯一事实源——空间版本、项目、服务仓库映射与工作区登记。
+# 维护：由 harness/script/project.sh 读写（init / work / close / update 时自动更新）；
+#       可手工查阅，结构化修改一律经 project.sh，避免格式偏差。
+# 分工：工作区实时状态与进展在 space/<workspace>/status.yaml；目录事实取自文件系统，
+#       分支与仓库状态取自 Git。
+# ============================================================
+skill_version: ""
+skill_update_url: "https://github.com/frcoder-lh/tack-harness"
+skill_trigger: "tack"
+projects: []
+work: []

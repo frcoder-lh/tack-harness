@@ -24,7 +24,7 @@ summary: 为当前工作区的指定仓库按需补建 git worktree（新建工�
    - 动作: 执行 `sh $root/harness/script/git-worktree-helper.sh create $root <work_dir> <branch> <repo-name>`，创建到 `$work/repo/<repo-name>`；分支不存在时自动基于默认分支新建
    - 解析输出: 脚本输出结果行 `BRANCH_CREATED=0|1`（0=分支已存在，1=本次新建分支）
 3. **更新登记**
-   - 动作: 读取 AGENTS.md 项目信息区块中该 work 条目的现有 services，与新仓库名合并去重后执行 `sh $root/harness/script/project.sh work-services $root <work_id> "<svc1,svc2,...>" "$work/status.yaml"`，同步回写 work 条目与工作区 status.yaml 的 services
+   - 动作: 执行 `sh $root/harness/script/project.sh work-get $root <work_id>` 读取该 work 条目的现有 `SERVICES`，与新仓库名合并去重后执行 `sh $root/harness/script/project.sh work-services $root <work_id> "<svc1,svc2,...>" "$work/status.yaml"`，同步回写 work 条目与工作区 status.yaml 的 services
    - **登记新建分支**: 若上一步 `BRANCH_CREATED=1`，执行
      `sh $root/harness/script/work-status.sh $work/status.yaml branch register <repo-name> <branch> main worktree`
      把补建时新建的主分支登记到 status.yaml 的 branches 列表（close 时据此清理）
@@ -32,12 +32,12 @@ summary: 为当前工作区的指定仓库按需补建 git worktree（新建工�
 ## 框架自动提交（无需用户操作）
 
 - 动作: 执行 `sh $root/harness/script/space.sh commit $root "chore(tack): attach worktree <repo-name>"`，把 services 登记变更自动提交到 tack 空间根仓库；无变更自动跳过
-- 边界: 遵守 `harness/rule/git-boundary.md`；仅提交 AGENTS.md / status.yaml 登记变更；worktree 创建本身由框架脚本完成，代码仓库不产生提交
+- 边界: 遵守 `harness/rule/git-boundary.md`；仅提交 `tack.yaml` / status.yaml 登记变更；worktree 创建本身由框架脚本完成，代码仓库不产生提交
 
 ## 后置完成检验
 
 - [ ] `git -C $work/repo/<repo-name> status` 正常且位于目标分支
-- [ ] AGENTS.md work 条目与工作区 status.yaml 的 services 已更新
+- [ ] `tack.yaml` work 条目与工作区 status.yaml 的 services 已更新
 
 ## 下一步建议
 

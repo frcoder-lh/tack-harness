@@ -12,7 +12,7 @@
 #   sh skill-update.sh <update-url> <tag> --tack-root <path>    # 临时/备份目录落入 tack 空间
 #
 # 参数:
-#   update-url   仓库地址（取自 AGENTS.md 项目信息区块 skill_update_url，
+#   update-url   仓库地址（取自 tack.yaml 的 skill_update_url，
 #                如 https://github.com/frcoder-lh/tack-harness）
 #   tag          目标版本 tag（Vx.y.z）
 #   --tack-root <path>  可选；tack 空间的 .tack 运行时目录。传入后下载解压的临时

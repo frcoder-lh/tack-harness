@@ -2,7 +2,7 @@
 # space.sh — tack 空间根仓库的框架自动 Git 操作（唯一入口）
 #
 # 【Git 双层边界】
-#   - $root（tack 空间根仓库）：保存 harness/、wiki/、AGENTS.md、
+#   - $root（tack 空间根仓库）：保存 harness/、wiki/、AGENTS.md、tack.yaml、
 #     space/<YYYYMMDD>-<branch>/ 下的工作文档（status.yaml、context.md、story/、doc/ 等）。
 #     它的全部 Git 操作由框架自动完成，用户不需要也不允许直接对 $root 执行 git。
 #   - 用户的 Git 操作只作用于工作区代码仓库 $work/repo/<repo-name>/（git worktree），

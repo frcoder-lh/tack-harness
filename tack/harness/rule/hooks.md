@@ -1,6 +1,6 @@
 # Hook 可选加速层
 
-> 由 `AGENTS.md`「Hook 可选加速层」摘要引用后按需加载，适用于 TRAE / Claude Code。
+> 由 `AGENTS.md` 目录概览的 Hook 行引用后按需加载，适用于 TRAE / Claude Code。
 > `harness/script/hook/` 提供三个 IDE Hook，**仅做确定性事实搬运，不承载语义判断**，`AGENTS.md` 与 `scan-routes.sh` 始终是唯一事实源。
 
 ## 启用与降级
@@ -12,8 +12,8 @@
 
 | 事件 | 加速内容 | 对会话的影响 |
 |------|----------|--------------|
-| SessionStart | 注入命令/工作流路由全表、`$root`/`$work` 路径、工作区快照（cwd 在工作区内则精确命中，否则取最近活跃并提示确认） | 省去首轮 `scan-routes list` 往返 |
-| UserPromptSubmit | 以当次 cwd 实时解析空间根与工作区（cwd 在 `space/<name>/` 内精确命中，支持多工作区并行；之外回退最近活跃）；对用户输入做 `scan-routes resolve`，唯一命中时直接注入对应 cmd/workflow 正文与状态快照，多命中列候选，无命中给全表 | 省去路由解析往返与重复的空间/工作区扫描 |
+| SessionStart | 只注入空间位置（`$root`、当前 cwd 所属工作区），不预载路由表 | 省去会话启动时扫描；收到请求后再按需加载 |
+| UserPromptSubmit | 以当次 cwd 实时解析空间根与工作区；对输入做 `scan-routes resolve`，唯一命中时注入路由元信息、参数原文、状态快照与指令正文，多命中列候选，无命中注入 `scan-routes index` 紧凑索引 | 省去路由解析往返与重复的空间/工作区扫描；上下文已有正文或索引时直接复用 |
 | PreToolUse | 观察模式：命令执行类工具（RunCommand/Bash）调用与 Git 双层边界、`--force`/`--no-verify` 等规则命中情况经统一日志记录；`TACK_HOOK_ENFORCE=1` 才输出 deny（**当前预留，默认不拦截**） | 默认零输出、零拦截 |
 
 ## 统一日志

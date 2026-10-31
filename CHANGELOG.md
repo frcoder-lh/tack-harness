@@ -6,6 +6,16 @@
 - 中英两份文件同版本条目一一对应、同步维护；`release.sh` 发版时校验目标 tag 在两份文件中均有对应段落，任一缺失即中止
 - CI 创建 GitHub Release 时分别抽取两份文件的对应段落拼接为双语 Release body；`check-update.sh` 检查提醒与 `update` 命令展示「本次更新内容」均同时以两份文件为来源
 
+## V0.0.22 (2026-10-31)
+
+- 新增: 空间登记独立到 `tack.yaml`——`AGENTS.md` 瘦身为常驻入口（路由、核心约束、数据来源），项目名、关键词、服务仓库映射与工作区登记迁至空间根 `tack.yaml`；`project.sh` 新增 `space-info` / `project-get` / `repo-list` / `work-list` / `work-get` 等按范围查询子命令，`init` / `work` / `close` / `evolution` / `update` 统一经脚本读写，老空间的项目信息区块在查询或升级时自动迁移到 `tack.yaml`
+- 新增: `repo` 命令（简写 `rp`，触发词「新建仓库 / 建仓 / 更新仓库 / 拉取仓库 / repo / repo fetch」）——承接代码主仓库的新建与更新；`repo fetch` 支持更新全部或指定主仓库（复用 `git-fetch-helper.sh sync`），原 `create-repo` 触发词继续路由到新命令
+- 新增: `ask` 分支流程目录化——入口只保留公共准入与分支选择，按需加载 `summarize` / `answer` / `verify` / `overview` 四条流程；分析产物统一落 `doc/analysis/`，文件名不再限定 `-analysis` 后缀
+- 新增: 新增 `script-catalog`（脚本清单按用途分组）、`record-lifecycle`（guidance 采集与固化生命周期）、`workspace-layout`（工作区目录布局）三份规则，`AGENTS.md` 与命令中的重复说明收敛为按名称引用
+- 优化: 路由与 Hook 按需加载——显式命令命中后直接输出指令正文，不再加载全量命令表；`SessionStart` 只注入空间位置，`UserPromptSubmit` 按路由结果注入紧凑索引或指令正文，降低常驻上下文
+- 优化: 检索与证据口径——`wiki-read` 增加一轮并行取回与检索准确性规则，分析文档统一使用 `仓库/路径#L12-L15` 式证据锚点；`ask` 的状态回写与阶段提交统一交由脚本完成
+- 优化: `tack/.gitignore` 默认忽略所有点开头目录（如 `.trae/`、`.claude/`），`update` 兜底规则同步调整；双语 README、站点文档与命令/规则引用同步新结构
+
 ## V0.0.21 (2026-10-30)
 
 - 新增: 项目 wiki 索引化——项目 wiki 改为 `index.md` 总索引 + `biz/`、`code/`、`rule/`、`config/`、`history/` 分类小文件，14 个分类模板随 harness 分发；新增公共 `wiki-read` / `wiki-write` 规则，`init` / `record` / `close` / `ask` / `evolution` 的 wiki 读写统一按该规则执行；新增 `wiki-index.sh` 校验索引完整性（支持目录覆盖与遗漏文件），`evolution` 运行时自动补录未登记文件

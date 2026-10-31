@@ -20,13 +20,13 @@ summary: 沉淀知识或扩展能力——先确定工作区与项目；能力�
 ## 指令内容
 
 0. **确定工作区与项目（落盘前必做）**
-   - 有 `$work` 时：读取 `$work/status.yaml` 的 `project`，并核对 AGENTS.md `projects` 中存在同名条目；不一致或为空时读取对应 work 条目的 `project`，仍不明确则向用户确认
+   - 有 `$work` 时：读取 `$work/status.yaml` 的 `project`，并用 `sh $root/harness/script/project.sh project-get $root <project>` 核对 `tack.yaml` 中存在同名项目；不一致或为空时向用户确认
    - 无 `$work` 时：先执行 `sh $root/harness/script/project.sh ensure $root`（幂等），再执行 `project-list $root`——只有一个项目直接使用；多个项目请用户选择；没有项目且本次要落项目知识时，经用户确认后执行 `project.sh project-add` 新建
    - 边界: 项目知识的读写一律限定当前项目目录 `$root/wiki/<project>/`，不跨项目取用；工作区级参数落 `$work/status.yaml`，无 `$work` 时先请用户指定目标工作区
 
 1. **获取记录内容（两种触发方式）**
    - 用户给了明确内容: 以参数/用户原话为准
-   - 用户未给具体内容（如只说「记录一下」「把最近的引导沉淀一下」）: 有 `$work` 时执行 `sh $root/harness/script/work-status.sh $work/status.yaml guidance list pending`，无 `$work` 时执行 `sh $root/harness/script/work-status.sh $root guidance all pending`，列出候选请用户挑选；这些条目是任务结束时自动采集的用户引导（AGENTS.md 第 11 条）
+   - 用户未给具体内容（如只说「记录一下」「把最近的引导沉淀一下」）: 有 `$work` 时执行 `sh $root/harness/script/work-status.sh $work/status.yaml guidance list pending`，无 `$work` 时执行 `sh $root/harness/script/work-status.sh $root guidance all pending`，列出候选请用户挑选；这些条目是任务结束时自动采集的用户引导（见 `harness/rule/record-lifecycle.md`）
 
 2. **判断内容类型与落点**
    - 动作: 按 `harness/rule/record-classification.md` 的判据归入 **agents / cmd / workflow / rule / wiki**；并区分「能力」与「参数」——
@@ -38,14 +38,14 @@ summary: 沉淀知识或扩展能力——先确定工作区与项目；能力�
 3. **先扫描，再决定融合或新建**
    - cmd：按 `harness/rule/record-cmd.md` 全量扫描命令并语义匹配
    - workflow：按 `harness/rule/record-workflow.md` 全量扫描工作流并匹配
-   - agents：读取 `$root/AGENTS.md`，匹配「核心约束」编号条目（规则见 `harness/rule/record-agents.md`）
+   - agents：读取 `$root/AGENTS.md`，按名称匹配 AGENT 核心约束与 tack harness 核心约束（规则见 `harness/rule/record-agents.md`）
    - rule / wiki：读取 `harness/rule/`、`$root/wiki/<project>/` 对应索引与文件匹配（规则见 `harness/rule/record-rule.md`、`harness/rule/wiki-write.md`、`harness/rule/wiki-read.md`）
    - 命中相关条目：读取对应内容，与用户确认如何**融合修正**（最小化修改，不重写无关内容；同义条目只更新不重复追加）
    - 确无合适条目：进入第 4 步落盘（cmd/workflow 为新建，其余为直接落盘）
 
 4. **落盘**
    - 按所属类型的规则文件执行：
-     - agents → `harness/rule/record-agents.md`（AGENTS.md「核心约束」；仅限对本空间所有项目成立的常驻约束）
+     - agents → `harness/rule/record-agents.md`（AGENTS.md 的 AGENT / tack harness 核心约束；仅限对本空间所有项目成立的常驻约束）
      - cmd → `harness/rule/record-cmd.md`（复制 `template/cmd.md` 到 `harness/cmd/<分组>/`）
      - workflow → `harness/rule/record-workflow.md`（复制 `template/workflow.md` 到 `harness/workflow/`）
      - rule → `harness/rule/record-rule.md`（`harness/rule/` 新建或追加）
@@ -57,7 +57,7 @@ summary: 沉淀知识或扩展能力——先确定工作区与项目；能力�
 6. **验证生效并回写 guidance**
    - 动作:
      - cmd / workflow：执行 `sh $root/harness/script/scan-routes.sh list $root/harness`，确认新建/修改后的条目出现在路由表中
-     - agents：重新读取 `$root/AGENTS.md`，确认条目位置正确、区块标记与项目信息区块完好
+     - agents：重新读取 `$root/AGENTS.md`，确认条目落在对应约束分组、位置正确，且未改动命令路由、数据来源与目录概览等固定章节
      - 本次内容来自 guidance 条目: 执行 `sh $root/harness/script/work-status.sh <来源 status.yaml> guidance <id> applied <落点路径...>`（多落点空格分隔，脚本校验落点文件存在后只置 `status: applied`）；用户挑选后放弃的条目执行 `sh $root/harness/script/work-status.sh <来源 status.yaml> guidance <id> rejected`
 
 7. **版本检查（更新提醒挂载点）**
@@ -75,7 +75,7 @@ summary: 沉淀知识或扩展能力——先确定工作区与项目；能力�
 - [ ] 已优先尝试融合已有相关条目；新建是在确无合适条目后进行
 - [ ] 新建 cmd 时用户只提供了 command，其余字段为 AI 自动生成并经审阅
 - [ ] 文件已落盘到正确目录，文件头字段完整
-- [ ] agents 条目落在 AGENTS.md 核心约束且仅限全空间约束，未触碰项目信息 YAML 区块与 harness 固定章节；scan-routes 能扫描到新 cmd/workflow 条目
+- [ ] agents 条目落在 AGENTS.md 对应核心约束分组且仅限全空间约束，未改动固定章节；scan-routes 能扫描到新 cmd/workflow 条目
 - [ ] 素材来自 guidance 时，来源条目已回写 applied 或 rejected
 - [ ] 用户已审阅确认
 - [ ] 版本检查已执行；有新版本时已原样转述提醒与更新内容，并建议先执行 `update`
@@ -85,7 +85,8 @@ summary: 沉淀知识或扩展能力——先确定工作区与项目；能力�
 | 文件 | 作用 |
 |------|------|
 | `harness/rule/record-classification.md` | 五类内容的分类判据、能力/参数落点、wiki 文件分工、存疑路由 |
-| `harness/rule/record-agents.md` | 沉淀 AGENTS.md 核心约束的格式、适用范围与边界 |
+| `harness/rule/record-lifecycle.md` | guidance 的触发条件、原始记录与固化入口（采集/固化细则） |
+| `harness/rule/record-agents.md` | 沉淀 AGENTS.md 两个约束分组的格式、适用范围与边界 |
 | `harness/rule/record-cmd.md` | 命令的扫描融合、新建模板字段、分组选择 |
 | `harness/rule/record-workflow.md` | 工作流的扫描融合与新建 |
 | `harness/rule/record-rule.md` | 编码规范/研发规则的落点与融合 |

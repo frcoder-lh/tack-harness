@@ -596,7 +596,7 @@ html:lang(en) .cta h2{font-size:clamp(23px,3.1vw,30px)}
         <thead><tr><th data-i18n="cmdth.cmd">命令</th><th data-i18n="cmdth.short">简写</th><th data-i18n="cmdth.what">作用</th><th data-i18n="cmdth.trig">触发词</th></tr></thead>
         <tbody data-i18n-h="cmdrows.base"></tbody>
       </table>
-      <div class="note" data-i18n="cmdnote.base">// 空间命令：初始化、建仓、路由、自进化，围绕「工作区」组织。</div>
+      <div class="note" data-i18n="cmdnote.base">// 空间命令：初始化、仓库管理、路由、自进化，围绕「工作区」组织。</div>
     </div>
 
     <div class="cmd-panel" id="panel-dev">
@@ -811,7 +811,7 @@ var I18N = {
     "commands.lede":"格式为 /tack <命令|简写|触发词> [参数]。在已激活 tack 的对话中亦可省略 /tack 前缀。完整清单以 /tack help 的实时扫描结果为准。",
     "cmdt.base":"项目空间 · cmd/base","cmdt.dev":"需求开发 · cmd/dev","cmdt.git":"Git 命令 · cmd/git",
     "cmdth.cmd":"命令","cmdth.short":"简写","cmdth.what":"作用","cmdth.trig":"触发词",
-    "cmdnote.base":"// 空间命令：初始化、建仓、路由、自进化，围绕「工作区」组织。",
+    "cmdnote.base":"// 空间命令：初始化、仓库管理、路由、自进化，围绕「工作区」组织。",
     "cmdnote.dev":"// 需求命令：分析 → 规划 → 设计 → 编码 → 审查 → 上线，构成开发主链路。",
     "cmdnote.git":"// Git 命令：遵循「Git 双层边界」，用户 Git 操作仅作用于工作区代码仓库。",
     "install.eyebrow":"Installation","install.h2":"四种方式，一分钟上手",
@@ -871,7 +871,7 @@ var I18N = {
     "commands.lede":"Format: /tack &lt;command|short|trigger&gt; [args]. Inside a tack-activated conversation you can also omit the /tack prefix. The live output of /tack help is authoritative.",
     "cmdt.base":"Space · cmd/base","cmdt.dev":"Development · cmd/dev","cmdt.git":"Git · cmd/git",
     "cmdth.cmd":"Command","cmdth.short":"Short","cmdth.what":"Purpose","cmdth.trig":"Triggers",
-    "cmdnote.base":"// Space commands: init, create-repo, routing, self-evolution—organized around the workspace.",
+    "cmdnote.base":"// Space commands: init, repository management, routing, self-evolution—organized around the workspace.",
     "cmdnote.dev":"// Dev commands: analyze → plan → design → code → review → ship, forming the main chain.",
     "cmdnote.git":"// Git commands: follow the \u201cGit dual boundary\u201d—user Git ops act only on workspace code repos.",
     "install.eyebrow":"Installation","install.h2":"Four ways, up and running in a minute",
@@ -902,21 +902,21 @@ var I18N = {
 var CMD_ROWS = {
   base: {
     zh: [
-      {cmd:'init', short:'i', what:'提炼项目信息写入 AGENTS.md，扫描软链或克隆仓库', trig:'初始化 / 接入仓库 / initialize'},
+      {cmd:'init', short:'i', what:'提炼项目信息写入 tack.yaml，扫描软链或克隆仓库', trig:'初始化 / 接入仓库 / initialize'},
       {cmd:'work', short:'w', what:'新建/重命名/切换/列出工作区，自动推断服务、创建 worktree；承接分支合并/变基意图', trig:'工作区 / workspace / work'},
       {cmd:'help', short:'h', what:'扫描 harness，输出工作流与全部命令', trig:'帮助 / 命令 / help'},
-      {cmd:'update', short:'u', what:'更新 harness 与空间根 .gitignore，保留自定义 cmd/rule 与 AGENTS.md', trig:'更新 / 更新skill / update'},
-      {cmd:'create-repo', short:'cr', what:'新建并初始化本地代码仓库，纳入项目空间管理', trig:'新建仓库 / 建仓 / create repo'},
+      {cmd:'update', short:'u', what:'更新 harness 与空间根 .gitignore，保留自定义 cmd/rule、AGENTS.md 与 tack.yaml', trig:'更新 / 更新skill / update'},
+      {cmd:'repo', short:'rp', what:'管理代码主仓库：新建并纳入项目空间管理，或更新全部/指定主仓库到远端最新', trig:'新建仓库 / 建仓 / 更新仓库 / repo fetch'},
       {cmd:'record', short:'r', what:'优先融合已有条目；可落命令/工作流/规则/wiki，新建时仅需提供 command', trig:'记录 / 记忆 / 沉淀 / record'},
       {cmd:'evolution', short:'evo', what:'结构自检并审查指令，提炼 rule/reference/script 候选', trig:'进化 / 进化harness / evolve'},
       {cmd:'study', short:'st', what:'向外学习外部 skill 或仓库的设计并落盘到 harness', trig:'学习 / 研习 / 借鉴 / study'}
     ],
     en: [
-      {cmd:'init', short:'i', what:'Extracts project info into AGENTS.md, scans and symlinks or clones repositories', trig:'initialize / connect repo / organize docs'},
+      {cmd:'init', short:'i', what:'Extracts project info into tack.yaml, scans and symlinks or clones repositories', trig:'initialize / connect repo / organize docs'},
       {cmd:'work', short:'w', what:'Creates / renames / switches / lists workspaces, auto-infers services, and creates worktrees; also routes branch merge/rebase intents', trig:'workspace / new workspace / switch workspace'},
       {cmd:'help', short:'h', what:'Scans the harness and prints workflows and all commands', trig:'help / commands'},
-      {cmd:'update', short:'u', what:'Updates the harness and the space-root .gitignore, preserving custom cmd/rule and AGENTS.md', trig:'update / update skill'},
-      {cmd:'create-repo', short:'cr', what:'Creates and initializes a local code repository under project-space management', trig:'create repo / new repository'},
+      {cmd:'update', short:'u', what:'Updates the harness and the space-root .gitignore, preserving custom cmd/rule, AGENTS.md and tack.yaml', trig:'update / update skill'},
+      {cmd:'repo', short:'rp', what:'Manages code main repositories: creates and registers a new one, or updates all/specified main repositories to the remote latest', trig:'create repo / new repository / update repo / repo fetch'},
       {cmd:'record', short:'r', what:'Prefers merging into existing entries; can land commands / workflows / rules / wiki; supply only command for new entries', trig:'record / remember / distill'},
       {cmd:'evolution', short:'evo', what:'Runs the structure self-check and reviews instructions, distilling rule/reference/script candidates', trig:'evolve / evolve harness'},
       {cmd:'study', short:'st', what:'Learns from the design of external skills or repositories and lands ideas into the harness', trig:'study / learn / learn from'}
@@ -956,7 +956,7 @@ var CMD_ROWS = {
   },
   git: {
     zh: [
-      {cmd:'fetch', short:'f', what:'拉取各仓库最新代码（仅 fetch，不 merge）', trig:'拉取 / pull / pull code'},
+      {cmd:'fetch', short:'f', what:'拉取当前工作区各仓库最新代码（仅 fetch，不 merge）', trig:'拉取 / pull / pull code'},
       {cmd:'worktree', short:'wt', what:'为指定仓库补建 worktree', trig:'工作树 / worktree'},
       {cmd:'commit', short:'ci', what:'本地提交，提交信息自动生成后直接提交，无需二次确认', trig:'提交 / local commit'},
       {cmd:'push', short:'ps', what:'推送远端，未关联时引导关联', trig:'推送 / push remote'},
@@ -964,7 +964,7 @@ var CMD_ROWS = {
       {cmd:'solve', short:'s', what:'引导式逐文件解决冲突', trig:'冲突 / 解决冲突 / resolve conflict'}
     ],
     en: [
-      {cmd:'fetch', short:'f', what:'Pulls the latest code for each repository (fetch only, no merge)', trig:'pull / pull code'},
+      {cmd:'fetch', short:'f', what:'Pulls the latest code for each repository in the current workspace (fetch only, no merge)', trig:'pull / pull code'},
       {cmd:'worktree', short:'wt', what:'Creates the missing worktree for a specified repository', trig:'worktree'},
       {cmd:'commit', short:'ci', what:'Local commit; auto-generates the Conventional Commits message and commits directly', trig:'commit / local commit'},
       {cmd:'push', short:'ps', what:'Pushes to the remote; guides you to associate one if none is set', trig:'push / push remote'},
@@ -976,14 +976,14 @@ var CMD_ROWS = {
 var FAQ_ITEMS = {
   zh: [
     {q:'如何添加自定义命令或工作流？', a:'复制 <code>harness/template/cmd.md</code>（命令）或 <code>workflow.md</code>（工作流）至对应目录，修改文件名并补充文件头，扫描器即时识别；亦可直接调用 <code>/tack record</code>，该命令会先尝试与已有命令融合，新建时仅需提供 command。'},
-    {q:'update 会覆盖我的自定义内容吗？', a:'不会。update 仅刷新 script/、template/、reference/、workflow/；cmd/ 只增补、不覆盖同名文件；rule/ 与 AGENTS.md（含项目信息区块）完全保留。'},
+    {q:'update 会覆盖我的自定义内容吗？', a:'不会。update 仅刷新 script/、template/、reference/、workflow/；cmd/ 只增补、不覆盖同名文件；rule/、AGENTS.md 与 tack.yaml 完全保留（老空间的项目信息区块自动迁移到 tack.yaml）。'},
     {q:'支持多仓库项目吗？', a:'支持。work 按目的推断涉及服务，每个仓库独立 worktree 至 <code>space/&lt;YYYYMMDD&gt;-&lt;branch&gt;/repo/&lt;repo-name&gt;</code>，Git 命令逐仓库执行。'},
     {q:'record / evolution / study 三个「进化」类命令如何分工？', a:'record 沉淀用户明确给出的内容（人给素材）；evolution 向内自审，从现有 cmd 中提炼 rule/reference/script；study 向外学习第三方 skill/仓库，借鉴其流程、命令、规则、脚本、模板与组织方式。'},
     {q:'Windows 上脚本能跑吗？', a:'脚本为 POSIX sh，Windows 统一经 run.ps1 启动器调用（自动定位 Git for Windows 的 bash.exe，未安装时首次运行自动通过 winget 安装）。Git Bash 中 curl 若报 CRYPT_E_NO_REVOCATION_CHECK，加 --ssl-no-revoke，或改用克隆方式安装。'}
   ],
   en: [
     {q:'How do I add a custom command or workflow?', a:'Copy <code>harness/template/cmd.md</code> (command) or <code>workflow.md</code> (workflow) into the corresponding directory, rename and fill in the front matter—the scanner recognizes it instantly. Or just call <code>/tack record</code>: it merges with existing commands first, and you only supply command for a new one.'},
-    {q:'Will update overwrite my custom content?', a:'No. update only refreshes script/, template/, reference/, and workflow/; cmd/ is additive—same-named files are never overwritten; rule/ and AGENTS.md (including the project info block) are fully preserved.'},
+    {q:'Will update overwrite my custom content?', a:'No. update only refreshes script/, template/, reference/, and workflow/; cmd/ is additive—same-named files are never overwritten; rule/, AGENTS.md and tack.yaml are fully preserved (legacy project info blocks migrate to tack.yaml automatically).'},
     {q:'Are multi-repository projects supported?', a:'Yes. work infers the involved services; each repository gets its own worktree at <code>space/&lt;YYYYMMDD&gt;-&lt;branch&gt;/repo/&lt;repo-name&gt;</code>, and Git commands run per repository.'},
     {q:'How do record / evolution / study divide the \u201cevolution\u201d work?', a:'record crystallizes what you explicitly give (humans supply the material); evolution reviews inward, distilling rule/reference/script from existing cmds; study learns outward from third-party skills/repositories, borrowing their flows, commands, rules, scripts, templates, and organization.'},
     {q:'Do the scripts run on Windows?', a:'The scripts are POSIX sh; on Windows they run through the run.ps1 launcher (auto-locating Git for Windows\' bash.exe and installing it via winget if missing). If curl reports CRYPT_E_NO_REVOCATION_CHECK in Git Bash, add --ssl-no-revoke or use the clone-and-install option.'}

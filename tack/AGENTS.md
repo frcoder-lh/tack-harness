@@ -1,110 +1,80 @@
 # AGENTS.md
 
-本空间由 tack harness 驱动。
+本工程由 [TackHarness](https://github.com/frcoder-lh/tack-harness)  驱动。
 
 ## 环境变量
 
-- `$root` = tack 空间的根目录（本文件所在目录）
-- `$work` = 当前正在进行的工作目录（`$root/space/<workspace>/`；工作区目录名 `<workspace>` = `<YYYYMMDD>-<branch>`，分支名中的 `/` 转为 `-`，如分支 `feature/login` 对应目录 `20261023-feature-login`——日期前缀使目录按名排序即按创建时间排序；目录内 worktree 检出的 git 分支名仍为 `<branch>`，保留 `/`、不含日期前缀）
-- Hook 不向会话环境写入任何路径变量（无 `TACK_ROOT`/`TACK_WORK`）：三个 Hook 一律以当次调用 payload 的 cwd 实时解析空间根与工作区，多个项目窗口、同一空间多个工作区并行互不串扰；AI 拼命令时直接使用 Hook 注入文本中的绝对路径，不要假定存在路径类环境变量（仅 `TACK_HOOK_LOG`/`TACK_HOOK_ENFORCE` 两个模式开关走环境变量）
+- `$root` = tack 工程的根目录（本文件所在目录）
+- `$work` = 当前会话正在处理的工作区目录（`$root/space/<workspace>/`）
+- `$project` = `$work` 所属项目名（`$work/status.yaml` 的 `project` 字段值）
+- `$workflow` = `$work` 所属任务名（`$work/status.yaml` 的 `workflow` 字段值）
 
-## 加载 tack harness
+## 脚本调用约定
+本工程下的脚本均为 POSIX sh。文档中的 `sh $root/harness/script/<name>.sh <args>`：
+- macOS / Linux：直接执行。
+- Windows：一律改为 `powershell -ExecutionPolicy Bypass -File "$root\harness\script\run.ps1" <name> <args>`；路径参数用正斜杠。安装、路径转换、换行与工具定位等细节见 `harness/rule/windows-env.md`。
 
-检查大模型的上下文中是否已加载了 tack 的工作流和命令路由，如果没有加载，调用 `harness/script/scan-routes.sh`，扫描工作流和命令路由并加载到大模型的上下文中。用户没有明确指定技能时，默认都从 tack 的命令路由中选择。
+## 命令路由（按需加载）
 
-- Windows（PowerShell；`$root` 替换为本空间实际路径，路径参数一律用正斜杠）：
+入口只有命令：`harness/cmd/` 的 cmd 是唯一触发入口；`harness/workflow/` 是工作区流转的状态机，由命令或语义识别后写入 `$work/status.yaml`，用于辅助长任务推进、引导下一步或为自动完成提供路径。工作区可以没有工作流；无法识别意图或没有对应工作流时，由用户自行执行指令。
 
-  ```powershell
-  powershell -ExecutionPolicy Bypass -File "$root\harness\script\run.ps1" scan-routes list "$root/harness"
-  ```
+用户输入以 `/tack` 为可选前缀。会话启动时只识别工程位置，收到请求后再解析路由：
+1. 去掉 `/tack` 前缀，执行 `scan-routes resolve "$root/harness" "<输入>"`。带参数的命令先按命令前缀精确匹配，参数原文完整保留；显式命令命中后不再按意图重新路由。
+   - 退出码 **0**（唯一命中）：按输出行前缀 `cmd|` / `workflow|` 定位文件——cmd 直接执行其四段正文，不再执行 `index` / `list`；workflow 只按状态机引导，不当作触发入口。注入内容已含指令正文或索引时直接复用。
+   - 退出码 **2**（多命中）：列出候选项让用户选择。
+   - 退出码 **1**（无命中）：进入语义识别。
+2. **语义识别**：执行 `scan-routes index "$root/harness"` 取得紧凑索引（名称、简写、触发词、短描述、路径），与输入做语义匹配，挑最可能的 1-3 条向用户确认；仍不明确时列候选让用户选择；与 tack 工作流无关的请求直接正常回答。
+3. **确认工作区与项目**（见「工作区与项目确认」），识别意图所属 workflow 并按状态机引导。
 
-- macOS / Linux：
+缓存：上下文已有命令正文或紧凑索引时直接复用，不重复读取；用户提示文件已改动或进入新的修改阶段时重新读取。用户请求帮助时，用 `scan-routes list "$root/harness"` 展示完整路由表。
 
-  ```sh
-  sh "$root/harness/script/scan-routes.sh" list "$root/harness"
-  ```
+## AGENT 核心约束
 
-版本检查不在会话加载时执行（避免与任务抢占）——挂载点为 `close` / `evolution` / `record` / `help` 命令收尾，见对应 cmd 文件。
-
-## Hook 可选加速层（TRAE / Claude Code）
-
-`harness/script/hook/` 提供三个 IDE Hook 的可选加速层，**仅做确定性事实搬运，不承载语义判断，AGENTS.md 与 `scan-routes.sh` 始终是唯一事实源**；需在 IDE「设置 > Hooks」中手动启用后生效。事件表、日志开关、路径解析与降级路径见 `harness/rule/hooks.md`。
-
-## 命令路由
-
-用户输入以 `/tack` 为可选前缀（可省略，也可直接用自然语言）。去掉开头的 `/tack`（含后续空格）后，按以下顺序解析：
-
-1. **精确/模糊路由**：按上文脚本调用约定执行 `scan-routes resolve "$root/harness" "<输入>"`
-   - 退出码 **0**（唯一命中）：按输出行前缀 `workflow|` / `cmd|` 定位文件并严格执行——cmd 执行其四段正文；workflow 按状态机引导对应命令
-   - 退出码 **2**（多命中）：列出候选项让用户选择
-   - 退出码 **1**（无命中）：进入语义识别
-2. **语义识别**：执行 `scan-routes workflows "$root/harness"` 与 `scan-routes commands "$root/harness"` 取得全部触发词，与输入做语义匹配（中英文同义词、意图归类），挑出最可能的 1-3 条向用户确认；仍不明确时展示路由表让用户选择
-3. **确认当前工作**：按核心约束第 5 条确认用户当前工作（`$work=$root/space/<workspace>`，`<workspace>` = `<YYYYMMDD>-<branch>`），识别意图所属 workflow，按状态机引导命令
-
-## 脚本调用约定（跨平台）
-
-`harness/script/` 下的固定流程脚本均为 POSIX sh。本文档及 `harness/cmd/`、`harness/workflow/` 中出现的 `sh $root/harness/script/<name>.sh <args>`：
-
-- **Windows 上一律改执行为**：`powershell -ExecutionPolicy Bypass -File "$root\harness\script\run.ps1" <name> <args>`
-  - `run.ps1` 自动定位 Git for Windows 的 bash.exe（未安装时首次运行自动通过 winget 安装 Git for Windows）、归一化路径参数并透传退出码
-  - 必须带 `-ExecutionPolicy Bypass`（Windows 默认执行策略禁止运行 .ps1）；所有路径参数使用正斜杠（如 `D:/Code/AI/my-project`），禁止反斜杠
-- macOS / Linux 直接按文档中的 `sh` 命令执行
-- Windows 上执行任意 shell 命令与创建文件的更多纪律（多行脚本、here-string、GNU 工具路径、LF 换行约定）见 `harness/rule/windows-env.md`
+- 用中文思考和回答；所有输入输出必须有事实来源，禁止编造。
+- **文件读取纪律**：首次使用某本地文件前读取相关片段；同一连续操作中复用最新读取或编辑结果；用户提示外部改动、文件版本变化或进入新的修改阶段时，重新读取相关片段。细则见 `harness/rule/context-loading.md`。
+- **并行**：无依赖的子任务与工具调用在同一轮并行发出；有依赖的按顺序串行。
+- **省往返、省上下文**：先 grep/glob 定位再只读命中片段；list/扫描/日志类输出先在 shell 侧裁剪；同一文件多处关联改动先列映射再整块替换；删除/归档/重命名类需求先确认关联面再动手。
+- **引用按名称**：规则、流程、约束一律用稳定名称引用（如「工作区与项目确认」「沉淀生命周期」），不使用「第 N 条」式编号。
+- **可定位引用**：markdown 中引用文件或代码用 `path/to/file.md#L12-L15`，不写「某行附近」式模糊指向。
+- **反向描述不保留**：事实一旦被移除且没有必须阻止该行为的意图，直接删除相关描述；否定表述只用于真实禁令。删除前确认无文档引用、脚本调用等真实消费者，并同步清理失效引用。
+- **命名**：目录、文件、分支、函数、变量、命令与工作流命名前先读 `harness/rule/naming.md`。
 
 ## tack harness 核心约束
 
-1. 必须用中文思考和回答
-2. 所有输入输出必须有事实来源和事实依据，禁止随意编造
-3. 尊重用户本地改动，每次需要用到本地文件时，重新读取，不要相信大模型的上下文
-4. **多个子任务能并行时尽量并行执行**：拆解出的子任务/工具调用之间无依赖时，在同一轮次内并行发出（如多个文件的新建/修改、多个独立检索）；有依赖的按依赖顺序串行，前序完成后再执行
-5. **收到用户指令后，先确认是否为base指令，如果是则直接执行，否则确认用户当前在进行哪项工作以及所属项目，必须明确**：工作区取 `$work`（`$root/space/<workspace>`），项目取 `$work/status.yaml` 的 `project`（须与 AGENTS.md `projects` 数组中的 `name` 一致）；两者不明确时先向用户确认，不得按上下文猜测。确认后识别用户在进行哪个类型的 workflow，按照 workflow 进行状态流转和命令引导
-6. **Git 双层边界——空间仓库框架托管，用户只操作工作区代码仓库**：
-   - `$root` 空间根仓库（保存 harness/、wiki/、AGENTS.md、space/ 下的工作文档）的 Git 操作**全部由框架自动完成**（初始化首次提交、各命令阶段末经 `harness/script/space.sh commit` 自动提交），**不引导、不要求用户对 `$root` 执行任何 git 命令**
-   - 用户的 Git 操作（fetch/commit/push/merge/solve）只作用于 `$work/repo/<repo-name>/` 工作区代码仓库，由用户主动发起命令触发（框架不自动执行）；其中 `commit` 生成提交信息后直接提交、无需二次确认（提交后如实汇报 hash/信息/文件清单），`push` 等影响远端的操作仍需用户明确指令；worktree 的创建/移除也由框架脚本自动完成
-   - `.gitignore` 已排除 `repo/` 与 `space/*/repo/`，代码仓库内容与空间仓库互不串扰
-7. 每个任务/环节执行结束后，按第 11 条自动采集 `guidance`（用户对 AI 做法的引导、纠偏、补充约定 → `$work/status.yaml`）；用户要求立即沉淀时走 `record`
-8. **耗时较长任务完成后的主动沉淀预判**：除第 7 条（用户引导触发）与第 10 条（改 cmd 文件触发）外，凡耗时较长的任务（多步骤、跨文件、多轮试错）完成前，AI 主动做一次沉淀预判——本次是否暴露了可复用的操作模式、可固化的机械流程、或值得入项目 `wiki/<project>/`（含 `rule/` 决策与约定）的事实？预判结果**不直接改动 harness**，而是作为 `guidance` 原始记录追加到 `$work/status.yaml`（标注建议固化点：cmd/workflow/rule/script/wiki），由第 11 条的 close 自进化审查统一消化。固化门槛同第 10 条：只有"未来会以同样方式重复"的机械步骤才提炼为 `harness/script/` 脚本，一次性操作不固化
-9. 用户主动要求记录或记忆时，使用 record 命令进行记录
-10. **每次优化 `harness/cmd/` 指令文件时，必须同步检查其中是否有固定、可重复的流程可提炼为 `harness/script/` 脚本**：发现机械性固定步骤（确定性的文件操作、状态流转、格式转换、校验等）应沉淀为脚本，并将指令文件中的手工步骤替换为脚本调用；也可运行 `evolution` 命令做专项审查。指令文件只保留意图、判断与决策，不堆叠应由脚本固化的流程
-11. **harness 的更新时机（手动更新 + 自进化）**：
-   - **手动更新**：用户明确要求记录/沉淀某个技能时走 `record`（更新优化 cmd/workflow/rule/script/template、项目 wiki 或本文件核心约束）；用户手动发起 harness 优化时走 `evolution`
-   - **自动采集**：每个任务/环节结束时按第 7 条向 `$work/status.yaml` 的 `guidance` 列表追加原始记录（无需用户要求；只记事实与建议固化点，**不直接改动 harness**）。记录格式与字段见 `harness/template/work-status.yaml`
-   - **自动固化**：执行 `close` 关闭工作区时自动触发一次自进化审查——把 `guidance` 中 `pending` 条目的可复用操作习惯固化到 workflow/cmd/rule（先扫描、能融合则融合），经用户确认后落盘并将条目置 `applied`；未消化完的 pending 条目不阻塞关闭。用户也可随时手动执行 `evolution` 或 `record` 提前固化
-12. **markdown 引用可定位**：生成 markdown 文件时，引用文件或代码一律采用 GitHub 风格的可定位行数锚点格式（如 `path/to/file.md#L12-L15`），读者可直接跳到对应行，禁止只给文件名或"某行附近"式模糊指向
-13. **非必要的反向描述不保留（markdown 与代码注释硬约束）**：生成或修改任何 markdown 文件、代码注释时，事实一旦被取消或移除、且没有必须阻止该行为的意图，**直接删除相关描述**——不保留「不再做 X」「X 已废弃」式反向描述，也不追加「不要做 X」「注意别再 X」式否定补丁；旧事实不存在了，文字里就不再出现它。否定表述只用于**真实禁令**：某行为当下仍可能被执行、必须明确阻止时（如「严禁 force push」）。删除前先确认该事实无文档引用、脚本调用等真实消费者，删除后同步清理失效引用；判断不准时不擅自删，提出交用户决定。存量文档按此标准的清理由 `evolution` 的 cleanup 候选承接
-14. **省往返、省上下文**：① 信息收集先 grep/glob 定位、只读命中片段（细则见 `harness/rule/context-loading.md`），彼此独立的读取同一轮并行（见第 4 条）；② list/扫描/日志类脚本输出先在 shell 侧 grep/head 裁剪再入上下文，不接收全量大表；③ 同一文件多处关联改动（步骤重编号、交叉引用）先列映射再整块替换，Edit 返回内容即最新、不全文重读；④ 删除/归档/重命名类需求先连带确认关联面（登记删除还是置状态、数据源、是否顺带校准）再动手
-15. **多项目空间——知识按项目隔离、参数按作用域落盘**：
-   - 项目信息区块的 `projects` 是项目数组，每个 work 条目带 `project`；项目级知识只读写 `$root/wiki/<project>/`，不隐式跨项目取用
-   - `init` / `record` 等命令先确定目标项目（有 `$work` 时取 `$work/status.yaml` 的 `project`；无 `$work` 时从 `projects` 选择或经用户确认新建），再把知识落到对应项目的 wiki
-   - **能力与参数的落点分离**：可复用的命令/工作流/规则/脚本/模板进 `harness/`；项目级参数与代码外事实（各环境网关发布地址、租户、账号、平台入口等）进 `$root/wiki/<project>/`（按 `harness/rule/wiki-write.md` 分入 `config/`、`rule/` 等分类）；工作区级参数（MR 地址、泳道、构建版本、需求链接等）进 `$work/status.yaml`（`mr_url` / `deploy` 等），不写入 harness 或项目 wiki
-16. **命名遵循 `harness/rule/naming.md`**：目录、文件、分支、函数、变量、命令与工作流命名前先读该规则——简洁、在上下文中有区分度、用常见通俗词；项目 wiki 的文件/目录/分类与分支名鼓励使用通用缩写，代码中的目录、文件、函数与变量谨慎使用缩写
+- **工作区与项目确认**：收到指令后先判断是否 base 组命令（`help` / `init` / `work` / `repo` / `record` / `update` / `study` / `evolution`），是则直接执行；否则需要确认当前工作区与项目，必须明确`$work`、`$project`、`$workflow`。确认后识别用户在进行哪个 workflow，按状态机引导。
+- **Git 双层边界**：`$root` 空间仓库的 Git 操作全部由框架脚本完成，不引导、不要求用户对 `$root` 执行 git；用户 Git 操作只作用于 `$work/repo/<repo-name>/` 代码仓库，由用户主动发起命令触发；`commit` 生成提交信息后直接提交并如实汇报，`push` 等影响远端的操作需用户明确指令。细则见 `harness/rule/git-boundary.md`。
+- **知识落点分层**：可复用能力进 `harness/`；项目级代码外事实进 `$root/wiki/<project>/`（写入按 `harness/rule/wiki-write.md`，读取按 `harness/rule/wiki-read.md`）；工作区级参数进 `$work/status.yaml`。项目知识只读写当前项目，不跨项目取用。
+- **沉淀的生命周期（guidance 采集规则）**：
+  - **触发条件**：每个任务/环节结束时，如果任务耗时较长，或经过用户多次引导才完成，则触发沉淀；修改 `harness/cmd/` 时，如果有可固化的脚本，则触发沉淀。
+  - **原始记录**：把用户引导、纠偏、补充约定作为 `guidance` 追加到 `$work/status.yaml`，只记事实与建议固化点，不直接改动 harness；字段见 `harness/template/work-status.yaml`。
+  - **固化入口**：`record`（用户主动沉淀）、`close` 收尾自审（消费 pending）、`evolution`（专项审查）。细则见 `harness/rule/record-lifecycle.md`。
+
+## 数据来源
+
+| 数据 | 来源 | 读取方式 |
+|------|------|----------|
+| 空间版本、项目、服务仓库映射、工作区登记 | `$root/tack.yaml` | `project.sh space-info / project-get / repo-list / work-list / work-get`，按目标范围读取 |
+| 工作区状态与进展 | `$work/status.yaml` | 直接读取，或经 `work-status.sh` 回写 |
+| 实际目录 | 文件系统 | `$root/space/<workspace>/` 等 |
+| 实时分支与仓库状态 | Git | `git -C <repo>` 或框架脚本 |
+
+- 登记查询只取目标范围：项目/工作区不明确时才读简短列表，仓库查询必须带项目名。
 
 ## 目录概览
 
 | 目录/文件 | 作用 |
 |-----------|------|
-| `AGENTS.md` | 本文件：驱动说明、核心约束、项目信息（`projects` 数组 + `work` 列表） |
-| `harness/cmd/` | 命令入口（base/dev/git 分组），定义准入准出 |
-| `harness/agents/` | 可委派角色（code-explorer / code-architect / code-reviewer）：被 cmd 引用后经 Task 子代理在独立上下文执行，可多实例并行；只供发现与委派，不参与命令路由 |
-| `harness/workflow/` | 工作流状态机（development/testing/bugfix/merge-conflict/branch-op） |
-| `harness/script/` | 固定流程脚本（init-tack、space、scan-routes、lint-harness、lint-shell-portability、scan-secrets、harness-diff、harness-backup、run-plan、workspace-archive、wiki-index、lint-doc-scripts、common、work-status、project、repo、work、git-facts、git-fetch-helper、git-commit-helper、git-push-helper、git-worktree-helper、git-bug-trace、git-diff-context、branch-op、branch-clean、trigger-extract、skill-update、check-update；Windows 统一经 `run.ps1` 启动器调用） |
-| `harness/script/hook/` | TRAE/Claude Code Hooks 可选加速层（SessionStart 预载路由、UserPromptSubmit 零往返路由、PreToolUse 观察层；默认不启用、不拦截，删掉整个目录框架仍完整可用） |
-| `harness/rule/` | 业务、代码与安全规则（coding-standards、git-standards、naming、security、git-boundary、context-loading、wiki-read、wiki-write、windows-env、record-* 等；不参与路由，按需加载） |
-| `harness/template/` | 命令/工作流/文档/工作区模板 |
-| `harness/reference/` | 通用方法论与复杂独立能力（随 harness 分发、不接受项目级沉淀，项目做法归 rule/wiki；须被 cmd/workflow/agents/rule 引用后才加载，不参与路由） |
-| `wiki/<project>/` | 按项目隔离的公共知识，**索引 + 小文件**：`index.md` 总索引；`biz/` 业务背景与术语；`code/` 仓库概览、术语→代码入口、接口→场景与长期分析；`rule/` 技术决策（ADR）与工程约定；`config/` 服务清单、环境与泳道、网关地址、租户账号、关键配置与中间件事实；`history/` 工作区归档（`<workspace>/summary.md` 与移入的 `run/`）。各分类有 `index.md`，文件主题单一；`<project>` 与 `projects[].name` 一致；条目带来源、矛盾保留演变；不记易变代码逻辑（人工可读写，AI 蒸馏内容须人工审阅） |
-| `space/<workspace>/`（`<workspace>` = `<YYYYMMDD>-<branch>`） | 每个工作的工作区：建区只创建 `status.yaml`（含 project）与 `context.md`（执行任何命令前先读），`story/`（每个研发 story 一个子目录，含 analysis.md/spec.md/plan.md）、`doc/`（tech-design/test/code-review/release-check 等生成文档 + analysis/ 需求前分析记录）、`repo/`（worktree 懒加载，需要修改代码时创建）、`run/`（指令索引 run.md + 各指令目录）均按需创建；日期前缀目录名便于按创建时间排序 |
-| `repo/` | 代码主仓库（只保留一份，只读基准；worktree 用到哪个仓库再从这里获取） |
-| `.tack/` | 框架本地运行时数据根（不入库、可随时清理）：`log/` 运行日志、`backup/` 回滚备份（study/update/skill 各带时间戳）、`tmp/` 临时文件（退出即清）、`state/` 本机状态（如 update-state） |
-
-## 项目信息
-
-> 以下 YAML 区块由 harness/script/project.sh 维护（init、work、close 时自动更新）；可手工查阅，结构化内容（projects、service_repo_mapping、work.services）由 init 等命令经脚本写入（内容经人工确认）。项目名与 work.project 对应，项目级知识落 `wiki/<project>/`。区块边界标记请勿删除。
-
-<!-- tack:info:start -->
-skill_version: ""
-skill_update_url: "https://github.com/frcoder-lh/tack-harness"
-skill_trigger: "tack"
-projects: []
-work: []
-<!-- tack:info:end -->
+| `AGENTS.md` | 本文件：常驻入口（路由、约束、数据来源） |
+| `tack.yaml` | 空间登记：版本、项目、服务仓库映射、工作区 |
+| `harness/cmd/` | 命令入口（唯一触发入口），定义准入准出 |
+| `harness/workflow/` | 工作区流转状态机，辅助长任务推进 |
+| `harness/agents/` | 可委派角色，供发现与委派，不参与路由 |
+| `harness/script/` | 固定流程脚本（清单见 `harness/rule/script-catalog.md`） |
+| `harness/script/hook/` | 可选 Hook 加速层（见 `harness/rule/hooks.md`） |
+| `harness/rule/` | 业务、代码与安全规则，按需加载 |
+| `harness/template/` | 命令、工作流与文档模板 |
+| `harness/reference/` | 通用方法论与复杂独立能力，被引用时才加载 |
+| `wiki/<project>/` | 项目知识（分类与组织见 `harness/rule/wiki-write.md`） |
+| `space/<workspace>/` | 工作区（内部布局见 `harness/rule/workspace-layout.md`） |
+| `repo/` | 代码主仓库，只读基准 |
+| `.tack/` | 框架本地运行时数据（日志、备份、临时文件、状态），不入库 |

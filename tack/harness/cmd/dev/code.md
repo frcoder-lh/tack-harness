@@ -3,7 +3,7 @@ command: code
 short: c
 triggers: 编码, 开发, 写代码, code, coding, develop, write code
 params: [任务ID（可选，默认按依赖关系连续推进全部就绪任务）]
-summary: 编码前先判定涉及仓库并确保就绪（主仓库缺失转 create-repo、worktree 缺失转 worktree），用户明确要求时仅交付代码片段、不编译运行；按 tasks 依赖连续/并行开发，复用已有逻辑、自动按最优解，尽量不打扰用户
+summary: 编码前先判定涉及仓库并确保就绪（主仓库缺失转 repo、worktree 缺失转 worktree），用户明确要求时仅交付代码片段、不编译运行；按 tasks 依赖连续/并行开发，复用已有逻辑、自动按最优解，尽量不打扰用户
 ---
 
 # code 编码
@@ -17,7 +17,7 @@ summary: 编码前先判定涉及仓库并确保就绪（主仓库缺失转 crea
 - 已确定当前工作区 `$work`
 - `$work/story/*/plan.md` 中至少一个已确认（`progress.plan: true`），`$work/status.yaml` 的 `tasks` 列表非空
 - plan.md 的「决策记录」中需用户决断的事项已关闭
-- **仓库准入已判定**：已汇总本批任务涉及的仓库清单；仓库模式（默认）下各仓库在 `$root/repo/<name>` 存在且 `$work/repo/<name>` 有可用 worktree，未就绪须先转 `create-repo` / `worktree`（见指令内容第 1 步）；片段模式（用户明确选择）豁免本项
+- **仓库准入已判定**：已汇总本批任务涉及的仓库清单；仓库模式（默认）下各仓库在 `$root/repo/<name>` 存在且 `$work/repo/<name>` 有可用 worktree，未就绪须先转 `repo` / `worktree`（见指令内容第 1 步）；片段模式（用户明确选择）豁免本项
 - 仓库模式下所有代码改动只能在 `$work/repo/<repo-name>/`（git worktree）内，禁止直接修改 `$root/repo/`；片段模式不创建、不改动任何仓库文件，仅在回复中交付代码片段
 
 ## 输入源与加载
@@ -33,7 +33,7 @@ summary: 编码前先判定涉及仓库并确保就绪（主仓库缺失转 crea
      - **片段模式（例外）**：仅当用户在指令中明确说明「不需要仓库、只生成代码片段、不需要编译和运行」时进入；代码片段直接在回复中交付，逐片段标注所属仓库与建议落点路径；不创建/改动仓库文件，不执行构建、运行与测试；在 `$work/status.yaml` 的 `current.next` 注明「片段模式：仅交付代码片段，未编译运行」
    - 仓库模式就绪检查（以磁盘事实为准，重新核验不信上下文）:
      - 任务未标注 repo、清单为空：先与用户确认承载仓库后再继续
-     - `$root/repo/<name>` 不存在：**暂停 code**，转 `create-repo` 新建仓库，建完回到本命令继续；不得在仓库缺失时直接编码
+     - `$root/repo/<name>` 不存在：**暂停 code**，转 `repo` 新建仓库，建完回到本命令继续；不得在仓库缺失时直接编码
      - 仓库存在但 `$work/repo/<name>` 无可用 worktree：转 `worktree` 为当前工作区补建后继续
      - 用户拒绝新建或补建、准入无法满足：相关任务置 `blocked` 并在 `current.next` 写明原因；不得降级为直接修改 `$root/repo/`
 

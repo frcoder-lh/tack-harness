@@ -46,11 +46,11 @@ Tack Harness 是一套专为软件研发打造的编程工作流框架：
 | **命令自创造** | `record` 为 "生成指令的指令"。首先扫描已有命令尝试融合修正；若无合适命令，仅需提供 `command`，其余内容自动生成 |
 | **自进化** | guidance 闭环：任务各环节自动把用户的引导、纠偏、补充约定以原始事实追加到 `status.yaml` 的 `guidance` 列表（pending）；`close` 收尾时自动审查并固化到 workflow/cmd/rule（applied/rejected），落点在回写时直接校验，形成「采集 → 固化 → 校验」的自进化回路 |
 | **自动流转** | `auto` 自动执行当前工作流剩余环节到终态：开始前一次性补齐缺失信息并确认全流程，确认后连续执行不中断，结束时汇总关键决策与结果；默认到 merged / completed，可指定一并 close |
-| **多项目隔离** | 一个空间可管理多个项目：`projects` 数组登记项目，工作条目与 `status.yaml` 记录所属项目；项目知识只读写 `wiki/<project>/`，能力进 harness、项目参数进项目 wiki、工作区参数进 `status.yaml` |
+| **多项目隔离** | 一个空间可管理多个项目：`tack.yaml` 的 `projects` 数组登记项目，工作条目与 `status.yaml` 记录所属项目；项目知识只读写 `wiki/<project>/`，能力进 harness、项目参数进项目 wiki、工作区参数进 `status.yaml` |
 | **三平台 shell 门禁** | 全部 harness 脚本按 POSIX sh 与 Linux/macOS/Windows 共有工具选项编写；`lint-shell-portability` 随 `lint-harness` 运行，检出裸 `mktemp`、GNU 专有选项、bashism 与 sed 方言问题，`evolution` 审查时即修 |
 | **自动更新检查** | `close`/`evolution`/`record`/`help` 命令收尾时静默检查新版本（7 天 + 同版本双节流，不在会话开始时抢占任务）；发现新版本时展示本机版本到最新版本之间的全部更新内容，用户确认后说「更新」即可升级 |
 | **角色委派** | `harness/agents/` 内置可委派角色（code-explorer / code-architect / code-reviewer），被 `ask`/`plan`/`tech-design`/`code-review`/`merge` 等命令引用后经 Task 子代理在独立上下文并行执行；只供发现与委派，不参与命令路由 |
-| **Hook 加速层** | `harness/script/hook/` 提供 IDE Hooks 可选加速（SessionStart 预载路由、UserPromptSubmit 零往返路由解析、PreToolUse 边界观察）；仅搬运确定性事实，AGENTS.md + `scan-routes.sh` 仍是唯一事实源，默认不启用、不拦截 |
+| **Hook 加速层** | `harness/script/hook/` 提供 IDE Hooks 可选加速（SessionStart 只注入空间位置、UserPromptSubmit 按路由结果注入索引或指令正文、PreToolUse 边界观察）；仅搬运确定性事实，AGENTS.md + `scan-routes.sh` 仍是唯一事实源，默认不启用、不拦截 |
 | **向外学习** | `study` 把外部 skill 或仓库当作教材：通读结构、提炼可借鉴点、以新增/融合/优化方式落盘到 harness 对应位置，全程唯一确认点是统一预览，确认后自动提交并触发一次 `evolution` 向内自审 |
 | **精简克制** | 保持最小目录结构、基础命令与必要状态流转；凡可脚本化的操作不依赖大模型 |
 | **简单易用** | 所有命令支持中英文触发词与简写（如 `需求规划`/`spec`/`sp`） |
@@ -153,7 +153,7 @@ sh install.sh
 /tack
 ```
 
-空目录将触发初始化：自动确保本机 Git 可用（缺失时按平台自动安装），tack 空间骨架完整复制至当前目录，并将该目录初始化为 Git 仓库、由框架自动完成首次提交；随后 `init` 引导用户以一句话描述项目（自动提炼项目名与关键词），并接入代码仓库 —— 本地已有仓库则扫描后软链，新仓库则填写 Git 地址克隆。项目信息记录于 `AGENTS.md` 的「项目信息」区块。
+空目录将触发初始化：自动确保本机 Git 可用（缺失时按平台自动安装），tack 空间骨架完整复制至当前目录，并将该目录初始化为 Git 仓库、由框架自动完成首次提交；随后 `init` 引导用户以一句话描述项目（自动提炼项目名与关键词），并接入代码仓库 —— 本地已有仓库则扫描后软链，新仓库则填写 Git 地址克隆。项目信息记录于空间根目录的 `tack.yaml`。
 
 > **Git 双层边界**：空间根仓库（harness/、wiki/、AGENTS.md、space/ 工作文档）的 Git 操作全部由框架在各命令阶段自动提交，用户无需操作；用户只在 `space/<YYYYMMDD>-<branch>/repo/` 工作区代码仓库内执行提交、推送等 Git 操作。
 
@@ -161,19 +161,20 @@ sh install.sh
 
 ```
 my-project/
-├── AGENTS.md            # 常驻说明书：核心约束 + 项目信息（项目名/关键词/仓库映射/工作列表）
+├── AGENTS.md            # 常驻说明书：命令路由 + AGENT/tack harness 核心约束 + 数据来源
+├── tack.yaml            # 空间登记：版本、项目（关键词/仓库映射）、工作区列表
 ├── harness/             # 开发过程定义（需求无关，可自定义，升级不覆盖）
 │   ├── README.md        #   harness 的使用说明
 │   ├── cmd/             #   命令：发现、路由、准入准出
 │   ├── agents/          #   可委派角色：独立上下文并行执行（explorer/architect/reviewer）
 │   ├── workflow/        #   工作流：状态机与命令编排
-│   ├── script/          #   固定流程脚本（init-tack 初始化 / scan-routes 路由扫描 / lint-harness 结构自检 / lint-shell-portability 三平台可移植性 / lint-doc-scripts 文档调用签名 / common 安装与升级共享能力（agent 预设/下载/版本/摘要校验） / scan-secrets 凭据扫描 / work-status 状态回写 / space 空间自动提交 / project 项目信息 / repo 仓库 / work 工作区 / git-facts Git 事实层 / git-worktree-helper / git-fetch-helper 远端同步与上游修复 / git-commit-helper / git-push-helper / git-bug-trace 缺陷溯源 / git-diff-context 三点 diff 导出 / branch-op 分支操作 / branch-clean 安全分支清理 / run-plan 执行清单校验 / workspace-archive 工作区归档 / wiki-index wiki 索引完整性 / harness-diff 更新差异分类 / harness-backup 备份回滚 / trigger-extract 触发词提取 / yamlib 共享 YAML 解析 / check-update 更新检查 / skill-update 本机 skill 升级；Windows 统一经 run.ps1 启动器调用）
+│   ├── script/          #   固定流程脚本（清单见 harness/rule/script-catalog.md；Windows 统一经 run.ps1 启动器调用）
 │   │   └── hook/        #   IDE Hook 可选加速层（SessionStart/UserPromptSubmit/PreToolUse，默认不启用、不拦截）
 │   ├── rule/            #   业务、代码与安全规则（coding-standards、naming 命名、security、git-boundary 双层边界、context-loading 上下文加载、wiki-read/wiki-write wiki 读写、windows-env、record-* 沉淀规则；不参与路由，按需加载）
 │   ├── template/        #   命令、工作流、文档、工作区模板
 │   └── reference/       #   通用方法论与复杂独立能力（随 harness 分发、不接受项目沉淀；被命令/工作流/角色/规则引用后才加载）
 ├── wiki/                # 公共知识：按项目隔离的项目 wiki（init/record/close 按需物化，条目带来源、矛盾保留演变；不记易变代码逻辑）
-│   └── <project>/       #   项目 wiki（索引 + 小文件），<project> 与 AGENTS.md projects 名称一致：index.md 总索引 / biz 业务背景与术语 / code 仓库概览、术语→代码入口、接口→场景与长期分析 / rule 技术决策与工程约定 / config 服务清单、环境与泳道、网关地址、租户账号、关键配置 / history 工作区归档（summary.md + run/）
+│   └── <project>/       #   项目 wiki（索引 + 小文件），<project> 与 tack.yaml projects 名称一致：index.md 总索引 / biz 业务背景与术语 / code 仓库概览、术语→代码入口、接口→场景与长期分析 / rule 技术决策与工程约定 / config 服务清单、环境与泳道、网关地址、租户账号、关键配置 / history 工作区归档（summary.md + run/）
 ├── space/               # 工作空间：每个工作一个目录（<YYYYMMDD>-<分支名>，日期前缀便于按创建时间排序）
 ├── repo/                # 代码主仓库：只保留一份，只读基准
 └── .tack/               # 框架本地运行时数据（gitignore，不入库、可随时清理）：log 日志 / backup 回滚备份 / tmp 临时文件 / state 本机状态
@@ -189,7 +190,7 @@ my-project/
 
 - 只创建 `space/20261001-user-login/` 目录、`status.yaml` 与 `context.md`，**不预建 `story/`、`doc/`、`repo/` 等目录、不检出 worktree**；目录在首次产生文件时按需创建，检索代码时先读主仓库 `repo/`，需要修改代码时再由 `code` 转 `worktree` 按需检出到 `space/20261001-user-login/repo/<repo-name>/`（多个 agent 可并行开发不同需求，互不干扰；worktree 检出的分支名仍为 `user-login`；分支名含 `/` 时目录中以 `-` 扁平化，如 `feature/login` → `20261001-feature-login`，git 分支名保留 `feature/login`）；
 - 在 `space/20261001-user-login/` 生成工作区上下文文件：`status.yaml`（唯一有状态文件：属性 + 日志 + 待办）、`context.md`（工作区上下文，执行任何命令前先读）；
-- 在 `AGENTS.md` 项目信息区块登记该工作。
+- 在 `tack.yaml` 登记该工作。
 
 用户可将 PRD 片段、参考链接、多条需求写入 `space/20261001-user-login/context.md`（可一次提供多条，也可分先后追加），并可指定 AI 分析链路的入口。
 
@@ -210,7 +211,7 @@ my-project/
 ### 4.4 开发、修正与测试
 
 ```bash
-/tack code         # 先判定涉及仓库并确保就绪（缺仓库转 create-repo、缺 worktree 转 worktree），再按 tasks 依赖关系连续/并行开发：复用已有逻辑，多方案自动取最优解；用户明确要求时仅交付代码片段
+/tack code         # 先判定涉及仓库并确保就绪（缺仓库转 repo、缺 worktree 转 worktree），再按 tasks 依赖关系连续/并行开发：复用已有逻辑，多方案自动取最优解；用户明确要求时仅交付代码片段
 /tack fix          # 需求修正走 spec→plan→代码；代码修正走代码→同步文档，保持文档与代码一致
 /tack testcode     # （按需触发，非必经）单测驱动的需求-代码一致性审查：对照 spec/plan 核对代码实现、识别缺陷与边界遗漏，用例暴露问题后修代码而非改测试；覆盖率 90% 是准出指标之一
 /tack test         # （按需触发，非必经）系统测试：把测试描述转化为 doc/test.md 可落地方案，需脚本时落到 run/<指令>/
@@ -224,11 +225,11 @@ my-project/
 ### 4.5 提交、合并与收尾
 
 ```bash
-/tack fetch         # 拉取各仓库最新代码
+/tack fetch         # 拉取当前工作区各仓库最新代码
 /tack commit        # 自动生成 Conventional Commits 提交信息后直接提交（无需二次确认）
 /tack push          # 推送，未关联远端时先引导关联
 /tack merge         # 纯分支合并：fetch 最新后把源分支合入目标分支（当前工作区为源分支时新建关联工作区执行），冲突转 /tack solve，完成后提交并推送
-/tack close         # 交付检查 → 输出交付摘要 → 自动判定工作区归档（wiki/<project>/history/<workspace>/summary.md，登记 history/index.md，run/ 整体移入，标准产物外文件询问是否保留）→ 按分类与索引提炼 wiki（含技术决策与 ask 记录归档）→ 消费 guidance 自进化固化 → 移除 worktree、按登记簿安全清理分支 → 删除工作区目录、移除 AGENTS.md 工作区登记（关联工作区级联关闭）
+/tack close         # 交付检查 → 输出交付摘要 → 自动判定工作区归档（wiki/<project>/history/<workspace>/summary.md，登记 history/index.md，run/ 整体移入，标准产物外文件询问是否保留）→ 按分类与索引提炼 wiki（含技术决策与 ask 记录归档）→ 消费 guidance 自进化固化 → 移除 worktree、按登记簿安全清理分支 → 删除工作区目录、移除 tack.yaml 工作区登记（关联工作区级联关闭）
 ```
 
 ### 4.6 经验沉淀与复用
@@ -310,13 +311,13 @@ flowchart LR
 
 | 命令 | 简写 | 触发词 | 作用 |
 | --- | --- | --- | --- |
-| `init` | i | 初始化 / 接入仓库 / 整理文档 / initialize / connect repo / organize docs /init | 提炼项目信息写入 AGENTS.md，扫描软链或克隆仓库（自然语言「接入仓库」「整理文档」同样路由至此） |
+| `init` | i | 初始化 / 接入仓库 / 整理文档 / initialize / connect repo / organize docs /init | 提炼项目信息写入 `tack.yaml`，扫描软链或克隆仓库（自然语言「接入仓库」「整理文档」同样路由至此） |
 | `work` | w | 工作区 / 新建工作区 / 切换工作区 / 分支合并 / 分支变基 / workspace / new workspace / switch workspace / merge branches / rebase branches /work | 新建 / 重命名 / 切换 / 列出工作区，自动推断服务；新建只创建 `status.yaml` 与 `context.md`，story/doc/repo 等目录与 worktree 按需创建；亦承接分支合并/变基意图，分流至 branch-op 工作流 |
 | `help` | h | 帮助 / 命令 / help / commands /help | 扫描 harness，输出工作流与全部命令 |
-| `update` | u | 更新 / 更新skill / update / update skill /update | 更新 harness 与空间根 .gitignore（.tack/ 强制兜底）；cmd/ 只增补，`rule/` 变更逐文件交用户裁决（采用新版 / 保留本地 / 融合），AGENTS.md 保留 |
-| `create-repo` | cr | 新建仓库 / 建仓 / create repo / new repository /createrepo /create-repo | 新建并初始化本地代码仓库，纳入项目空间管理 |
-| `record` | r | 记录 / 记忆 / 沉淀 / record / remember / distill /record | 优先融合已有条目；可落命令 / 工作流 / 规则 / wiki / AGENTS.md 常驻约定，新建时仅需提供 command |
-| `evolution` | evo | 进化 / 进化harness / evolve / evolve harness /evolution | 校准 AGENTS.md 工作区登记与 `space/` 实际目录；检查各项目 wiki 索引完整性并补录未登记文件；结构自检（lint-harness + lint-shell-portability）并审查指令，提炼 rule/reference/script 候选、清理过时事实与非必要反向描述（cleanup 候选）；支持 tack 空间与源仓库两种运行模式；sh 脚本三平台兼容不符合项当场修正，其余人工确认后落盘 |
+| `update` | u | 更新 / 更新skill / update / update skill /update | 更新 harness 与空间根 .gitignore（点开头目录默认忽略，强制兜底）；cmd/ 只增补，`rule/` 变更逐文件交用户裁决（采用新版 / 保留本地 / 融合），`AGENTS.md` 与 `tack.yaml` 保留（老空间自动迁移登记区块） |
+| `repo` | rp | 新建仓库 / 建仓 / 更新仓库 / 拉取仓库 / repo / repo fetch / create repo / new repository /createrepo /create-repo | 管理代码主仓库（`$root/repo/`）：新建并纳入项目空间管理，或更新全部/指定主仓库到远端最新 |
+| `record` | r | 记录 / 记忆 / 沉淀 / record / remember / distill /record | 优先融合已有条目；可落命令 / 工作流 / 规则 / wiki / AGENTS.md 常驻约束，新建时仅需提供 command |
+| `evolution` | evo | 进化 / 进化harness / evolve / evolve harness /evolution | 校准 `tack.yaml` 工作区登记与 `space/` 实际目录；检查各项目 wiki 索引完整性并补录未登记文件；结构自检（lint-harness + lint-shell-portability）并审查指令，提炼 rule/reference/script 候选、清理过时事实与非必要反向描述（cleanup 候选）；支持 tack 空间与源仓库两种运行模式；sh 脚本三平台兼容不符合项当场修正，其余人工确认后落盘 |
 | `study` | st | 学习 / 研习 / 借鉴 / study / learn / learn from /study | 向外学习外部 skill 或仓库的设计，提炼可借鉴点并落盘到 harness 对应位置，统一预览确认后提交，随后自动执行一次 evolution |
 
 ### 7.2 需求开发命令（cmd/dev/）
@@ -328,21 +329,21 @@ flowchart LR
 | `spec` | sp | 需求规划 / 整体设计 / requirement planning / overall design /spec | 读 `context.md` 中本 story 需求、`story/<story>/analysis.md`、wiki（root/doc，按索引检索）+ 代码事实，grep 定位后产出 `story/<story>/spec.md`（顶层设计与公共契约；产品/测试决策在本环节关闭） |
 | `plan` | p | 详细设计 / 开发计划 / 任务拆解 / detailed design / development plan / task breakdown /plan | 按 story：读已确认 spec 与 analysis，复杂任务先多方案对比与选定，再落到接口/SQL/验证方式/上线流程、模块划分与任务依赖（写入 `story/<story>/plan.md` + status.yaml tasks） |
 | `tech-design` | td | 技术方案 / 技术评审 / technical design / tech doc / tech review /tech-design | 按需：仅在需要正式评审时，把目标 story 已确认的 spec/plan 按模板重组为 `doc/tech-design.md`，不新增设计决策 |
-| `code` | c | 编码 / coding / develop / write code /code | 编码前判定仓库就绪（缺仓库转 create-repo、缺 worktree 转 worktree）；按 tasks 依赖连续/并行开发；用户明确要求时支持仅交付代码片段 |
+| `code` | c | 编码 / coding / develop / write code /code | 编码前判定仓库就绪（缺仓库转 repo、缺 worktree 转 worktree）；按 tasks 依赖连续/并行开发；用户明确要求时支持仅交付代码片段 |
 | `fix` | fx | 修正 / 需求修正 / 修正代码 / requirement fix / fix requirement / code fix /fix | 需求修正（spec→plan→代码）或代码修正（代码→同步文档），保持文档与代码一致 |
 | `testcode` | tc | 单测 / 单元测试 / unit test / unit testing /testcode | 按需触发，非必经：以单测为手段做需求-代码一致性审查与缺陷发现，对照 spec/plan 验收标准核对代码、识别边界遗漏，用例暴露问题后修代码而非改测试；覆盖率 90% 是准出指标之一 |
 | `test` | t | 测试 / 系统测试 / 集成测试 / system test / integration test / end-to-end test /test | 按需触发，非必经：把测试描述转化为 `$work/doc/test.md` 可落地方案；需脚本时落到 `run/<指令>/` |
 | `run` | rn | 运行 / 执行 / 跑脚本 / execute / run script /run | 按需触发，非必经：`run/run.md` 只做指令识别、索引与编排；按用户描述新增 `run/<指令>/`（脚本+数据+local/），执行时按索引识别、校验并编排；敏感数据落各指令的 `local/`（gitignored） |
 | `code-review` | rv | 代码审查 / 审查报告 / code review / review report /code-review | 按需触发：以 story plan/tech-design 为规范、目标分支三点 diff 为事实，逐函数分析改动、正确性与危害，评估影响接口与场景，产出 `$work/doc/code-review.md` |
 | `release-check` | rc | 上线检查 / 发布检查 / release check / go-live check /release-check | 按需触发：识别数据库变更（含变更语句）、配置变更（含模板）、新增接口调用（权限申请）、新增中间件（申请配置），产出 `$work/doc/release-check.md` |
-| `close` | cl | 关闭工作区 / close workspace / finish /close | 交付检查与摘要、自动判定工作区归档（`wiki/<project>/history/<workspace>/summary.md`，`run/` 整体移入，标准产物外的文件询问是否保留）、提炼 wiki（含技术决策与 ask 记录归档）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、按 `branches` 登记簿经 `branch-clean.sh` 安全清理分支、删除工作区目录并移除 AGENTS.md 工作区登记；关联工作区级联关闭 |
+| `close` | cl | 关闭工作区 / close workspace / finish /close | 交付检查与摘要、自动判定工作区归档（`wiki/<project>/history/<workspace>/summary.md`，`run/` 整体移入，标准产物外的文件询问是否保留）、提炼 wiki（含技术决策与 ask 记录归档）、消费 guidance 自进化固化 harness 并校验落点、移除 worktree、按 `branches` 登记簿经 `branch-clean.sh` 安全清理分支、删除工作区目录并移除 `tack.yaml` 工作区登记；关联工作区级联关闭 |
 | `auto` | au | 自动执行 / 全自动 / 自动流转 / 自动开发 / auto / auto run / automatic execution / autopilot /auto | 自动执行当前工作流剩余环节到终态：开始前一次性补齐缺失信息并确认全流程，确认后连续执行不中断，结束时汇总关键决策与结果；默认到 merged / completed，可指定一并 close |
 
 ### 7.3 Git 命令（cmd/git/）
 
 | 命令 | 简写 | 触发词 | 作用 |
 | --- | --- | --- | --- |
-| `fetch` | f | 拉取 / pull / pull code /fetch | 拉取各仓库最新代码（仅 fetch，不 merge） |
+| `fetch` | f | 拉取 / pull / pull code /fetch | 拉取当前工作区各仓库最新代码（仅 fetch，不 merge） |
 | `worktree` | wt | 工作树 /worktree | 为指定仓库按需补建 worktree |
 | `commit` | ci | 提交 / local commit /commit | 本地提交，非 git 目录先 init；提交信息自动生成后直接提交，无需二次确认 |
 | `push` | ps | 推送 / push remote /push | 推送远端，未关联时引导关联 |
@@ -419,19 +420,19 @@ sh harness/script/lint-shell-portability.sh harness   # 三平台可移植性机
 
 **Q：`update` 会覆盖我的自定义内容吗？**
 
-不会。`update` 仅刷新 `script/`、`template/`、`reference/`、`workflow/`；`cmd/` 只增补、不覆盖同名文件；`rule/` 下文件按差异正常分类，变更逐文件询问采用新版 / 保留本地 / 融合（未裁决保持原样，不静默跳过、不自动覆盖）；`AGENTS.md`（含项目信息区块）保留。
+不会。`update` 仅刷新 `script/`、`template/`、`reference/`、`workflow/`；`cmd/` 只增补、不覆盖同名文件；`rule/` 下文件按差异正常分类，变更逐文件询问采用新版 / 保留本地 / 融合（未裁决保持原样，不静默跳过、不自动覆盖）；`AGENTS.md` 与 `tack.yaml` 保留，老空间的项目信息区块会自动迁移到 `tack.yaml`。
 
 **Q：支持多仓库项目吗？**
 
 支持。`work` 按目的推断涉及服务，新建时只创建 `status.yaml` 与 `context.md`（story/doc/repo 等目录按需创建）；需要修改代码时，每个仓库在 `space/<YYYYMMDD>-<branch>/repo/<repo-name>` 下按需创建独立 worktree，Git 命令逐仓库执行。
 
-**Q：为什么项目信息放在 AGENTS.md 而不是独立配置文件？**
+**Q：为什么项目信息放在 tack.yaml，而不是常驻的 AGENTS.md？**
 
-为精简文件数量。项目名、关键词、服务仓库映射、工作列表均位于 AGENTS.md 尾部的「项目信息」YAML 区块，由 `harness/script/project.sh` 维护（带边界标记，区块外内容不受影响）。
+为了把常驻上下文与登记数据分离。`AGENTS.md` 只保留路由入口、行为约束与数据来源；项目名、关键词、服务仓库映射、工作区列表等结构化登记放在空间根目录的 `tack.yaml`，由 `harness/script/project.sh` 维护，按需查询，避免每次会话都把这些数据塞进上下文。
 
 **Q：为什么不按 project 组织目录？**
 
-tack-harness 的一等公民是 harness、repo（代码）、space（工作区）、wiki（知识库），而不是 project。project 只是业务视角的划分，记录在 AGENTS.md 的「项目信息」区块里（业务归属与服务-仓库映射），不落到目录层级；目录以工作区为单位组织，让一次需求涉及的代码、文档与沉淀始终聚在一处。
+tack-harness 的一等公民是 harness、repo（代码）、space（工作区）、wiki（知识库），而不是 project。project 只是业务视角的划分，记录在 `tack.yaml` 里（业务归属与服务-仓库映射），不落到目录层级；目录以工作区为单位组织，让一次需求涉及的代码、文档与沉淀始终聚在一处。
 
 **Q：Windows 上脚本能跑吗？**
 

@@ -3,7 +3,7 @@
 #
 # Usage:
 #   sh work.sh [--no-worktree] <root> <project> <branch> [repo-name ...]
-#     project 必须已在 AGENTS.md projects 数组中登记（work 条目与项目 wiki 的归属依据）
+#     project 必须已在 tack.yaml projects 数组中登记（work 条目与项目 wiki 的归属依据）
 #     repo-name 可传多个；不传则默认为 root/repo 下的全部仓库创建 worktree
 #     --no-worktree：只创建工作区目录、status.yaml 与 context.md，不创建任何 worktree
 #       （work 命令新建工作区统一使用该模式，worktree 由 code 转 worktree 按需创建；
@@ -12,14 +12,14 @@
 #
 #   sh work.sh rename <root> <old-work-id> <new-work-id> [new-branch] --dry-run|--apply
 #     工作区重命名事务：目录（保留日期前缀）、各仓库分支、status.yaml（work_id/work_dir/branch）、
-#     AGENTS.md 工作条目、branches[] 一并更新；中途失败自动回滚并输出 ROLLBACK=complete|incomplete。
+#     tack.yaml 工作条目、branches[] 一并更新；中途失败自动回滚并输出 ROLLBACK=complete|incomplete。
 #     dry-run 只输出变更计划；apply 成功后输出 RENAME_RESULT=applied 与 RECONCILE=ok。
 #
 #   sh work.sh purge <root> <workspace>
 #     删除已关闭工作区目录 space/<workspace>（close 收尾用）。
 #     安全门禁：workspace 必须是单层目录名；目标物理路径必须位于 <root>/space/ 内；
 #     目录内 repo/ 下不得残留有效 git worktree（须先经 close 第 8 步 / branch-op cleanup 移除）。
-#     本动作只删目录，AGENTS.md 工作条目的移除由 project.sh work-remove 负责；不自动提交
+#     本动作只删目录，tack.yaml 工作条目的移除由 project.sh work-remove 负责；不自动提交
 #     （由 close 收尾的 space.sh commit 统一记录删除）。
 #
 # 目录命名：工作区目录名 = 创建日期(YYYYMMDD) + '-' + 扁平化分支名，如分支 feature/login 对应
@@ -44,7 +44,7 @@
 #   story/、doc/、run/、repo/ 等目录均在该目录首次产生文件或检出 worktree 时创建。
 #
 # 注意：本脚本只负责目录、模板文件与 worktree；
-#       在 AGENTS.md 项目信息区块登记工作条目由 project.sh work-add 完成（见 work 命令）。
+#       在 tack.yaml 登记工作条目由 project.sh work-add 完成（见 work 命令）。
 
 set -e
 
@@ -109,7 +109,7 @@ if [ "${1:-}" = "purge" ]; then
     exit 0
 fi
 
-# ---------- rename：工作区重命名事务（目录 + 分支 + status.yaml + AGENTS.md + branches） ----------
+# ---------- rename：工作区重命名事务（目录 + 分支 + status.yaml + tack.yaml + branches） ----------
 if [ "${1:-}" = "rename" ]; then
     shift
     ROOT="$1"
@@ -164,6 +164,12 @@ if [ "${1:-}" = "rename" ]; then
 
     SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
     YAML_LIB="$(cat "${SCRIPT_DIR}/yamlib.awk")"
+    # 空间登记文件（tack.yaml 或旧版 AGENTS.md 区块），重命名事务需整体备份与回滚
+    STORE="$(sh "${SCRIPT_DIR}/project.sh" store-path "${ROOT}" 2>/dev/null | sed -n 's/^STORE=//p')"
+    if [ -z "${STORE}" ] || [ ! -f "${STORE}" ]; then
+        echo "Error: 无法定位空间登记文件（tack.yaml 或 AGENTS.md 项目信息区块）" >&2
+        exit 1
+    fi
     OLD_DIR=""
     OLD_BRANCH=""
     for sf in "${ROOT}/space"/*/status.yaml; do
@@ -205,7 +211,7 @@ if [ "${1:-}" = "rename" ]; then
 
     # 冲突检查：新 ID、新目录、新分支
     if [ "${NEW_ID}" != "${OLD_ID}" ] \
-        && grep -q "work_id: \"${NEW_ID}\"" "${ROOT}/AGENTS.md" 2>/dev/null; then
+        && grep -q "work_id: \"${NEW_ID}\"" "${STORE}" 2>/dev/null; then
         echo "Error: 新 work_id 已被登记: ${NEW_ID}" >&2
         exit 4
     fi
@@ -242,7 +248,7 @@ if [ "${1:-}" = "rename" ]; then
         echo "  repo/${r}: branch ${OLD_BRANCH} -> ${SAFE_NEW_BRANCH}"
     done
     echo "  status.yaml: work_id / branch / work_dir"
-    echo "  AGENTS.md:   work entry work_id / branch / work_path"
+    echo "  tack.yaml:   work entry work_id / branch / work_path"
     echo "  branches[]:  ${OLD_BRANCH} -> ${SAFE_NEW_BRANCH}"
 
     if [ "${MODE}" = "--dry-run" ]; then
@@ -254,7 +260,7 @@ if [ "${1:-}" = "rename" ]; then
     TXN="${ROOT}/.tack/tmp/rename.$$"
     mkdir -p "${TXN}" || { echo "Error: 无法创建事务目录: ${TXN}" >&2; exit 1; }
     cp "${STATUS}" "${TXN}/status.yaml" || exit 1
-    cp "${ROOT}/AGENTS.md" "${TXN}/AGENTS.md" || exit 1
+    cp "${STORE}" "${TXN}/store" || exit 1
     : > "${TXN}/br.log"
     : > "${TXN}/wt.log"
     ROLLBACK_OK=1
@@ -263,7 +269,7 @@ if [ "${1:-}" = "rename" ]; then
         reason="$1"
         echo "Error: ${reason}" >&2
         cp "${TXN}/status.yaml" "${STATUS}" 2>/dev/null || ROLLBACK_OK=0
-        cp "${TXN}/AGENTS.md" "${ROOT}/AGENTS.md" 2>/dev/null || ROLLBACK_OK=0
+        cp "${TXN}/store" "${STORE}" 2>/dev/null || ROLLBACK_OK=0
         if [ "${NEW_DIR}" != "${OLD_DIR}" ] && [ -d "${NEW_PATH}" ] && [ -d "${OLD_PATH}" ]; then
             for entry in "${NEW_PATH}"/*; do
                 [ -e "${entry}" ] || continue
@@ -341,11 +347,11 @@ if [ "${1:-}" = "rename" ]; then
         work_id "${NEW_ID}" branch "${SAFE_NEW_BRANCH}" work_dir "${NEW_DIR}" \
         || rollback "更新 status.yaml 失败"
 
-    if grep -q "work_id: \"${OLD_ID}\"" "${ROOT}/AGENTS.md" 2>/dev/null; then
+    if sh "${SCRIPT_DIR}/project.sh" work-get "${ROOT}" "${OLD_ID}" >/dev/null 2>&1; then
         sh "${SCRIPT_DIR}/project.sh" work-rename "${ROOT}" "${OLD_ID}" "${NEW_ID}" "${SAFE_NEW_BRANCH}" "${NEW_PATH}" --no-commit \
-            || rollback "更新 AGENTS.md 工作条目失败"
+            || rollback "更新空间登记中的工作条目失败"
     else
-        echo "WARN: AGENTS.md 未登记 work_id '${OLD_ID}'，跳过工作条目更新" >&2
+        echo "WARN: 空间登记未找到 work_id '${OLD_ID}'，跳过工作条目更新" >&2
     fi
 
     sh "${SCRIPT_DIR}/work-status.sh" "${NEW_PATH}/status.yaml" branch rename "${OLD_BRANCH}" "${SAFE_NEW_BRANCH}" \
@@ -404,11 +410,11 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # 工作区模板位于 harness/template/（文件复制 + 占位替换，不做字符串拼接）
 TEMPLATE_DIR="${SCRIPT_DIR}/../template"
 
-# 项目必须已在 AGENTS.md projects 数组中登记（workspace 的 project 字段与项目 wiki 依据）
+# 项目必须已在 tack.yaml projects 数组中登记（workspace 的 project 字段与项目 wiki 依据）
 PROJECTS_LIST="$(sh "${SCRIPT_DIR}/project.sh" project-list "${ROOT}")" || exit 1
 if ! printf '%s\n' "${PROJECTS_LIST}" \
     | awk -F"$(printf '\t')" -v want="${PROJECT}" '$1 == want { found=1 } END { exit(found ? 0 : 1) }'; then
-    echo "Error: 项目 '${PROJECT}' 未在 AGENTS.md projects 中登记，请先执行 project.sh project-add" >&2
+    echo "Error: 项目 '${PROJECT}' 未在 tack.yaml projects 中登记，请先执行 project.sh project-add" >&2
     exit 1
 fi
 

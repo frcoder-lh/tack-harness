@@ -3,7 +3,7 @@ command: fetch
 short: f
 triggers: 拉取, 拉代码, fetch, pull, pull code
 params: 无
-summary: 拉取各仓库远端最新代码并同步到本地分支（上游缺失/错名自动纠正为同名分支）
+summary: 拉取当前工作区各仓库远端最新代码并同步到本地分支（上游缺失/错名自动纠正为同名分支）
 ---
 
 # fetch 拉取并同步最新代码

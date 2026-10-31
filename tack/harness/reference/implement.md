@@ -5,7 +5,7 @@
 ## 前置条件
 
 - 已执行完 plan，`space/<workspace>/status.yaml` 的 `tasks` 列表非空且本批任务依赖已就绪
-- 涉及仓库已接入、worktree 已就绪——由 code 命令的仓库准入判定负责；缺失时转 `create-repo` / `worktree`，不在本方法论内处理
+- 涉及仓库已接入、worktree 已就绪——由 code 命令的仓库准入判定负责；缺失时转 `repo` / `worktree`，不在本方法论内处理
 
 ## 边界
 

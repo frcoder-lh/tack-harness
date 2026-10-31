@@ -27,12 +27,15 @@
 #       字段/文件启动数十上百个子进程）。
 #
 # Usage:
-#   sh scan-routes.sh list      <harness-dir>             # 工作流表 + 全部命令表 + 角色表
-#   sh scan-routes.sh workflows <harness-dir>             # 只输出工作流路由表（供意图识别）
-#   sh scan-routes.sh commands  <harness-dir>             # 只输出命令路由表
+#   sh scan-routes.sh list      <harness-dir>             # 工作流表 + 全部命令表 + 角色表（完整路由表）
+#   sh scan-routes.sh index     <harness-dir>             # 紧凑索引：名称/简写/触发词/短描述/路径（逐行分隔）
+#   sh scan-routes.sh workflows <harness-dir>             # 只输出工作流路由表（完整表）
+#   sh scan-routes.sh commands  <harness-dir>             # 只输出命令路由表（完整表）
 #   sh scan-routes.sh agents    <harness-dir>             # 只输出可委派角色表
-#   sh scan-routes.sh resolve   <harness-dir> <keyword>   # 解析触发词（仅 workflow/cmd）
-#                                                         # 输出: workflow|-|<file>|... 或 cmd|<group>|<file>|...
+#   sh scan-routes.sh show      <harness-dir> <keyword>   # 单个定义查询（精确命中，输出与 resolve 相同的路由行）
+#   sh scan-routes.sh resolve   <harness-dir> <input>     # 解析触发词（仅 workflow/cmd）
+#                                                         # 带参数输入先按命令前缀精确匹配，参数原文保留在末字段
+#                                                         # 输出: type|group|file|name|short|triggers|params|summary|args
 #                                                         # 退出码: 0 唯一命中 / 1 无命中 / 2 多个命中
 
 ACTION="${1:-list}"
@@ -41,7 +44,7 @@ KEYWORD="${3:-}"
 
 if [ -z "${HARNESS_DIR}" ] || [ ! -d "${HARNESS_DIR}" ]; then
     echo "Error: harness dir not found: ${HARNESS_DIR}" >&2
-    echo "Usage: sh scan-routes.sh <list|workflows|commands|agents|resolve> <harness-dir> [keyword]" >&2
+    echo "Usage: sh scan-routes.sh <list|index|workflows|commands|agents|show|resolve> <harness-dir> [keyword]" >&2
     exit 1
 fi
 
@@ -113,7 +116,7 @@ function fval(line, key) {
     return ""
 }
 
-# 解析单个 md 文件，产出一条 8 字段路由行写入 entries；无效文件跳过
+# 解析单个 md 文件，产出一条路由条目写入 entries；无效文件跳过
 function parse(file,   bn, d1, d2, type, group, name, shortv, trig, paramsv, summ, fence, line, v) {
     bn = basename(file)
     if (substr(bn, 1, 1) == "_") return
@@ -217,8 +220,33 @@ function render_agents(   i, printed) {
     if (printed) print ""
 }
 
+# 紧凑索引：名称/简写/触发词/短描述/路径，无表头对齐，供语义识别按需加载
+function render_index(   i) {
+    print "# 路由紧凑索引（type|name|short|triggers|summary|file）"
+    for (i = 1; i <= n_ent; i++) {
+        if (ent_type[i] == "agent") continue
+        print ent_type[i] "|" ent_name[i] "|" dash(ent_short[i]) "|" ent_trig[i] "|" ent_summ[i] "|" relpath(ent_file[i])
+    }
+}
+
+# exact_hit < lowercase-keyword > < index > — 名称/简写/触发词精确命中
+function exact_hit(kw, i,   nm, sh, tg, m, parts, k) {
+    nm = tolower(ent_name[i]); sh = tolower(ent_short[i]); tg = tolower(ent_trig[i])
+    if (kw == nm) return 1
+    if (sh != "" && kw == sh) return 1
+    m = split(tg, parts, ",")
+    for (k = 1; k <= m; k++) {
+        if (kw == tolower(trim(parts[k]))) return 1
+    }
+    return 0
+}
+
+function routeline(i) {
+    return ent_type[i] "|" ent_group[i] "|" ent_file[i] "|" ent_name[i] "|" ent_short[i] "|" ent_trig[i] "|" ent_params[i] "|" ent_summ[i] "|" ARGS
+}
+
 BEGIN {
-    n_ent = 0; n_grp = 0
+    n_ent = 0; n_grp = 0; ARGS = ""
 }
 
 FNR == 1 { parse(FILENAME) }   # 每个文件只在首行触发一次（parse 内用独立句柄读全文）
@@ -242,29 +270,65 @@ END {
         print "> agents/ 下的角色仅供委派发现，不参与 resolve 路由匹配。"
         exit 0
     }
+    if (MODE == "index")     { render_index(); exit 0 }
     if (MODE == "workflows") { render_wf(); exit 0 }
     if (MODE == "commands")  { render_cmd(); exit 0 }
     if (MODE == "agents")    { render_agents(); exit 0 }
 
+    if (MODE == "show") {
+        if (KEYWORD == "") { print "Error: show 需要传入名称或触发词" > "/dev/stderr"; exit 1 }
+        kw = tolower(KEYWORD)
+        exact_n = 0; delete exact
+        for (i = 1; i <= n_ent; i++) {
+            if (ent_type[i] == "agent") continue
+            if (exact_hit(kw, i)) { exact_n++; exact[exact_n] = i }
+        }
+        if (exact_n == 1) { print routeline(exact[1]); exit 0 }
+        if (exact_n > 1) {
+            print "多个定义匹配 \x27" KEYWORD "\x27，请使用完整名称：" > "/dev/stderr"
+            for (i = 1; i <= exact_n; i++) print routeline(exact[i]) > "/dev/stderr"
+            exit 2
+        }
+        print "未找到 \x27" KEYWORD "\x27 的定义" > "/dev/stderr"
+        exit 1
+    }
+
     if (MODE == "resolve") {
         if (KEYWORD == "") { print "Error: resolve 需要传入 keyword" > "/dev/stderr"; exit 1 }
-        kw = tolower(KEYWORD)
+
+        # 带参数输入：先取首个 token 做命令前缀精确识别，其余原样保留为 ARGS
+        raw = KEYWORD
+        sub(/^[[:space:]]+/, "", raw); sub(/[[:space:]]+$/, "", raw)
+        first = raw
+        sub(/[[:space:]].*/, "", first)
+        has_args = (first != raw)
+        if (has_args) {
+            ARGS = substr(raw, length(first) + 1)
+            sub(/^[[:space:]]+/, "", ARGS)
+        }
+
         exact_n = 0; fuzzy_n = 0
         delete exact; delete fuzzy
+
+        # 先按完整输入精确匹配（触发词本身含空格的情景），无命中再按命令前缀匹配
         for (i = 1; i <= n_ent; i++) {
-            if (ent_type[i] == "agent") continue   # 角色不参与命令/工作流路由
-            nm = tolower(ent_name[i]); sh = tolower(ent_short[i]); tg = tolower(ent_trig[i])
-            hit = (kw == nm)
-            if (!hit && sh != "" && kw == sh) hit = 1
-            if (!hit) {
-                m = split(tg, parts, ",")
-                for (k = 1; k <= m; k++) {
-                    if (kw == tolower(trim(parts[k]))) { hit = 1; break }
-                }
+            if (ent_type[i] == "agent") continue
+            if (exact_hit(tolower(raw), i)) { exact_n++; exact[exact_n] = i }
+        }
+        if (exact_n == 0 && has_args) {
+            for (i = 1; i <= n_ent; i++) {
+                if (ent_type[i] == "agent") continue
+                if (exact_hit(tolower(first), i)) { exact_n++; exact[exact_n] = i }
             }
-            line = ent_type[i] "|" ent_group[i] "|" ent_file[i] "|" ent_name[i] "|" ent_short[i] "|" ent_trig[i] "|" ent_params[i] "|" ent_summ[i]
-            if (hit) { exact_n++; exact[exact_n] = line }
-            else {
+        } else if (exact_n > 0) {
+            ARGS = ""   # 完整输入即路由词，不带参数
+        }
+
+        kw = tolower(has_args ? first : raw)
+        if (exact_n == 0) {
+            for (i = 1; i <= n_ent; i++) {
+                if (ent_type[i] == "agent") continue
+                nm = tolower(ent_name[i]); sh = tolower(ent_short[i]); tg = tolower(ent_trig[i])
                 fhit = wb_match(nm, kw)
                 if (!fhit && sh != "") fhit = wb_match(sh, kw)
                 if (!fhit) {
@@ -273,16 +337,16 @@ END {
                         if (wb_match(tolower(trim(parts[k])), kw)) { fhit = 1; break }
                     }
                 }
-                if (fhit) { fuzzy_n++; fuzzy[fuzzy_n] = line }
+                if (fhit) { fuzzy_n++; fuzzy[fuzzy_n] = i }
             }
         }
-        if (exact_n == 1) { print exact[1]; exit 0 }
+        if (exact_n == 1) { print routeline(exact[1]); exit 0 }
         if (exact_n > 1) {
             print "多个路由匹配 \x27" KEYWORD "\x27，请使用更精确的触发词：" > "/dev/stderr"
-            for (i = 1; i <= exact_n; i++) print exact[i] > "/dev/stderr"
+            for (i = 1; i <= exact_n; i++) print routeline(exact[i]) > "/dev/stderr"
             exit 2
         }
-        if (fuzzy_n == 1) { print fuzzy[1]; exit 0 }
+        if (fuzzy_n == 1) { print routeline(fuzzy[1]); exit 0 }
         # 模糊候选过多时枚举反而是噪音：落回「无命中」(退出码 1)，由 AI 走语义识别
         if (fuzzy_n > 3) {
             print "关键词 \x27" KEYWORD "\x27 模糊命中 " fuzzy_n " 条，过于宽泛，请补充触发词" > "/dev/stderr"
@@ -290,14 +354,14 @@ END {
         }
         if (fuzzy_n > 1) {
             print "多个路由与 \x27" KEYWORD "\x27 相似，请补充触发词：" > "/dev/stderr"
-            for (i = 1; i <= fuzzy_n; i++) print fuzzy[i] > "/dev/stderr"
+            for (i = 1; i <= fuzzy_n; i++) print routeline(fuzzy[i]) > "/dev/stderr"
             exit 2
         }
         print "未找到匹配 \x27" KEYWORD "\x27 的工作流或命令" > "/dev/stderr"
         exit 1
     }
 
-    print "Error: 未知动作（支持 list / workflows / commands / agents / resolve）" > "/dev/stderr"
+    print "Error: 未知动作（支持 list / index / workflows / commands / agents / show / resolve）" > "/dev/stderr"
     exit 1
 }
 '
@@ -306,18 +370,19 @@ AWK_PROG="${YAML_LIB}${AWK_PROG}"
 # 无任何文件时给 awk 喂 /dev/null，避免其挂起读 stdin
 [ "$#" -gt 0 ] || set -- /dev/null
 
-if [ "${ACTION}" = "resolve" ]; then
+if [ "${ACTION}" = "resolve" ] || [ "${ACTION}" = "show" ]; then
     # awk 以退出码表达命中结果（0/1/2），需绕开 set -e
     set +e
-    awk -v MODE=resolve -v H="${HARNESS_DIR}" -v KEYWORD="${KEYWORD}" "${AWK_PROG}" "$@"
+    awk -v MODE="${ACTION}" -v H="${HARNESS_DIR}" -v KEYWORD="${KEYWORD}" "${AWK_PROG}" "$@"
     rc=$?
     exit "${rc}"
 fi
 
 case "${ACTION}" in
     list)      awk -v MODE=list      -v H="${HARNESS_DIR}" "${AWK_PROG}" "$@" ;;
+    index)     awk -v MODE=index     -v H="${HARNESS_DIR}" "${AWK_PROG}" "$@" ;;
     workflows) awk -v MODE=workflows -v H="${HARNESS_DIR}" "${AWK_PROG}" "$@" ;;
     commands)  awk -v MODE=commands  -v H="${HARNESS_DIR}" "${AWK_PROG}" "$@" ;;
     agents)    awk -v MODE=agents    -v H="${HARNESS_DIR}" "${AWK_PROG}" "$@" ;;
-    *) echo "Error: 未知动作 '${ACTION}'（支持 list / workflows / commands / agents / resolve）" >&2; exit 1 ;;
+    *) echo "Error: 未知动作 '${ACTION}'（支持 list / index / workflows / commands / agents / show / resolve）" >&2; exit 1 ;;
 esac

@@ -1,7 +1,17 @@
 # 读取项目 wiki 规则（公共读取指令）
 
-> 所有读取 `$root/wiki/<project>/` 与工作区文档（`$work/doc/analysis/`、`$work/story/*/analysis.md`）的流程统一按本文件执行：`analyze`、`ask`、`work` 开场清单、`spec`、`plan`、`code`、`fix`、`testcode`、`test`、`tech-design`、`code-review`、`release-check`、`deploy` 等命令都引用本文件。
+> 所有读取 `$root/wiki/<project>/` 与工作区文档（`$work/doc/analysis/`、`$work/story/*/analysis.md`）的流程统一按本文件执行：`analyze`、`ask`（含其各分支流程）、`work` 开场清单、`spec`、`plan`、`code`、`fix`、`testcode`、`test`、`tech-design`、`code-review`、`release-check`、`deploy` 等命令都引用本文件。
 > 写入按 `harness/rule/wiki-write.md`；命名按 `harness/rule/naming.md`；只读当前项目，不跨项目取用。
+
+## 零、检索准备（一轮并行取回）
+
+`ask` 与其他按本规则检索的命令先做一次并行准备，不串行往返：
+
+1. **文档头部**：`$work/status.yaml`（project / workflow / 分支）、`$work/doc/analysis/*.md` 与 `$work/story/*/analysis.md` 的头部（主题、基准 commit、最近更新）；只列文件与头部，不读全文。
+2. **实际仓库路径**：先确认 `$work/repo/<repo-name>/` 是否存在；缺失时登记 `$root/repo/<repo-name>/`（只读）。路径确定后才开始检索。
+3. **Git 状态**：目标仓库的 HEAD、分支与工作区状态（`git -C <repo> rev-parse --short HEAD`、`git -C <repo> status -sb`）。
+
+三项无依赖，同一轮并行发出；结果确定检索范围后，再进入索引检索或代码补查。
 
 ## 一、先走索引，再读文件
 
@@ -23,11 +33,11 @@
 
 ## 三、工作区文档与项目 wiki
 
-- `$work/doc/analysis/`：需求明确前的代码问答与仓库分析（如 `<repo>-analysis.md`、主题问答文档），可能绑定旧代码；读取前先看头部「基准 commit」是否与当前 HEAD 一致。
+- `$work/doc/analysis/`：需求明确前的代码问答与仓库分析产物，按主题命名，文件名不限 `-analysis` 后缀；一律按目录扫描 `.md` 并按头部「主题」匹配，不假定固定文件名。可能绑定旧代码；读取前先看头部「基准 commit」是否与当前 HEAD 一致。
 - `$work/story/<story>/analysis.md`：需求分析产物（现有实现、可行性、兼容性、待确认问题），按 story 一份；同样先看「基准 commit」。
 - `$work/doc/` 下的 `tech-design.md`、`test.md`、`code-review.md`、`release-check.md` 是命令产物，由对应命令直接读取，不按 wiki 索引检索。
 - `$root/wiki/<project>/`：跨工作区的稳定知识，只放代码里拿不到的事实、导航锚点、业务背景、决策约定与配置参数。
-- `ask` 与 `analyze` 的初步检索**同时并发检索**工作区 `doc/analysis/`、`story/*/analysis.md` 与 `$root/wiki/<project>/`（含 `history/`），命中合并后再判断下一步。
+- `ask` 与 `analyze` 的初步检索**同时并发检索**工作区 `doc/analysis/`（按目录扫描并读头部主题，不按固定文件名）、`story/*/analysis.md` 与 `$root/wiki/<project>/`（含 `history/`），命中合并后再判断下一步。
 
 ## 四、取用纪律
 
@@ -36,7 +46,18 @@
 - 只有 `confirmed` / `verified` 的条目默认作为上下文；`reported` / `candidate` 只作线索，需核实后再使用。
 - 工作区分析文档若基准 commit 已偏离当前 HEAD，先提示结论可能过时，再据实更新或重新分析。
 
-## 五、深度检索与代码核实
+## 五、检索准确性（ask / wiki-read 共用）
+
+1. **先定事实类型，再选入口**：词频/统计找聚合函数；主题/标签来源找生产者与写入点；查询支持条件找请求参数与查询构造器。按问题类型选入口，不从单一入口反复兜底。
+2. **精确符号优先，关键词兜底**：先按函数名、RPC、字段名、常量名搜索；普通业务词只用于找入口。复杂正则无命中时先用字面量复查，避免表达式写错误判为代码不存在。
+3. **默认排除测试与生成代码**：分析生产行为时先限定仓库、目录与生产文件；查边界场景、预期行为或测试问题时再纳入测试代码与生成代码。
+4. **结论与证据逐项对应**：一段聚合代码不能同时证明搜索条件、翻译规则与异步刷新；每个关键判断都要有直接依据（函数体、调用方、数据结构或配置片段）。
+5. **命中只用于定位**：搜索命中不构成结论，关键结论必须读取对应片段；读不到时标「待确认」。
+6. **否定结论写清检查范围**：「没有回调」「不会刷新」须检查相关调用链与写入路径，并写明检查了哪些仓库、目录与符号；一次关键词无命中只说明本次搜索未找到。
+7. **跨仓库引用带仓库名与完整相对路径**：引用形如 `repo/path#L12-L15`，避免同名文件误定位；行号用于阅读，符号名用于代码变化后的重定位。
+8. **复用检索结果**：复用已定位的主题文档、关键词与代码入口前，检查相关文件 HEAD 是否变化、证据是否仍完整。
+
+## 六、深度检索与代码核实
 
 出现以下任一情况时，不停留在 wiki，自动检索最新代码核实：
 
@@ -50,7 +71,9 @@
 2. 当前工作区没有所需仓库时，搜索根目录主仓库 `$root/repo/<repo-name>/`（只读基准，不直接修改）；
 3. 需要修改代码时，再由 `code` / `worktree` 按需创建 worktree。
 
-## 六、禁止
+搜索范围由窄到宽：先限定仓库、目录与生产文件，再搜精确符号；无命中时逐级扩大（同目录 → 同仓库 → 主仓库），不因一次无命中断言不存在。
+
+## 七、禁止
 
 - 禁止整仓通读、整目录批量加载、对同一文件全文反复读取。
 - 禁止跨项目读取 `wiki/<other-project>/`。

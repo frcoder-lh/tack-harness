@@ -1,11 +1,15 @@
 #!/bin/sh
-# repo.sh — 代码仓库接入（扫描本地 / 软链已有 / 克隆远端）
+# repo.sh — 代码主仓库接入与同步（扫描本地 / 软链已有 / 克隆远端 / 更新远端）
 #
 # Usage:
 #   sh repo.sh scan  <root> <scan-dir>         # 深度 <= 5 扫描本地 git 仓库，逐行输出绝对路径
 #   sh repo.sh link  <root> <local-path> ...   # 将本地仓库软链到 <root>/repo/<repo-name>
 #   sh repo.sh clone <root> <git-url>  ...     # 克隆远端仓库到 <root>/repo/<repo-name>
 #                                                     clone 支持 -force 覆盖已存在仓库
+#   sh repo.sh fetch <root> [repo-name...]     # 更新全部（省略仓库名）或指定主仓库到远端最新；
+#                                                     逐仓库复用 git-fetch-helper.sh sync
+#
+# fetch 退出码: 0 全部同步成功；1 存在普通失败；10 存在 pull 冲突；11 存在需人工介入项
 
 set -e
 
@@ -13,9 +17,11 @@ ACTION="$1"
 ROOT="$2"
 
 if [ -z "${ACTION}" ] || [ -z "${ROOT}" ]; then
-    echo "Usage: sh repo.sh <scan|link|clone> <root> [args...]" >&2
+    echo "Usage: sh repo.sh <scan|link|clone|fetch> <root> [args...]" >&2
     exit 1
 fi
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # 解析仓库名：路径末段，去掉尾部斜杠与 .git
 get_repo_name() {
@@ -136,8 +142,66 @@ case "${ACTION}" in
         done
         ;;
 
+    fetch)
+        shift 2
+        REPO_DIR="${ROOT}/repo"
+        if [ ! -d "${REPO_DIR}" ]; then
+            echo "Error: 主仓库目录不存在: ${REPO_DIR}" >&2
+            exit 1
+        fi
+
+        FETCH_HELPER="${SCRIPT_DIR}/git-fetch-helper.sh"
+        if [ ! -f "${FETCH_HELPER}" ]; then
+            echo "Error: 缺少同步脚本: ${FETCH_HELPER}" >&2
+            exit 1
+        fi
+
+        total=0; ok=0; manual=0; conflict=0; failed=0
+
+        fetch_one() {
+            total=$((total + 1))
+            rc=0
+            sh "${FETCH_HELPER}" sync "$1" || rc=$?
+            case "${rc}" in
+                0)  ok=$((ok + 1)) ;;
+                10) conflict=$((conflict + 1)) ;;
+                11) manual=$((manual + 1)) ;;
+                *)  failed=$((failed + 1)) ;;
+            esac
+        }
+
+        if [ $# -eq 0 ]; then
+            for d in "${REPO_DIR}"/*/; do
+                [ -d "${d}" ] || continue
+                fetch_one "${d%/}"
+            done
+        else
+            # 先校验全部指定仓库存在，避免逐个静默跳过
+            for name in "$@"; do
+                if [ ! -d "${REPO_DIR}/${name}" ]; then
+                    echo "Error: 主仓库不存在: repo/${name}" >&2
+                    echo "可用仓库:" >&2
+                    for d in "${REPO_DIR}"/*/; do
+                        [ -d "${d}" ] && echo "  ${d%/}" >&2
+                    done
+                    exit 1
+                fi
+            done
+            for name in "$@"; do
+                fetch_one "${REPO_DIR}/${name}"
+            done
+        fi
+
+        [ "${total}" -gt 0 ] || echo "未找到可更新的主仓库: ${REPO_DIR}"
+        echo "REPO_FETCH_SUMMARY=total:${total} ok:${ok} manual:${manual} conflict:${conflict} failed:${failed}"
+        [ "${failed}" -eq 0 ] || exit 1
+        [ "${conflict}" -eq 0 ] || exit 10
+        [ "${manual}" -eq 0 ] || exit 11
+        exit 0
+        ;;
+
     *)
-        echo "Error: 未知动作 '${ACTION}'（支持 scan / link / clone）" >&2
+        echo "Error: 未知动作 '${ACTION}'（支持 scan / link / clone / fetch）" >&2
         exit 1
         ;;
 esac

@@ -11,12 +11,12 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
 ## 前置准入条件
 
 - 已是 tack 空间
-- AGENTS.md 项目信息区块中 `skill_update_url` 为出厂固定值（`https://github.com/frcoder-lh/tack-harness`）；`skill_version` 由 init 自动填充，老空间为空时以本机已安装 skill 的 SKILL.md 版本号为准
+- `tack.yaml`（旧空间为 AGENTS.md 项目信息区块）中 `skill_update_url` 为出厂固定值（`https://github.com/frcoder-lh/tack-harness`）；`skill_version` 由 init 自动填充，老空间为空时以本机已安装 skill 的 SKILL.md 版本号为准
 
 ## 指令内容
 
 1. **检测版本**
-   - 动作: 读取 AGENTS.md 项目信息区块的 `skill_version`（为空时取本机已安装 skill 的 SKILL.md front matter 版本号）；通过 `skill_update_url` 指向仓库的最新 release tag（`Vx.y.z`）获取最新版本进行对比；无网络时以本机版本为准并提示
+   - 动作: 执行 `sh $root/harness/script/project.sh space-info $root` 读取 `skill_version`（为空时取本机已安装 skill 的 SKILL.md front matter 版本号）；通过 `skill_update_url` 指向仓库的最新 release tag（`Vx.y.z`）获取最新版本进行对比；无网络时以本机版本为准并提示
    - 动作: 远端有新版本时，先展示「本次更新内容」让用户了解变更再继续：同时拉取 `skill_update_url` 仓库的 `raw/master/CHANGELOG.md` 与 `CHANGELOG.en.md`，分别抽取「本机版本（不含）→ 最新版本」区间的全部版本段落，中英双语分段向用户展示（多版本升级展示区间所有段落；按用户语言可只转述对应语言段）；任一语言拉取失败或段落缺失时该语言提示变更说明不可得，不阻塞另一种语言与更新流程
    - 动作: 若版本一致且无本地差异（见第 3 步），提示"已是最新"并结束
 
@@ -37,7 +37,7 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
    - 禁止手工逐文件判断分类；脚本只分类，不覆盖，采用/保留/融合仍由本命令与用户决定
    - **`rule/` 文件强制走用户裁决**：本地已存在的 rule 文件一律按 `CHANGED` / `SAME` 分类，`CHANGED` 的必须进入第 4/5 步候选并逐文件询问，**不得静默跳过，也不得自动覆盖**；用户未裁决的文件保持原样
    - 动作: 空间根 `.gitignore` 单独对比：对比 `<skill>/tack/.gitignore`（新版模板）与 `$root/.gitignore`（用户当前），按同样的新增/本地已修改/一致分类；`.gitignore` 不在 `harness/` 下，故单独处理
-   - 以下内容不参与覆盖：`AGENTS.md`（含项目信息区块）、`cmd/` 中用户自建文件、`wiki/`、`space/`
+   - 以下内容不参与覆盖：`AGENTS.md`、`tack.yaml`（空间登记）、`cmd/` 中用户自建文件、`wiki/`、`space/`
    - 临时产物约束：本步对比/diff 产生的临时文件一律放 `$root/.tack/tmp/`，本步结束后及时清理，禁止写系统临时目录
 
 4. **提炼融合点**
@@ -60,7 +60,7 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
    - 约束: 每个融合点必须得到用户明确确认后才能写入文件，禁止未确认直接融合；`rule/` 下文件不得跳过询问，用户拒绝或暂缓时保留本地版本、不做任何写入
 
 6. **备份**
-   - 动作: 执行 `sh $root/harness/script/harness-backup.sh backup $root update`，记录输出的 `BACKUP_DIR`（备份 `harness/`、`AGENTS.md`、`.gitignore`）
+   - 动作: 执行 `sh $root/harness/script/harness-backup.sh backup $root update`，记录输出的 `BACKUP_DIR`（备份 `harness/`、`AGENTS.md`、`tack.yaml`、`.gitignore`）
    - 动作: 提示用户备份位置，说明放弃本地改动时可从备份找回；恢复用 `harness-backup.sh restore` + `verify`
 
 7. **执行更新**
@@ -72,18 +72,19 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
      - `cmd/` 只增补新增命令文件，不覆盖同名文件
      - `$root/.gitignore` 按同样的新增/覆盖/保留/融合流程处理（与 `harness/` 内文件一致，无特殊规则）
      - `rule/` 下文件仅按第 5 步用户确认的方案写入；未确认的一律保持原样
-   - 文件覆盖阶段不触碰 AGENTS.md（项目信息区块仅由下一步 project.sh 单独写入 skill_version，其余字段一律不动）
+   - 文件覆盖阶段不触碰 AGENTS.md 与 tack.yaml（空间登记仅由下一步 project.sh 单独写入 skill_version，其余字段一律不动）
    - 失败恢复: 任一文件覆盖或验证失败时执行 `sh $root/harness/script/harness-backup.sh restore $root <BACKUP_DIR>`，再 `verify` 确认逐文件一致后重新开始
 
 8. **验证与收尾**
    - 动作: 执行 `sh $root/harness/script/scan-routes.sh list $root/harness` 确认工作流与命令路由正常
    - 动作: 对执行过"融合"的脚本文件执行 `sh -n` 语法校验，不通过则从备份回滚该文件并提示用户
    - 动作: 执行 `sh $root/harness/script/harness-backup.sh verify $root <BACKUP_DIR>` 辅助核对差异范围；恢复后该命令应输出 `VERIFY_RESULT=ok`
-   - 动作: 调用 project.sh 把新版本写入 AGENTS.md 项目信息区块（禁止手工编辑 YAML）：
+   - 动作: 若 `$root/tack.yaml` 不存在，先执行 `sh $root/harness/script/project.sh migrate $root --no-commit`——备份 AGENTS.md 旧区块、写入 tack.yaml、核对一致后删除登记正文；迁移失败即中止，不继续写版本
+   - 动作: 调用 project.sh 把新版本写入 `tack.yaml`（禁止手工编辑 YAML）：
      `sh $root/harness/script/project.sh skill-version $root <新版本> --no-commit`；`--no-commit` 表示由下一步框架提交统一入库
    - 动作: 引导老空间接入自动更新检查（一次性，仅当以下任一缺失时执行；新空间经 init-tack 物化已自带）：
      - `close` / `evolution` / `record` / `help` 命令文件缺少「版本检查（更新提醒挂载点）」步骤时，经用户确认后按本机 skill 的 `tack/harness/cmd/` 同名文件同节内容增补（检查命令与输出协议）
-     - `$root/.gitignore` 缺少 `.tack/` 条目时追加一行（tack 本地运行时数据根：log/backup/tmp/state，含 check-update.sh 的本机状态文件，不入库；本项为框架强制兜底——即便用户对 `.gitignore` 选择「保留本地」，`.tack/` 也必须被忽略，否则运行时数据会误入空间仓库）
+     - `$root/.gitignore` 既无 `.*/`（默认忽略所有点开头目录）也无 `.tack/` 条目时追加 `.*/`（`.tack/` 为框架运行时数据根：log/backup/tmp/state，含 check-update.sh 的本机状态文件，绝不能入库；本项为框架强制兜底——即便用户对 `.gitignore` 选择「保留本地」，运行时数据也必须被忽略）
    - 动作: 展示备份位置与本次更新摘要；摘要须含**实际落盘清单**（基于第 7 步执行事实：新增/覆盖/融合的文件逐个列出），禁止臆测
 
 ## 框架自动提交（无需用户操作）
@@ -97,9 +98,9 @@ summary: 对比版本并更新 harness（script/template/reference/workflow）�
 - [ ] 本机 skill 的 SKILL.md version 已更新为最新版本号（第 2 步已执行）
 - [ ] `harness-diff.sh --profile update` 分类齐全，所有 `CHANGED` 文件（含 `rule/` 下文件）均已按用户确认的方案处理；用户未裁决的 `rule/` 文件保持原样，未被静默跳过或自动覆盖
 - [ ] 融合文件通过 `sh -n` 校验，融合结果经用户确认
-- [ ] 用户自定义的 cmd 未被改动；`rule/` 文件仅按用户确认的方案处理，未确认的本地改动未被覆盖；AGENTS.md 项目信息仅 skill_version 经 project.sh 更新，其余字段不变
+- [ ] 用户自定义的 cmd 未被改动；`rule/` 文件仅按用户确认的方案处理，未确认的本地改动未被覆盖；`tack.yaml` 仅 skill_version 经 project.sh 更新，其余字段不变；老空间已完成 `migrate`（旧区块已移除）或明确说明无需迁移
 - [ ] skill_version 已更新为最新版本号
-- [ ] `close` / `evolution` / `record` / `help` 命令文件含版本检查步骤且 `.gitignore` 忽略 `.tack/`（老空间本次经确认补写，新空间已自带）
+- [ ] `close` / `evolution` / `record` / `help` 命令文件含版本检查步骤且 `.gitignore` 含 `.*/` 或 `.tack/`（老空间本次经确认补写，新空间已自带）
 
 ## 下一步建议
 

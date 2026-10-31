@@ -80,4 +80,4 @@ initialized → preparing → integrating → pushing → completed
 - `branch_op` 区块记录 `source_ref`（auto/local/remote）、每仓库的临时分支名与推送状态（结构见 `harness/template/work-status.yaml`），是续跑与 close 清理的依据
 - `branches` 列表同时登记两个临时分支（`role: tmp, source: branch-op`），作为全工作流通用的分支登记簿；close 时 `branch-op.sh cleanup` 删除临时分支后，由 close 命令对这两条 tmp 条目执行 `work-status.sh branch mark <repo> <name> cleaned`
 - push 成功后置 `status: completed`；本工作流不使用 progress.merged
-- 用户引导/纠偏照常采集到 `guidance`（AGENTS.md 核心约束第 11 条）
+- 用户引导/纠偏照常采集到 `guidance`（见 `harness/rule/record-lifecycle.md`）

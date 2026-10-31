@@ -1,32 +1,29 @@
 #!/bin/sh
-# project.sh — 维护 AGENTS.md 中的「项目信息」YAML 区块（projects 数组 + work 列表）
+# project.sh — 维护 tack 空间登记（$ROOT/tack.yaml），兼容旧版 AGENTS.md 项目信息区块
 #
-# 区块边界（区块体内为纯 YAML，不含 markdown 围栏，便于脚本可靠读写）：
-#   <!-- tack:info:start -->
-#   skill_version: ""
-#   skill_update_url: "https://github.com/frcoder-lh/tack-harness"
-#   ...
-#   projects:
-#     - name: "project-a"
-#       keywords: [...]
-#       description: ""
-#       root_path: ""
-#       repo_scan_path: []
-#       service_repo_mapping: [...]
-#   work:
-#     - work_id: "..."
-#       project: "project-a"
-#       ...
-#   <!-- tack:info:end -->
+# 存储解析（每次读取前判定）：
+#   1. $ROOT/tack.yaml 存在且含顶层 projects/work 字段 -> 使用 tack.yaml（新存储）
+#   2. tack.yaml 不存在且 AGENTS.md 含 <!-- tack:info:start --> 区块 -> 使用旧区块（兼容）
+#   3. tack.yaml 存在但结构无效 -> 报错退出；两者都无 -> 提示先执行 ensure
+#
+# tack.yaml 字段（第一版沿用旧区块字段与取值）：
+#   skill_version: "" / skill_update_url: "..." / skill_trigger: "tack"
+#   projects: [{name, keywords, description, root_path, repo_scan_path, service_repo_mapping}]
+#   work:     [{work_id, project, description, trigger_words, work_path, branch, services, status, created_at}]
 #
 # Usage:
-#   sh project.sh ensure            <root>                                              # 区块缺失时在 AGENTS.md 尾部追加空模板（幂等）
+#   sh project.sh ensure            <root>                                              # 新空间创建 tack.yaml；旧区块存在时保持旧存储（幂等）
+#   sh project.sh migrate           <root> [--no-commit]                                # 备份旧区块 -> 写 tack.yaml -> 核对 -> 删除 AGENTS.md 登记正文
+#   sh project.sh store-path        <root>                                              # 输出 STORE=<path> 与 STORE_KIND=<tackyaml|legacy>
+#   sh project.sh space-info        <root>                                              # 空间元信息：版本、项目数、工作区数、活跃工作区数
 #   sh project.sh project-add       <root> <name> [description] [--no-commit]           # 追加项目条目并创建 wiki/<name>/
 #   sh project.sh project-set       <root> <name> <description|root_path> <value>       # 更新项目下简单标量
 #   sh project.sh project-keywords  <root> <name> <kw1,kw2,...> [--no-commit]           # 覆盖写某项目 keywords
 #   sh project.sh project-service-repo <root> <name> <service_name> <repo_name> <repo_git> <repo_path> [--no-commit]
 #                                                                                       # 追加某项目的 service_repo_mapping（repo_git 可传空串）
 #   sh project.sh project-list      <root>                                              # 输出 name<TAB>description，每行一个项目
+#   sh project.sh project-get       <root> <name>                                       # 输出单项目详情（标量 + 服务映射行）
+#   sh project.sh repo-list         <root> <project>                                    # 只输出该项目服务映射（必须带项目名）
 #   sh project.sh skill-version     <root> <version> [--if-empty] [--no-commit]         # 写入 skill_version；--if-empty 仅空值时填充（已有值跳过）
 #   sh project.sh work-add      <root> <project> <id> <description> <work_path> <branch> <svc1,svc2> [triggers]
 #   sh project.sh work-set      <root> <id> <status>                                # 更新某工作条目状态
@@ -34,6 +31,8 @@
 #   sh project.sh work-path     <root> <id> <work_path>                             # 修正某工作条目的 work_path（reconcile 发现重命名残留时校准）
 #   sh project.sh work-rename   <root> <old-id> <new-id> <new-branch> <new-work_path> # 重命名工作条目的 work_id/branch/work_path
 #   sh project.sh work-reconcile <root>                                             # 对账 work 条目与 space/ 实际目录，只报告差异不改写
+#   sh project.sh work-list     <root> [project]                                     # 输出工作区登记行（可只取某项目）
+#   sh project.sh work-get      <root> <id>                                          # 输出单个工作区条目详情
 #   sh project.sh work-services <root> <id> <svc1,svc2,...> [status.yaml] [--no-commit]
 #                                                                                   # 覆盖写某工作条目 services；给 status.yaml 时同步其顶层 services
 #   sh project.sh work-trigger  <root> <id> <kw1,kw2,...> [--no-commit]            # 追加触发词到 work 条目（去重、跳过等于 work_id/branch 的词）
@@ -47,20 +46,25 @@ set -e
 ACTION="$1"
 ROOT="$2"
 AGENTS="${ROOT}/AGENTS.md"
+STORE_FILE="${ROOT}/tack.yaml"
 
 START_MARK='<!-- tack:info:start -->'
 END_MARK='<!-- tack:info:end -->'
+
+# 当前生效的数据文件与存储类型（resolve_store 设定）
+STORE=""
+STORE_KIND=""
 
 # 共享 YAML 标量/行内列表函数（唯一事实源 script/yamlib.awk）
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 YAML_LIB="$(cat "${SCRIPT_DIR}/yamlib.awk")"
 
 if [ -z "${ACTION}" ] || [ -z "${ROOT}" ]; then
-    echo "Usage: sh project.sh <ensure|project-add|project-set|project-keywords|project-service-repo|project-list|skill-version|work-add|work-set|work-remove|work-path|work-rename|work-reconcile|work-services|work-trigger> <root> [args...]" >&2
+    echo "Usage: sh project.sh <ensure|migrate|store-path|space-info|project-add|project-set|project-keywords|project-service-repo|project-list|project-get|repo-list|skill-version|work-add|work-set|work-remove|work-path|work-rename|work-reconcile|work-list|work-get|work-services|work-trigger> <root> [args...]" >&2
     exit 1
 fi
-if [ ! -f "${AGENTS}" ]; then
-    echo "Error: ${AGENTS} 不存在，请先执行 init-tack.sh 初始化 tack 空间" >&2
+if [ ! -f "${AGENTS}" ] && [ ! -f "${STORE_FILE}" ]; then
+    echo "Error: 不是 tack 空间（缺 AGENTS.md 与 tack.yaml）: ${ROOT}" >&2
     exit 1
 fi
 
@@ -91,9 +95,13 @@ csv_to_yaml() {
     printf '%s' "$1" | awk "${YAML_LIB}"'{ print yaml_inline_list($0) }'
 }
 
-# 提取区块体（两个标记之间的内容）到指定临时文件
+# 提取数据体到指定临时文件（tack.yaml 取全文；旧存储取两个标记之间的内容）
 extract_body() {
     out="$1"
+    if [ "${STORE_KIND}" = "tackyaml" ]; then
+        cp "${STORE}" "${out}"
+        return
+    fi
     awk -v s="${START_MARK}" -v e="${END_MARK}" '
         index($0, s) == 1 { inblock=1; next }
         index($0, e) == 1 { inblock=0; next }
@@ -101,10 +109,14 @@ extract_body() {
     ' "${AGENTS}" > "${out}"
 }
 
-# 用临时文件中的新 body 重写区块（区块外内容、标记行本身保持不变）
+# 用临时文件中的新 body 重写数据（tack.yaml 整文件替换；旧区块只替换标记之间）
 rewrite_block() {
     body="$1"
     tmp="$(new_tmp)"
+    if [ "${STORE_KIND}" = "tackyaml" ]; then
+        cp "${body}" "${tmp}" && mv "${tmp}" "${STORE}"
+        return
+    fi
     awk -v bodyfile="${body}" -v s="${START_MARK}" -v e="${END_MARK}" '
         index($0, s) == 1 { print; while ((getline line < bodyfile) > 0) print line; inblock=1; next }
         index($0, e) == 1 { inblock=0; print; next }
@@ -113,16 +125,42 @@ rewrite_block() {
 }
 
 has_block() {
-    grep -qF "${START_MARK}" "${AGENTS}" && grep -qF "${END_MARK}" "${AGENTS}"
+    [ -f "${AGENTS}" ] && grep -qF "${START_MARK}" "${AGENTS}" && grep -qF "${END_MARK}" "${AGENTS}"
+}
+
+# tackyaml_valid — 顶层 projects/work 字段齐备即视为有效；含制表符视为格式损坏
+tackyaml_valid() {
+    [ -f "${STORE_FILE}" ] || return 1
+    grep -qE '^projects:' "${STORE_FILE}" && grep -qE '^work:' "${STORE_FILE}" \
+        && ! grep -q "$(printf '\t')" "${STORE_FILE}"
+}
+
+# resolve_store — 设定 STORE/STORE_KIND：tack.yaml 优先；不存在时兼容 AGENTS.md 旧区块；
+# tack.yaml 存在但无效时明确报错，不静默回退
+resolve_store() {
+    if [ -f "${STORE_FILE}" ]; then
+        if ! tackyaml_valid; then
+            echo "Error: tack.yaml 无效（须含顶层 projects/work 字段且不含制表符）: ${STORE_FILE}" >&2
+            exit 1
+        fi
+        STORE="${STORE_FILE}"; STORE_KIND="tackyaml"
+        return 0
+    fi
+    if has_block; then
+        STORE="${AGENTS}"; STORE_KIND="legacy"
+        return 0
+    fi
+    echo "Error: 未找到 tack.yaml，AGENTS.md 也无可用的项目信息区块；先执行 project.sh ensure" >&2
+    exit 1
 }
 
 # require_projects — 校验多项目结构（projects 数组）存在；旧版单项目区块给出迁移提示
 require_projects() {
-    grep -qE '^projects:' "${AGENTS}" && return 0
-    if grep -qE '^project:' "${AGENTS}"; then
-        echo "Error: 检测到旧版单项目区块 project:。多项目结构须为 projects 数组，且每个 work 条目带 project 字段；请按 AGENTS.md 模板手工迁移该区块后再执行" >&2
+    grep -qE '^projects:' "${STORE}" && return 0
+    if grep -qE '^project:' "${STORE}"; then
+        echo "Error: 检测到旧版单项目区块 project:。多项目结构须为 projects 数组，且每个 work 条目带 project 字段；请先执行 project.sh migrate" >&2
     else
-        echo "Error: 项目信息区块缺少 projects 字段，先执行 project.sh ensure" >&2
+        echo "Error: 空间登记缺少 projects 字段，先执行 project.sh ensure" >&2
     fi
     exit 1
 }
@@ -137,39 +175,158 @@ project_exists() {
             if (val($0) == want) { found=1 }
         }
         END { exit (found ? 0 : 1) }
-    ' "${AGENTS}"
+    ' "${STORE}"
 }
 
-# ensure: 幂等追加空区块
+# ensure: 新空间创建 tack.yaml；旧区块存在时保持旧存储（迁移由 migrate 负责）
 cmd_ensure() {
+    if [ -f "${STORE_FILE}" ]; then
+        if tackyaml_valid; then
+            echo "tack.yaml 已存在，跳过"
+        else
+            echo "Error: tack.yaml 无效（须含顶层 projects/work 字段且不含制表符）: ${STORE_FILE}" >&2
+            exit 1
+        fi
+        return 0
+    fi
     if has_block; then
         if grep -qE '^projects:' "${AGENTS}"; then
-            echo "项目信息区块已存在，跳过"
+            echo "检测到 AGENTS.md 旧版项目信息区块，继续使用旧存储（执行 migrate 可迁移到 tack.yaml）"
             return 0
         fi
-        require_projects
+        echo "Error: AGENTS.md 旧区块缺少 projects 字段，请先执行 project.sh migrate 或手工核对" >&2
+        exit 1
     fi
     tmp_body="$(new_tmp)"
     cat > "${tmp_body}" <<'EOF'
+# ============================================================
+# tack 空间登记（$root/tack.yaml）
+#
+# 定位：空间级结构化登记的唯一事实源——空间版本、项目、服务仓库映射与工作区登记。
+# 维护：由 harness/script/project.sh 读写（init / work / close / update 时自动更新）；
+#       可手工查阅，结构化修改一律经 project.sh，避免格式偏差。
+# 分工：工作区实时状态与进展在 space/<workspace>/status.yaml；目录事实取自文件系统，
+#       分支与仓库状态取自 Git。
+# ============================================================
 skill_version: ""
 skill_update_url: "https://github.com/frcoder-lh/tack-harness"
 skill_trigger: "tack"
 projects: []
 work: []
 EOF
-    # 确保文件尾有空行，再追加区块
-    [ -z "$(tail -c1 "${AGENTS}" 2>/dev/null)" ] || echo "" >> "${AGENTS}"
-    {
-        echo "## 项目信息"
-        echo ""
-        echo "> 以下 YAML 区块由 harness/script/project.sh 维护（init、work、close 时自动更新）；可手工查阅，结构化内容（projects、service_repo_mapping、work.services）由 init 等命令经脚本写入（内容经人工确认）。项目名与 work.project 对应，项目级知识落 wiki/<project>/。"
-        echo ""
-        echo "${START_MARK}"
-        cat "${tmp_body}"
-        echo "${END_MARK}"
-    } >> "${AGENTS}"
+    cp "${tmp_body}" "${STORE_FILE}"
     rm -f "${tmp_body}"
-    echo "已在 AGENTS.md 追加项目信息区块"
+    echo "已创建 tack.yaml（空间登记）"
+}
+
+# 旧存储区块体（不依赖当前 STORE_KIND，供 migrate 读取 AGENTS.md）
+extract_legacy_body() {
+    out="$1"
+    awk -v s="${START_MARK}" -v e="${END_MARK}" '
+        index($0, s) == 1 { inblock=1; next }
+        index($0, e) == 1 { inblock=0; next }
+        inblock == 1 { print }
+    ' "${AGENTS}" > "${out}"
+}
+
+# 迁移核对快照：只比较关键标识（正文原样复制，快照用于防提取/写入错位）
+data_snapshot() {
+    awk "${YAML_LIB}"'
+        function flushw() {
+            if (curw != "") print "W|" curw "|" wprj
+            curw=""; wprj=""
+        }
+        BEGIN { inproj=0; inwork=0; curw="" }
+        /^skill_version:/ { if (sv == "") sv=val($0) }
+        /^skill_update_url:/ { if (su == "") su=val($0) }
+        /^skill_trigger:/ { if (stg == "") stg=val($0) }
+        /^projects:/ { inproj=1; inwork=0; next }
+        /^work:/ { flushw(); inproj=0; inwork=1; next }
+        inproj==1 && /^[^[:space:]]/ { inproj=0 }
+        inproj==1 && /^  - name:/ { print "P|" val($0) }
+        inwork==1 && /^[^[:space:]]/ { flushw(); inwork=0 }
+        inwork==1 && /^[[:space:]]*-[[:space:]]*work_id:/ { flushw(); curw=val($0); next }
+        inwork==1 && curw != "" && /^[[:space:]]+project:/ { wprj=val($0) }
+        END { flushw(); print "S|" sv "|" su "|" stg }
+    ' "$1" | sort
+}
+
+# 删除 AGENTS.md 中的「## 项目信息」整节（标题至结束标记）
+remove_agents_block() {
+    tmp="$(new_tmp)"
+    awk -v e="${END_MARK}" '
+        /^##[[:space:]]+项目信息[[:space:]]*$/ { skip=1; next }
+        skip==1 && index($0, e) == 1 { skip=0; next }
+        skip==1 { next }
+        { print }
+    ' "${AGENTS}" > "${tmp}" && mv "${tmp}" "${AGENTS}"
+}
+
+# migrate: 备份 -> 提取旧区块 -> 写 tack.yaml -> 核对 -> 删除 AGENTS.md 登记正文
+cmd_migrate() {
+    if [ ! -f "${STORE_FILE}" ] && ! has_block; then
+        echo "Error: 无可迁移的登记（既无 tack.yaml 也无 AGENTS.md 项目信息区块）" >&2
+        exit 1
+    fi
+    mkdir -p "${ROOT}/.tack/backup"
+    BDIR="${ROOT}/.tack/backup/migrate-$(date '+%Y%m%d-%H%M%S')"
+    mkdir -p "${BDIR}"
+    [ -f "${AGENTS}" ] && cp "${AGENTS}" "${BDIR}/AGENTS.md"
+    [ -f "${STORE_FILE}" ] && cp "${STORE_FILE}" "${BDIR}/tack.yaml"
+    echo "BACKUP_DIR=${BDIR}"
+
+    if [ -f "${STORE_FILE}" ]; then
+        tackyaml_valid || { echo "Error: tack.yaml 无效: ${STORE_FILE}" >&2; exit 1; }
+        if ! has_block; then
+            echo "tack.yaml 已是唯一登记，无需迁移"
+            echo "MIGRATE_RESULT=ok"
+            return 0
+        fi
+        BLOCK_BODY="$(new_tmp)"
+        extract_legacy_body "${BLOCK_BODY}"
+        SNAP_Y="$(new_tmp)"; SNAP_B="$(new_tmp)"
+        data_snapshot "${STORE_FILE}" > "${SNAP_Y}"
+        data_snapshot "${BLOCK_BODY}" > "${SNAP_B}"
+        if ! cmp -s "${SNAP_Y}" "${SNAP_B}"; then
+            echo "Error: tack.yaml 与 AGENTS.md 旧区块数据不一致，停止迁移（备份见 ${BDIR}）" >&2
+            exit 1
+        fi
+        remove_agents_block
+        echo "已保留 tack.yaml，删除 AGENTS.md 登记正文"
+    else
+        BLOCK_BODY="$(new_tmp)"
+        extract_legacy_body "${BLOCK_BODY}"
+        if ! grep -qE '^projects:' "${BLOCK_BODY}" || ! grep -qE '^work:' "${BLOCK_BODY}"; then
+            echo "Error: AGENTS.md 旧区块缺少顶层 projects/work 字段，无法迁移" >&2
+            exit 1
+        fi
+        NEW_FILE="$(new_tmp)"
+        {
+            echo "# ============================================================"
+            echo "# tack 空间登记（\$root/tack.yaml）"
+            echo "#"
+            echo "# 定位：空间级结构化登记的唯一事实源——空间版本、项目、服务仓库映射与工作区登记。"
+            echo "# 维护：由 harness/script/project.sh 读写（init / work / close / update 时自动更新）；"
+            echo "#       可手工查阅，结构化修改一律经 project.sh，避免格式偏差。"
+            echo "# 分工：工作区实时状态与进展在 space/<workspace>/status.yaml；目录事实取自文件系统，"
+            echo "#       分支与仓库状态取自 Git。"
+            echo "# ============================================================"
+            cat "${BLOCK_BODY}"
+        } > "${NEW_FILE}"
+        cp "${NEW_FILE}" "${STORE_FILE}"
+        SNAP_Y="$(new_tmp)"; SNAP_B="$(new_tmp)"
+        data_snapshot "${STORE_FILE}" > "${SNAP_Y}"
+        data_snapshot "${BLOCK_BODY}" > "${SNAP_B}"
+        if ! cmp -s "${SNAP_Y}" "${SNAP_B}"; then
+            rm -f "${STORE_FILE}"
+            echo "Error: 写入 tack.yaml 后核对不一致，已回滚（备份见 ${BDIR}）" >&2
+            exit 1
+        fi
+        remove_agents_block
+        echo "已将 AGENTS.md 旧区块迁移到 tack.yaml，并删除登记正文"
+    fi
+    echo "MIGRATE_RESULT=ok"
+    echo "STORE=${STORE_FILE}"
 }
 
 # project-add: 追加项目条目（projects 数组），并创建 wiki/<name>/ 目录
@@ -184,7 +341,7 @@ cmd_project_add() {
             exit 1
             ;;
     esac
-    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+    resolve_store
     require_projects
     if project_exists "${NAME}"; then
         echo "Error: 项目 '${NAME}' 已存在于 projects 数组" >&2
@@ -241,7 +398,7 @@ cmd_project_set() {
         description|root_path) ;;
         *) echo "Error: project-set 仅支持 description/root_path（项目名不可改，列表字段用 project-keywords / project-service-repo）" >&2; exit 1 ;;
     esac
-    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+    resolve_store
     require_projects
     project_exists "${NAME}" || { echo "Error: 项目 '${NAME}' 不存在" >&2; exit 1; }
 
@@ -274,7 +431,7 @@ cmd_project_set() {
 
 # project-list: 输出全部项目（name<TAB>description）
 cmd_project_list() {
-    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+    resolve_store
     require_projects
     awk "${YAML_LIB}"'
         BEGIN { inproj=0; have=0; name=""; desc="" }
@@ -292,7 +449,170 @@ cmd_project_list() {
             desc=val($0)
         }
         END { if (have) printf "%s\t%s\n", name, desc }
-    ' "${AGENTS}"
+    ' "${STORE}"
+}
+
+# store-path: 输出当前生效的数据文件与存储类型（供 work.sh 等需要原子回滚的调用方）
+cmd_store_path() {
+    resolve_store
+    echo "STORE=${STORE}"
+    echo "STORE_KIND=${STORE_KIND}"
+}
+
+# space-info: 空间元信息（只返回概要，不读全量登记）
+cmd_space_info() {
+    resolve_store
+    awk -v kind="${STORE_KIND}" "${YAML_LIB}"'
+        function flushwork() {
+            if (curw != "") { nwork++; if (wst != "completed") nactive++ }
+            curw=""; wst=""
+        }
+        BEGIN { inproj=0; inwork=0; nproj=0; nwork=0; nactive=0; curw=""; wst="" }
+        /^skill_version:/ { if (sv == "") sv=val($0) }
+        /^skill_update_url:/ { if (su == "") su=val($0) }
+        /^skill_trigger:/ { if (stg == "") stg=val($0) }
+        /^projects:/ { inproj=1; inwork=0; next }
+        /^work:/ { flushwork(); inproj=0; inwork=1; next }
+        inproj==1 && /^[^[:space:]]/ { inproj=0 }
+        inproj==1 && /^  - name:/ { nproj++ }
+        inwork==1 && /^[^[:space:]]/ { flushwork(); inwork=0 }
+        inwork==1 && /^[[:space:]]*-[[:space:]]*work_id:/ { flushwork(); curw=val($0); next }
+        inwork==1 && curw != "" && /^[[:space:]]+status:/ { wst=val($0) }
+        END {
+            flushwork()
+            print "STORE_KIND=" kind
+            print "SKILL_VERSION=" sv
+            print "SKILL_UPDATE_URL=" su
+            print "SKILL_TRIGGER=" stg
+            print "PROJECTS=" nproj
+            print "WORK=" nwork
+            print "WORK_ACTIVE=" nactive
+        }
+    ' "${STORE}"
+}
+
+# project-get: 输出单项目详情（标量 + 服务映射行），不返回其他项目
+cmd_project_get() {
+    NAME="$3"
+    [ -n "${NAME}" ] || { echo "Usage: project.sh project-get <root> <name>" >&2; exit 1; }
+    resolve_store
+    require_projects
+    project_exists "${NAME}" || { echo "Error: 项目 '${NAME}' 不存在" >&2; exit 1; }
+
+    awk -v want="$(esc "${NAME}")" "${YAML_LIB}"'
+        function flushmap() {
+            if (m_svc != "") mapbuf = mapbuf sprintf("SERVICE_REPO\t%s\t%s\t%s\t%s\n", m_svc, m_repo, m_git, m_path)
+            m_svc=""; m_repo=""; m_git=""; m_path=""
+        }
+        BEGIN { inproj=0; cur=""; inmap=0 }
+        /^projects:/ { inproj=1; next }
+        inproj==1 && /^[^[:space:]]/ { if (cur==want) flushmap(); inproj=0; cur="" }
+        inproj==1 && /^  - name:/ { if (cur==want) flushmap(); cur=val($0); inmap=0; next }
+        inproj==1 && cur==want && /^    description:/ { desc=val($0); next }
+        inproj==1 && cur==want && /^    root_path:/ { rootp=val($0); next }
+        inproj==1 && cur==want && /^    keywords:/ { kw=yaml_csv(val($0)); next }
+        inproj==1 && cur==want && /^    repo_scan_path:/ { scan=yaml_csv(val($0)); next }
+        inproj==1 && cur==want && /^    service_repo_mapping:[[:space:]]*\[\][[:space:]]*(#.*)?$/ { next }
+        inproj==1 && cur==want && /^      - service_name:/ { flushmap(); m_svc=val($0); next }
+        inproj==1 && cur==want && /^        repo_name:/ { m_repo=val($0); next }
+        inproj==1 && cur==want && /^        repo_git:/ { m_git=val($0); next }
+        inproj==1 && cur==want && /^        repo_path:/ { m_path=val($0); next }
+        END {
+            if (cur==want) flushmap()
+            print "NAME=" want
+            print "DESCRIPTION=" desc
+            print "ROOT_PATH=" rootp
+            print "KEYWORDS=" kw
+            print "REPO_SCAN_PATH=" scan
+            printf "%s", mapbuf
+        }
+    ' "${STORE}"
+}
+
+# repo-list: 输出指定项目的服务仓库映射（仓库查询必须带项目名）
+cmd_repo_list() {
+    NAME="$3"
+    [ -n "${NAME}" ] || { echo "Error: 仓库查询必须带项目名: project.sh repo-list <root> <project>" >&2; exit 2; }
+    resolve_store
+    require_projects
+    project_exists "${NAME}" || { echo "Error: 项目 '${NAME}' 不存在" >&2; exit 1; }
+
+    awk -v want="$(esc "${NAME}")" "${YAML_LIB}"'
+        function flushmap() {
+            if (m_svc != "") printf "%s\t%s\t%s\t%s\n", m_svc, m_repo, m_git, m_path
+            m_svc=""; m_repo=""; m_git=""; m_path=""
+        }
+        BEGIN { inproj=0; cur="" }
+        /^projects:/ { inproj=1; next }
+        inproj==1 && /^[^[:space:]]/ { if (cur==want) flushmap(); inproj=0; cur="" }
+        inproj==1 && /^  - name:/ { if (cur==want) flushmap(); cur=val($0); next }
+        inproj==1 && cur==want && /^      - service_name:/ { flushmap(); m_svc=val($0); next }
+        inproj==1 && cur==want && /^        repo_name:/ { m_repo=val($0); next }
+        inproj==1 && cur==want && /^        repo_git:/ { m_git=val($0); next }
+        inproj==1 && cur==want && /^        repo_path:/ { m_path=val($0); next }
+        END { if (cur==want) flushmap() }
+    ' "${STORE}"
+}
+
+# work-list: 输出工作区登记行；给项目名时只返回该项目
+cmd_work_list() {
+    FILTER="${3:-}"
+    resolve_store
+    awk -v filter="$(esc "${FILTER}")" "${YAML_LIB}"'
+        function flushwork() {
+            if (curw != "" && (filter == "" || wprj == filter))
+                printf "WORK\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", curw, wprj, wst, wbr, wpath, wdesc, wtrig, wsvc
+            curw=""; wprj=""; wst=""; wbr=""; wpath=""; wdesc=""; wtrig=""; wsvc=""
+        }
+        BEGIN { inwork=0; curw="" }
+        /^work:/ { inwork=1; next }
+        inwork==1 && /^[^[:space:]]/ { flushwork(); inwork=0 }
+        inwork==1 && /^[[:space:]]*-[[:space:]]*work_id:/ { flushwork(); curw=val($0); next }
+        inwork==1 && curw != "" && /^[[:space:]]+project:/ { wprj=val($0) }
+        inwork==1 && curw != "" && /^[[:space:]]+status:/ { wst=val($0) }
+        inwork==1 && curw != "" && /^[[:space:]]+branch:/ { wbr=val($0) }
+        inwork==1 && curw != "" && /^[[:space:]]+work_path:/ { wpath=val($0) }
+        inwork==1 && curw != "" && /^[[:space:]]+description:/ { wdesc=val($0) }
+        inwork==1 && curw != "" && /^[[:space:]]+trigger_words:/ { wtrig=yaml_csv(val($0)) }
+        inwork==1 && curw != "" && /^[[:space:]]+services:/ { wsvc=yaml_csv(val($0)) }
+        END { flushwork() }
+    ' "${STORE}"
+}
+
+# work-get: 输出单个工作区条目详情（不读其他条目）
+cmd_work_get() {
+    ID="$3"
+    [ -n "${ID}" ] || { echo "Usage: project.sh work-get <root> <id>" >&2; exit 1; }
+    resolve_store
+    OUT="$(awk -v want="$(esc "${ID}")" "${YAML_LIB}"'
+        function flushwork() {
+            if (curw == want && found == 0) { found=1; emit() }
+            curw=""; wprj=""; wst=""; wbr=""; wpath=""; wdesc=""; wtrig=""; wsvc=""
+        }
+        function emit() {
+            print "WORK_ID=" curw
+            print "PROJECT=" wprj
+            print "STATUS=" wst
+            print "BRANCH=" wbr
+            print "WORK_PATH=" wpath
+            print "DESCRIPTION=" wdesc
+            print "TRIGGER_WORDS=" wtrig
+            print "SERVICES=" wsvc
+        }
+        BEGIN { inwork=0; curw="" }
+        /^work:/ { inwork=1; next }
+        inwork==1 && /^[^[:space:]]/ { flushwork(); inwork=0 }
+        inwork==1 && /^[[:space:]]*-[[:space:]]*work_id:/ { flushwork(); curw=val($0); next }
+        inwork==1 && curw != "" && /^[[:space:]]+project:/ { wprj=val($0) }
+        inwork==1 && curw != "" && /^[[:space:]]+status:/ { wst=val($0) }
+        inwork==1 && curw != "" && /^[[:space:]]+branch:/ { wbr=val($0) }
+        inwork==1 && curw != "" && /^[[:space:]]+work_path:/ { wpath=val($0) }
+        inwork==1 && curw != "" && /^[[:space:]]+description:/ { wdesc=val($0) }
+        inwork==1 && curw != "" && /^[[:space:]]+trigger_words:/ { wtrig=yaml_csv(val($0)) }
+        inwork==1 && curw != "" && /^[[:space:]]+services:/ { wsvc=yaml_csv(val($0)) }
+        END { flushwork(); if (!found) exit 3 }
+    ' "${STORE}")" || { echo "Error: 未找到 work_id '${ID}' 的条目" >&2; exit 1; }
+    printf '%s\n' "${OUT}"
 }
 
 # skill-version: 写入区块顶级标量 skill_version
@@ -307,7 +627,7 @@ cmd_skill_version() {
         echo "Usage: project.sh skill-version <root> <version> [--if-empty] [--no-commit]" >&2
         exit 1
     fi
-    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+    resolve_store
 
     tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
@@ -337,7 +657,7 @@ cmd_skill_version() {
         { print }
         END { if (done==0) exit 3 }
     ' "${tmp_body}" > "${tmp_new}" || {
-        echo "Error: 项目信息区块中缺少 skill_version 字段" >&2
+        echo "Error: 空间登记中缺少 skill_version 字段" >&2
         rm -f "${tmp_body}" "${tmp_new}"; exit 1
     }
     rewrite_block "${tmp_new}"
@@ -352,7 +672,7 @@ cmd_work_add() {
     [ "${SERVICES}" = "--no-commit" ] && SERVICES=""
     [ "${TRIGGERS}" = "--no-commit" ] && TRIGGERS=""
     [ -n "${PROJECT}" ] && [ -n "${ID}" ] || { echo "Usage: project.sh work-add <root> <project> <id> <description> <work_path> <branch> [services] [triggers]" >&2; exit 1; }
-    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+    resolve_store
     require_projects
     project_exists "${PROJECT}" || { echo "Error: 项目 '${PROJECT}' 不存在，先执行 project.sh project-add" >&2; exit 1; }
 
@@ -366,7 +686,7 @@ cmd_work_add() {
         }
         END { exit (found?0:1) }
     ' "${tmp_body}"; then
-        echo "Error: work_id '${ID}' 已存在于项目信息区块" >&2
+        echo "Error: work_id '${ID}' 已存在于空间登记" >&2
         rm -f "${tmp_body}"; exit 1
     fi
 
@@ -415,7 +735,7 @@ EOF
 cmd_work_set() {
     ID="$3"; STATUS="$4"
     [ -n "${ID}" ] && [ -n "${STATUS}" ] || { echo "Usage: project.sh work-set <root> <id> <status>" >&2; exit 1; }
-    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+    resolve_store
 
     tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
@@ -444,11 +764,11 @@ cmd_work_set() {
     echo "已更新工作状态: ${ID} -> ${STATUS}"
 }
 
-# work-remove: 移除某工作条目（close 删除工作区目录后同步清理 AGENTS.md 登记）
+# work-remove: 移除某工作条目（close 删除工作区目录后同步清理空间登记）
 cmd_work_remove() {
     ID="$3"
     [ -n "${ID}" ] || { echo "Usage: project.sh work-remove <root> <id>" >&2; exit 1; }
-    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+    resolve_store
 
     tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
@@ -482,7 +802,7 @@ cmd_work_remove() {
 cmd_work_path() {
     ID="$3"; WPATH="$4"
     [ -n "${ID}" ] && [ -n "${WPATH}" ] || { echo "Usage: project.sh work-path <root> <id> <work_path>" >&2; exit 1; }
-    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+    resolve_store
 
     tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
@@ -518,7 +838,7 @@ cmd_work_rename() {
         echo "Usage: project.sh work-rename <root> <old-id> <new-id> <new-branch> <new-work-path>" >&2
         exit 1
     }
-    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+    resolve_store
 
     tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
@@ -591,14 +911,14 @@ status_summary() {
     ' "${f}"
 }
 
-# work-reconcile: 对账 AGENTS.md work 条目与 space/ 实际目录，只报告差异不改写
+# work-reconcile: 对账空间登记的 work 条目与 space/ 实际目录，只报告差异不改写
 # 输出（TAB 分隔；无差异时仅 SUMMARY 行；退出码恒 0）：
 #   MISSING_DIR    <id> <登记目录名>        <status>                 条目在、目录缺失
 #   STALE_COMPLETED <id> <目录名>            <status>                 条目已 completed 但目录仍在（旧归档残留）
 #   PATH_MISMATCH  <id> <登记目录名>         <实际目录名>              work_path 与 status.yaml work_id 指向不符（重命名中断）
 #   UNREGISTERED   <目录名> <work_id|-> <project|-> <branch|-> <status|-> <svc,svc|->   目录在、无条目
 cmd_work_reconcile() {
-    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+    resolve_store
 
     tmp_body="$(new_tmp)"
     tmp_entries="$(new_tmp)"
@@ -688,7 +1008,7 @@ cmd_work_reconcile() {
 cmd_project_keywords() {
     NAME="$3"; KW="$4"
     [ -n "${NAME}" ] && [ -n "${KW}" ] || { echo "Usage: project.sh project-keywords <root> <name> <kw1,kw2,...>" >&2; exit 1; }
-    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+    resolve_store
     require_projects
     project_exists "${NAME}" || { echo "Error: 项目 '${NAME}' 不存在" >&2; exit 1; }
 
@@ -728,7 +1048,7 @@ cmd_project_service_repo() {
         echo "Usage: project.sh project-service-repo <root> <name> <service_name> <repo_name> <repo_git> <repo_path>" >&2
         exit 1
     fi
-    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+    resolve_store
     require_projects
     project_exists "${NAME}" || { echo "Error: 项目 '${NAME}' 不存在" >&2; exit 1; }
 
@@ -787,7 +1107,7 @@ cmd_work_services() {
     if [ -n "${SYNC}" ] && [ "${SYNC}" != "--no-commit" ] && [ ! -f "${SYNC}" ]; then
         echo "Error: status.yaml 不存在: ${SYNC}" >&2; exit 1
     fi
-    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+    resolve_store
 
     SVC_LIST=$(csv_to_yaml "${SVC}")
     tmp_body="$(new_tmp)"
@@ -837,7 +1157,7 @@ cmd_work_trigger() {
     # --no-commit 落在第 4 位（未传 kws 时），视为缺少 kws 参数
     [ "${KWS}" = "--no-commit" ] && KWS=""
     [ -n "${ID}" ] && [ -n "${KWS}" ] || { echo "Usage: project.sh work-trigger <root> <id> <kw1,kw2,...>" >&2; exit 1; }
-    has_block || { echo "Error: 项目信息区块不存在，先执行 project.sh ensure" >&2; exit 1; }
+    resolve_store
 
     tmp_body="$(new_tmp)"
     extract_body "${tmp_body}"
@@ -910,11 +1230,16 @@ cmd_work_trigger() {
 
 case "${ACTION}" in
     ensure)                cmd_ensure ;;
+    migrate)               cmd_migrate ;;
+    store-path)            NO_COMMIT=1; cmd_store_path ;;
+    space-info)            NO_COMMIT=1; cmd_space_info ;;
     project-add)           cmd_project_add "$@" ;;
     project-set)           cmd_project_set "$@" ;;
     project-keywords)      cmd_project_keywords "$@" ;;
     project-service-repo)  cmd_project_service_repo "$@" ;;
     project-list)          NO_COMMIT=1; cmd_project_list "$@" ;;
+    project-get)           NO_COMMIT=1; cmd_project_get "$@" ;;
+    repo-list)             NO_COMMIT=1; cmd_repo_list "$@" ;;
     skill-version)         cmd_skill_version "$@" ;;
     work-add)              cmd_work_add "$@" ;;
     work-set)              cmd_work_set "$@" ;;
@@ -922,12 +1247,14 @@ case "${ACTION}" in
     work-path)             cmd_work_path "$@" ;;
     work-rename)           cmd_work_rename "$@" ;;
     work-reconcile)        NO_COMMIT=1; cmd_work_reconcile "$@" ;;
+    work-list)             NO_COMMIT=1; cmd_work_list "$@" ;;
+    work-get)              NO_COMMIT=1; cmd_work_get "$@" ;;
     work-services)         cmd_work_services "$@" ;;
     work-trigger)          cmd_work_trigger "$@" ;;
-    *) echo "Error: 未知动作 '${ACTION}'（支持 ensure / project-add / project-set / project-keywords / project-service-repo / project-list / skill-version / work-add / work-set / work-remove / work-path / work-rename / work-reconcile / work-services / work-trigger）" >&2; exit 1 ;;
+    *) echo "Error: 未知动作 '${ACTION}'（支持 ensure / migrate / store-path / space-info / project-add / project-set / project-keywords / project-service-repo / project-list / project-get / repo-list / skill-version / work-add / work-set / work-remove / work-path / work-rename / work-reconcile / work-list / work-get / work-services / work-trigger）" >&2; exit 1 ;;
 esac
 
-# AGENTS.md 项目信息区块变更后，框架自动提交空间仓库（无变更时 space.sh 内部跳过）；
+# 空间登记（tack.yaml 或旧区块）变更后，框架自动提交空间仓库（无变更时 space.sh 内部跳过）；
 # --no-commit 时交由复合流程（init-tack、update）统一收尾提交
 if [ "${NO_COMMIT}" -ne 1 ]; then
     sh "${SCRIPT_DIR}/space.sh" commit "${ROOT}" "chore(tack): project ${ACTION}"

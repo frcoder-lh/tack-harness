@@ -5,12 +5,13 @@
 # 「剥 /tack 前缀 -> scan-routes resolve -> 读 cmd/workflow 文件 -> 读状态」
 # 确定性路由链路，把结果一次性注入上下文：
 #
-#   resolve 退出 0（唯一命中）：注入路由元信息、工作区状态快照与指令文件全文
+#   resolve 退出 0（唯一命中）：注入路由元信息、参数原文、工作区状态快照与指令文件全文
 #                               ——模型零工具往返，直接执行
 #   resolve 退出 2（多个命中）：注入候选清单，引导用户选择
-#   resolve 退出 1（无命中）  ：注入工作流+命令精简表，模型只负责语义识别
+#   resolve 退出 1（无命中）  ：注入 compact 路由索引（scan-routes index），模型只负责语义识别
 #   仅输入 "/tack"            ：同无命中，并提示用户可直接下达命令
 #
+# 上下文已有命令正文或索引时模型直接复用，不重复读取；hook 结果与磁盘不一致时以磁盘为准。
 # 非 tack 空间 / 任何异常 -> 零输出、退出 0（模型按原有方式工作，零影响）。
 #
 # stdin: UserPromptSubmit 事件 JSON（含 prompt / cwd）
@@ -58,18 +59,17 @@ STATE_BLOCK=""
 if [ -n "${WORK}" ]; then
     STATE_BLOCK="当前活跃工作区：$(basename "${WORK}")（${WORK}）
 $(hook_work_snapshot "${WORK}" 2>/dev/null)
-按 AGENTS.md 核心约束第 5 条：先确认用户当前工作是否就在该工作区；不明确时先向用户确认。"
+按 AGENTS.md「工作区与项目确认」：先确认用户当前工作是否就在该工作区；不明确时先向用户确认。"
 else
     STATE_BLOCK="当前无活跃工作区（space/ 下无未完成工作）。若用户意图是开始新需求，引导走 work 命令；与 tack 工作流无关的闲聊或问题，忽略本块正常回答。"
 fi
 
-# KW 为空（用户只发了 /tack）：给全表 + 引导
+# KW 为空（用户只发了 /tack）：给紧凑索引 + 引导
 if [ -z "${KW}" ]; then
-    ROUTES_WF="$(sh "${HARNESS}/script/scan-routes.sh" workflows "${HARNESS}" 2>/dev/null)" || true
-    ROUTES_CM="$(sh "${HARNESS}/script/scan-routes.sh" commands "${HARNESS}" 2>/dev/null)" || true
-    printf '[tack:hook] 用户仅输入了 tack 触发词、未带命令（无需再执行 scan-routes，直接展示可用能力并询问意图）。\n\n'
+    ROUTES_IDX="$(sh "${HARNESS}/script/scan-routes.sh" index "${HARNESS}" 2>/dev/null)" || true
+    printf '[tack:hook] 用户仅输入了 tack 触发词、未带命令（无需再执行 scan-routes，直接按下方紧凑索引询问意图）。\n\n'
     printf '%s\n' "${STATE_BLOCK}"
-    printf '\n%s\n\n%s\n' "${ROUTES_WF}" "${ROUTES_CM}"
+    printf '\n%s\n' "${ROUTES_IDX}"
     exit 0
 fi
 
@@ -78,15 +78,15 @@ LINE="$(sh "${HARNESS}/script/scan-routes.sh" resolve "${HARNESS}" "${KW}" 2>"${
 RC=$?
 
 if [ "${RC}" -eq 0 ]; then
-    # ── 唯一命中：注入元信息 + 状态 + 指令全文 ─────────────────────────────
-    IFS='|' read -r rtype rgroup rfile rname rshort rtrig rparams rsumm <<EOF
+    # ── 唯一命中：注入元信息 + 参数原文 + 状态 + 指令全文 ───────────────────
+    IFS='|' read -r rtype rgroup rfile rname rshort rtrig rparams rsumm rargs <<EOF
 $LINE
 EOF
     [ -f "${rfile}" ] || exit 0
     BODY="$(hook_strip_frontmatter "${rfile}" 2>/dev/null)"
     [ -n "${BODY}" ] || BODY="（指令文件为空，请重新 Read：${rfile}）"
 
-    printf '[tack:hook] 路由已在 shell 侧确定性命中，无需再调用 scan-routes resolve、无需再 Read 指令文件，直接按下方指令正文执行。\n\n'
+    printf '[tack:hook] 路由已在 shell 侧确定性命中，无需再调用 scan-routes resolve、无需再 Read 指令文件；上下文已有该指令正文时直接复用，直接按下方正文执行。\n\n'
     if [ "${rtype}" = "workflow" ]; then
         printf '命中类型：工作流 %s\n' "${rname}"
     else
@@ -96,6 +96,7 @@ EOF
     [ -n "${rtrig}" ]   && printf '触发词：%s\n' "${rtrig}"
     [ -n "${rparams}" ] && printf '参数：%s\n' "${rparams}"
     [ -n "${rsumm}" ]   && printf '作用：%s\n' "${rsumm}"
+    [ -n "${rargs}" ]   && printf '参数原文：%s\n' "${rargs}"
     printf '定义文件：%s\n\n' "${rfile}"
     printf '%s\n\n' "${STATE_BLOCK}"
     printf -- '── 指令正文（缓存自磁盘文件；若怀疑过期请重新 Read 该文件，以磁盘为准）开始 ──\n'
@@ -109,7 +110,7 @@ if [ "${RC}" -eq 2 ]; then
     # ── 多个命中：注入候选清单，请用户选择（不做语义猜测） ─────────────────
     printf '[tack:hook] 输入「%s」命中多个路由，scan-routes 要求用户选择后再执行；候选如下：\n\n' "${KW}"
     n=0
-    while IFS='|' read -r ctype cgroup cfile cname cshort ctrig cparams csumm; do
+    while IFS='|' read -r ctype cgroup cfile cname cshort ctrig cparams csumm cargs; do
         [ -n "${cname}" ] || continue
         n=$((n + 1))
         if [ "${ctype}" = "workflow" ]; then
@@ -123,12 +124,11 @@ if [ "${RC}" -eq 2 ]; then
     exit 0
 fi
 
-# ── 无命中（rc=1 或其他意外码）：注入全表，模型只做语义识别 ────────────────
-ROUTES_WF="$(sh "${HARNESS}/script/scan-routes.sh" workflows "${HARNESS}" 2>/dev/null)" || true
-ROUTES_CM="$(sh "${HARNESS}/script/scan-routes.sh" commands "${HARNESS}" 2>/dev/null)" || true
+# ── 无命中（rc=1 或其他意外码）：注入紧凑索引，模型只做语义识别 ────────────
+ROUTES_IDX="$(sh "${HARNESS}/script/scan-routes.sh" index "${HARNESS}" 2>/dev/null)" || true
 printf '[tack:hook] 输入「%s」未命中任何精确触发词（scan-routes resolve 无命中）。\n' "${KW}"
-printf '请在下方路由表内做语义匹配（中英文同义词、意图归类），挑最可能的 1-3 条向用户确认后再执行；\n'
+printf '请在下方紧凑索引内做语义匹配（中英文同义词、意图归类），挑最可能的 1-3 条向用户确认后再执行；\n'
 printf '若用户意图与 tack 工作流无关（闲聊、通用问题等），忽略本块、正常回答，不得强行路由。\n\n'
 printf '%s\n' "${STATE_BLOCK}"
-printf '\n%s\n\n%s\n' "${ROUTES_WF}" "${ROUTES_CM}"
+printf '\n%s\n' "${ROUTES_IDX}"
 exit 0

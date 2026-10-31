@@ -8,7 +8,8 @@
 
 ## 代码仓库（业务代码）
 
-- 代码仓库的操作**只允许**在 `$work/repo/<repo-name>/` 的 git worktree 内进行。
+- 代码仓库的日常操作（查改、提交、推送、合并）**只允许**在 `$work/repo/<repo-name>/` 的 git worktree 内进行。
+- 主仓库 `$root/repo/` 只作只读基准：接入（scan/link/clone）与远端同步（fetch）只经 `harness/script/repo.sh` 执行（`repo` 命令触发），不在其中执行用户 Git 操作。
 - worktree 的创建与移除只能经 `harness/script/git-worktree-helper.sh` 完成。
 - 代码仓库的提交统一由 `commit` 命令经 `git-commit-helper.sh` 执行（自动生成提交信息后直接提交，无需二次确认）；推送统一由 `push` 命令经 `git-push-helper.sh` 执行（脚本拒绝任何 force 参数）；框架自动提交只处理空间根仓库，不代为提交代码，两类提交不合并为一次。
 

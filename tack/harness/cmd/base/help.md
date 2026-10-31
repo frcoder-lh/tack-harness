@@ -22,7 +22,7 @@ summary: 扫描 harness，输出全部工作流与命令的触发词、参数与
 
 3. **查看单条工作流或命令详情（带名称参数时）**
    - 输入: 用户指定的工作流、命令或触发词
-   - 动作: 执行 `sh $root/harness/script/scan-routes.sh resolve $root/harness <名称>`，按输出类型前缀（`workflow|` / `cmd|`）定位文件，读取后展示其触发词、适用场景或前置准入条件与内容摘要
+   - 动作: 执行 `sh $root/harness/script/scan-routes.sh show $root/harness <名称>`，按输出类型前缀（`workflow|` / `cmd|`）定位文件，读取后展示其触发词、适用场景或前置准入条件与内容摘要
 
 4. **版本检查（更新提醒挂载点）**
    - 动作: 按 `harness/rule/update-check.md` 执行 `sh $root/harness/script/check-update.sh $root`；有新版本时在下一步建议中原样转述，并告知「说『更新』即可升级」

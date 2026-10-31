@@ -8,6 +8,16 @@ This file is the single source of truth for tack harness release notes:
 - `release.sh` verifies before releasing that the target tag has corresponding sections in both `CHANGELOG.md` (Chinese) and `CHANGELOG.en.md` (English); release aborts if either is missing
 - CI extracts the corresponding sections from both changelogs and concatenates them as the bilingual GitHub Release body; the `check-update.sh` reminder and the `update` command's "What's new" view are sourced from both files
 
+## V0.0.22 (2026-10-31)
+
+- Added: Space registry moves to `tack.yaml`—`AGENTS.md` is slimmed down to the resident entry (routing, core constraints, data sources), while project names, keywords, service-repository mappings, and workspace registrations move to the space-root `tack.yaml`; `project.sh` gains scoped query subcommands `space-info` / `project-get` / `repo-list` / `work-list` / `work-get`, and `init` / `work` / `close` / `evolution` / `update` read and write through them, with legacy project info blocks migrated to `tack.yaml` on query or upgrade
+- Added: `repo` command (short `rp`; triggers "new repository / create repo / update repo / fetch repo / repo / repo fetch")—owns creation and updates of main code repositories; `repo fetch` updates all or selected main repositories (reusing `git-fetch-helper.sh sync`), and the former `create-repo` triggers still route to the new command
+- Added: `ask` branch flows are directory-based—the entry keeps only shared admission and flow selection, loading the `summarize` / `answer` / `verify` / `overview` flows on demand; analysis outputs land uniformly in `doc/analysis/` without the `-analysis` filename suffix restriction
+- Added: Three new rules: `script-catalog` (scripts grouped by purpose), `record-lifecycle` (guidance collection and crystallization lifecycle), and `workspace-layout` (workspace directory layout); duplicated explanations in `AGENTS.md` and commands converge into name-based references
+- Improved: Routing and Hooks load on demand—explicit commands output their instruction body directly without loading the full command table; `SessionStart` injects only the space location, and `UserPromptSubmit` injects the compact index or instruction body per route result, reducing resident context
+- Improved: Retrieval and evidence conventions—`wiki-read` adds one-round parallel retrieval and accuracy rules, analysis documents use `repo/path#L12-L15` evidence anchors, and `ask` state write-back and stage commits are handled by scripts
+- Improved: `tack/.gitignore` now ignores all dot-directories by default (such as `.trae/`, `.claude/`), with the `update` fallback adjusted accordingly; bilingual README, site docs, and command/rule references follow the new structure
+
 ## V0.0.21 (2026-10-30)
 
 - Added: Indexed project wiki—project wikis now use an `index.md` top index plus small classified files under `biz/`, `code/`, `rule/`, `config/`, and `history/`, with 14 category templates shipped in the harness; new shared `wiki-read` / `wiki-write` rules unify wiki reads and writes across `init` / `record` / `close` / `ask` / `evolution`; new `wiki-index.sh` validates index completeness (including directory coverage and missing files), and `evolution` auto-registers unrecorded files

@@ -14,7 +14,8 @@
 #      通过 winget 自动安装，bash 环境内 Git 必然随附）。
 #   2. 将目标目录初始化为 Git 仓库并自动完成首次提交（.git 已存在时跳过；
 #      空间仓库的 Git 操作全部由框架经 space.sh 自动完成，用户不直接操作）。
-# 注意：项目信息存放在 AGENTS.md 的项目信息区块中；status.yaml 属于工作区产物（space/<workspace>/status.yaml）。
+# 注意：空间登记存放在根目录 tack.yaml（项目、服务仓库映射、工作区登记）；
+#       status.yaml 属于工作区产物（space/<workspace>/status.yaml）。
 
 set -e
 
@@ -100,6 +101,17 @@ cp -rn "${TACK_DIR}/." "${ROOT}/"
 # （Git 不跟踪空目录；wiki 文件由 init 命令按需物化），显式创建
 mkdir -p "${ROOT}/space" "${ROOT}/repo" "${ROOT}/wiki"
 
+# 旧空间兼容：目标 AGENTS.md 仍含旧版项目信息区块时，骨架带入的空 tack.yaml 会遮蔽旧登记。
+# 先移除空模板（有真实数据的 tack.yaml 不动），再把旧区块迁移到 tack.yaml；核对不一致时报错中止。
+if [ -f "${ROOT}/AGENTS.md" ] && grep -qF '<!-- tack:info:start -->' "${ROOT}/AGENTS.md"; then
+    if [ -f "${ROOT}/tack.yaml" ] \
+        && grep -qE '^projects:[[:space:]]*\[\][[:space:]]*$' "${ROOT}/tack.yaml" \
+        && grep -qE '^work:[[:space:]]*\[\][[:space:]]*$' "${ROOT}/tack.yaml"; then
+        rm -f "${ROOT}/tack.yaml"
+    fi
+    sh "${ROOT}/harness/script/project.sh" migrate "${ROOT}" --no-commit
+fi
+
 # .tack/ 是框架本地运行时数据根（log 日志 / backup 回滚备份 / state 本机状态 /
 # tmp 临时文件），整体被 .gitignore 排除、可随时删除。log/backup/state 为常驻
 # 目录，预建让布局显式化；tmp/ 不预建——各脚本按需 mkdir -p、退出时空目录顺手
@@ -131,7 +143,7 @@ fi
 sh "${ABS_ROOT}/harness/script/hook/install-hooks.sh" "${ABS_ROOT}" || true
 
 # 回填 skill_version：版本号以本机 skill 的 SKILL.md front matter 为唯一事实源，
-# 物化后写入 AGENTS.md 项目信息区块（skill_update_url 已在出厂模板中固定）。
+# 物化后写入 tack.yaml（skill_update_url 已在出厂模板中固定）。
 # --if-empty 保证重复执行或已 update 过的空间不被本机旧版本降级；
 # --no-commit 抑制单次提交，交由下方首次提交统一入库。
 SKILL_VER=""

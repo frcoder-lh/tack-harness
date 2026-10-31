@@ -3,16 +3,16 @@ command: work
 short: w
 triggers: 工作区, 新建工作区, 切换工作区, 分支合并, 分支变基, 合并分支, 变基分支, work, workspace, new workspace, switch workspace, merge branches, rebase branches
 params: [目的或分支名]
-summary: 工作区管理——新建、重命名、切换、列出工作区（space/<YYYYMMDD>-<branch>/）；新建时只创建 status.yaml 与 context.md，story/doc/repo 等目录与 worktree 均按需懒加载；意图分流支持 branch-op 分支级 merge/rebase，自动推断服务并登记到 AGENTS.md
+summary: 工作区管理——新建、重命名、切换、列出工作区（space/<YYYYMMDD>-<branch>/）；新建时只创建 status.yaml 与 context.md，story/doc/repo 等目录与 worktree 均按需懒加载；意图分流支持 branch-op 分支级 merge/rebase，自动推断服务并登记到 tack.yaml
 ---
 
 # work 工作区管理
 
-> 工作区位于 `$root/space/<workspace>/`；**目录命名约定：`<workspace>` = `<YYYYMMDD>-<branch>`**（如 `20261001-user-login`；分支名中的 `/` 在目录名中转为 `-`，如 `feature/login` → `20261023-feature-login`，保证 `space/` 下始终是单层目录），日期前缀使 `space/` 下按目录名排序即按创建时间排序；worktree 检出的 git 分支名仍为 `<branch>`（不含日期、保留 `/`），`work_id` 默认与分支同名。项目信息（`projects` 数组 + work 列表）维护在 AGENTS.md 项目信息区块，每个工作区通过 `status.yaml` 的 `project` 归属一个项目。
+> 工作区位于 `$root/space/<workspace>/`；**目录命名约定：`<workspace>` = `<YYYYMMDD>-<branch>`**（如 `20261001-user-login`；分支名中的 `/` 在目录名中转为 `-`，如 `feature/login` → `20261023-feature-login`，保证 `space/` 下始终是单层目录），日期前缀使 `space/` 下按目录名排序即按创建时间排序；worktree 检出的 git 分支名仍为 `<branch>`（不含日期、保留 `/`），`work_id` 默认与分支同名。空间登记（`projects` 数组 + work 列表）存放在 `$root/tack.yaml`，每个工作区通过 `status.yaml` 的 `project` 归属一个项目。
 
 ## 前置准入条件
 
-- 已是 tack 空间（`$root/AGENTS.md` 存在且含项目信息区块）
+- 已是 tack 空间（`$root/tack.yaml` 存在，或 `$root/AGENTS.md` 含可用的旧版项目信息区块）
 - 新建工作区只创建工作区目录、`status.yaml` 与 `context.md`，不预建 `story/`、`doc/`、`run/`、`repo/` 等目录、不检出 worktree；目录在首次产生文件或检出 worktree 时按需创建，检索代码直接使用 `$root/repo/`
 
 ## 指令内容
@@ -27,7 +27,7 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 ### 新建工作区
 
 0. **确定所属项目**
-   - 输入: 当前上下文（`$work` 已存在时取 `$work/status.yaml` 的 `project`）、AGENTS.md `projects`、用户输入中的项目线索
+   - 输入: 当前上下文（`$work` 已存在时取 `$work/status.yaml` 的 `project`）、`tack.yaml` 的 projects、用户输入中的项目线索
    - 动作: 有当前项目且与工作区目的匹配时直接使用并说明；否则执行 `sh $root/harness/script/project.sh project-list $root`——单项目直接使用，多项目请用户选择，无项目时引导先执行 `init` 新建项目
    - 边界: `project` 是工作区归属与项目 wiki 的依据，不得留空或自行编造
 
@@ -36,7 +36,7 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 
 2. **澄清具体意图**（目的已具体到能判断要解决的问题与改动范围时，跳过本步）
    - 判定: 描述宽泛、存在多种解读（如「优化下单」「修复支付问题」）即视为意图不明确，不得带着模糊目的直接命名
-   - 动作: 结合 AGENTS.md 当前项目条目的 keywords、service_repo_mapping（`$root/wiki/<project>/config/services.md` 存在时经 `harness/rule/wiki-read.md` 一并参考），给出 3 个左右可能的具体意图候选，每条一句话说明对应要解决的问题方向；用户可单选、组合多个候选或自行补充
+   - 动作: 结合 `sh $root/harness/script/project.sh project-get $root <project>` 的 keywords、服务仓库映射（`$root/wiki/<project>/config/services.md` 存在时经 `harness/rule/wiki-read.md` 一并参考），给出 3 个左右可能的具体意图候选，每条一句话说明对应要解决的问题方向；用户可单选、组合多个候选或自行补充
    - 输入: 用户选定后固化为明确的目的描述；一次澄清仍不明确则继续追问，直到问题边界可判断
 
 3. **提取触发词（从目的描述分词）**
@@ -49,9 +49,9 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
    - 输入: 用户选择候选或自行输入；展示最终名称并请用户确认
 
 5. **自动推断需要的服务**
-   - 输入: 工作区目的 + AGENTS.md 当前项目条目的 service_repo_mapping（主数据源，必然存在）
+   - 输入: 工作区目的 + `sh $root/harness/script/project.sh repo-list $root <project>` 的服务仓库映射（主数据源，必然存在）
    - `$root/wiki/<project>/config/services.md` 存在时一并读取，补充职责等上下文；不存在不影响推断（wiki 文件按需物化）
-   - 动作: 根据目的关键词推断涉及的服务/仓库，列出推断结果由用户多选确认（可全部取消）；推断结果只登记到工作区与 AGENTS.md，**不建 worktree**
+   - 动作: 根据目的关键词推断涉及的服务/仓库，列出推断结果由用户多选确认（可全部取消）；推断结果只登记到工作区与 `tack.yaml`，**不建 worktree**
 
 6. **创建工作区（只建上下文文件，其余目录懒加载）**
    - 动作: 执行
@@ -62,7 +62,7 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 7. **登记并切换上下文**
    - 动作: 用上一步的 `WORKSPACE` 值执行
      `sh $root/harness/script/project.sh work-add $root <project> <branch> "<目的描述>" "$root/space/<WORKSPACE>" <branch> "<服务1,服务2>" "<触发词1,触发词2>"`
-     在 AGENTS.md 项目信息区块追加 work 条目（project 为第 0 步确定的项目，work_id/branch 为分支名，work_path 为带日期前缀的实际目录，trigger_words 为第 3 步提取的触发词）
+     在 `tack.yaml` 的 work 列表追加条目（project 为第 0 步确定的项目，work_id/branch 为分支名，work_path 为带日期前缀的实际目录，trigger_words 为第 3 步提取的触发词）
    - 为上下文赋值 `$work=$root/space/<WORKSPACE>`
 
 8. **输出开场知识清单（roster，只列不读）**
@@ -121,41 +121,41 @@ summary: 工作区管理——新建、重命名、切换、列出工作区（sp
 1. 输入新的目的描述；描述宽泛时按「新建工作区」第 2 步先澄清意图，再生成并确认新分支名（命名遵循 `harness/rule/git-standards.md`）
 2. **dry-run 展示完整变更计划**：
    `sh $root/harness/script/work.sh rename $root <old-work-id> <new-work-id> [new-branch] --dry-run`
-   计划含目录（保留原创建日期前缀）、work_id、分支、各仓库 worktree 分支、status.yaml、AGENTS.md 工作条目与 branches[]；新 ID/目录/分支冲突由脚本以退出码 4 拦截
+   计划含目录（保留原创建日期前缀）、work_id、分支、各仓库 worktree 分支、status.yaml、tack.yaml 工作条目与 branches[]；新 ID/目录/分支冲突由脚本以退出码 4 拦截
 3. **用户确认后 apply**：
    `sh $root/harness/script/work.sh rename $root <old-work-id> <new-work-id> [new-branch] --apply`
-   脚本按「分支 → worktree 目录 → 工作区文件 → status.yaml → AGENTS.md → branches[]」顺序执行；中途失败自动回滚并输出 `ROLLBACK=complete|incomplete`，完整回滚可重试，不完整时按脚本列出的残留项人工处理
+   脚本按「分支 → worktree 目录 → 工作区文件 → status.yaml → tack.yaml → branches[]」顺序执行；中途失败自动回滚并输出 `ROLLBACK=complete|incomplete`，完整回滚可重试，不完整时按脚本列出的残留项人工处理
 4. 成功后脚本输出 `RENAME_RESULT=applied`、`RECONCILE=ok` 并自动提交空间仓库；若重命名的是当前工作区，把 `$work` 更新为计划中的新目录
 
 ### 切换工作区
 
-1. 读取 AGENTS.md 项目信息区块的 work 列表（工作区登记的唯一事实源，不扫描磁盘；登记与磁盘的偏差由 `evolution` 的工作区登记校准修复），高亮当前工作区
+1. 执行 `sh $root/harness/script/project.sh work-list $root` 读取工作区登记（唯一事实源，不扫描磁盘；登记与磁盘的偏差由 `evolution` 校准修复），高亮当前工作区
 2. 对用户输入（去掉 `/tack` 前缀与首尾空白）按以下优先级多级匹配，命中唯一即进入第 3 步，命中多个进入第 4 步，均无命中进入第 5 步：
    - **精确匹配**：输入等于某条目的 `work_id` 或 `branch` → 唯一命中
    - **触发词精确匹配**：输入（或其分词）完整命中某条目的 `trigger_words` 之一 → 唯一命中
    - **触发词子串匹配**：输入是某 `trigger_word` 的子串，或某 `trigger_word` 是输入的子串 → 收集候选
    - **描述包含匹配**：输入关键词出现在某条目的 `description` 中 → 收集候选
    - 降级规则：高优先级命中唯一时不降级；高优先级无命中或命中多个时才降到下一级
-3. 以目标 work 条目的 `work_path`（即 `$root/space/<YYYYMMDD>-<branch>`）为上下文赋值 `$work`，重新读取该工作区 status.yaml（不相信上下文里的旧内容），并以其 `project` 作为当前项目；不要凭分支名自行拼目录
+3. 以目标 work 条目的 `work_path`（即 `$root/space/<YYYYMMDD>-<branch>`）为上下文赋值 `$work`，读取该工作区 status.yaml（上下文已有且未变化时复用，否则读取最新），并以其 `project` 作为当前项目；不要凭分支名自行拼目录
 4. **多候选选择**：以表格列出候选（work_id / 描述 / 触发词 / 状态），请用户选择；用户选中后，把本次输入的查询词（及其分词）通过 `work-trigger` 追加到选中工作区的 `trigger_words`（`sh $root/harness/script/project.sh work-trigger $root <work_id> "<词1,词2>"`，脚本自动去重并跳过等于 work_id/branch 的词），使下次相同输入直接命中；随后进入第 3 步
 5. **无命中**：询问是否新建工作区
 6. 按「新建工作区」第 8 步输出该工作区的开场知识清单（wiki 页面 + 相关分析文档新鲜度 + 冷仓库建议），只列不读
 
 ### 列出工作区
 
-1. 直接读取 AGENTS.md 项目信息区块的 work 条目（不扫描 `space/` 磁盘；close 后条目随目录一并移除，`evolution` 负责校准登记与磁盘的偏差），以表格展示：work_id / 项目 / 描述（含触发词，格式 `用户登录功能 [触发词: 登录, user login]`） / 状态 / 分支（附工作区目录名，取 work_path 末段），当前工作区标记「（当前）」；按工作区目录名排序即按创建时间排序
+1. 执行 `sh $root/harness/script/project.sh work-list $root` 读取工作区登记（不扫描 `space/` 磁盘；close 后条目随目录一并移除，`evolution` 负责校准登记与磁盘的偏差），以表格展示：work_id / 项目 / 描述（含触发词，格式 `用户登录功能 [触发词: 登录, user login]`） / 状态 / 分支（附工作区目录名，取 work_path 末段），当前工作区标记「（当前）」；按工作区目录名排序即按创建时间排序
 2. 可接受用户序号或分支名输入，直接进入切换
 
 ## 框架自动提交（无需用户操作）
 
-- 动作: 新建与重命名的提交均由 work.sh / project.sh 自动完成；其余直接编辑过 AGENTS.md / status.yaml 的路径，结束前执行 `sh $root/harness/script/space.sh commit $root "chore(tack): workspace <branch>"` 兜底（无变更自动跳过）
+- 动作: 新建与重命名的提交均由 work.sh / project.sh 自动完成；其余直接编辑过 `tack.yaml` / status.yaml 的路径，结束前执行 `sh $root/harness/script/space.sh commit $root "chore(tack): workspace <branch>"` 兜底（无变更自动跳过）
 - 边界: 遵守 `harness/rule/git-boundary.md`；重命名同时作用于工作区目录与各代码仓库的分支，目录与 worktree 迁移由 work.sh 事务完成
 
 ## 后置完成检验
 
 - [ ] `space/<YYYYMMDD>-<branch>/status.yaml`（含正确的 project、work_dir、branch）与 `context.md` 已生成
 - [ ] 新建工作区为懒加载模式：仅创建工作区目录、`status.yaml` 与 `context.md`，`story/`、`doc/`、`run/`、`repo/` 等目录未预建、未创建任何 worktree；首次产生文件或检出时由对应命令创建（代码修改由 `code` 转 `worktree`）
-- [ ] AGENTS.md 项目信息区块的 work 列表与磁盘一致，且每条 work 条目的 `project` 与 status.yaml 一致
+- [ ] `tack.yaml` 的 work 列表与磁盘一致，且每条 work 条目的 `project` 与 status.yaml 一致
 - [ ] 常规建区：已输出开场知识清单（roster）——按 `$root/wiki/<project>/index.md` 列出分类与文件、列出工作区已有 story 与 `doc/analysis/` 文档，冷仓库已建议 ask；未向上下文塞入 wiki 全文
 - [ ] branch-op：op/A/B 与源分支引用（本地/远端）已解析且仓库经用户确认；prepare 成功，status.yaml 已置 `workflow: branch-op`、`status: preparing` 并写入 `branch_op` 区块（临时分支名齐全），两个临时分支已登记到 branches 列表（role=tmp, source=branch-op）
 - [ ] 重命名：dry-run 计划经用户确认；apply 输出 `RENAME_RESULT=applied` 且 `RECONCILE=ok`（失败时 `ROLLBACK=complete|incomplete` 已如实汇报）

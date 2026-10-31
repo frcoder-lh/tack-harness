@@ -3,17 +3,24 @@
 ## 定位优先
 
 - 先提炼关键词，再用 `grep` / `glob` 定位目标文件或代码片段。
-- 禁止整仓通读、禁止整目录批量加载、禁止对同一文件全文重读。
+- 禁止整仓通读、禁止整目录批量加载、禁止无依据地反复全文读取。
+
+## 读取复用
+
+- 首次使用某本地文件前，读取与当前任务相关的片段。
+- 同一连续操作中复用最新读取或编辑结果，不重复读取未变化的文件。
+- 用户提示外部改动、文件版本变化（如 git 状态变化、他人修改）或进入新的修改阶段时，重新读取相关片段。
 
 ## 工作区上下文先行
 
 - 在工作区执行任何命令前，先读取 `$work/context.md`：它记录本工作区的需求、背景、链接与约束，可能包含当前任务所需的信息。
 - 需求按 story 拆分后，本 story 的 `$work/story/<story>/analysis.md`（现有实现、可行性、兼容性）是 spec/plan/code 的首要代码侧依据；需求明确前的代码问答与分析记录在 `$work/doc/analysis/`。
 - 生成的文档（`doc/tech-design.md`、`doc/test.md`、`doc/code-review.md`、`doc/release-check.md`）由对应命令直接读取，不按 wiki 检索。
+- 工作区目录布局与懒加载规则见 `harness/rule/workspace-layout.md`。
 
 ## 项目作用域
 
-- 每个命令先确认当前工作区与项目：`$work` 来自当前工作区，项目来自 `$work/status.yaml` 的 `project`（无 `$work` 时从 AGENTS.md `projects` 选择）
+- 每个命令先确认当前工作区与项目：`$work` 来自当前工作区，项目来自 `$work/status.yaml` 的 `project`（无 `$work` 时用 `project.sh project-list` 选择）
 - 项目 wiki 的读写限定在 `$root/wiki/<project>/`，不隐式跨项目取用；读取按 `harness/rule/wiki-read.md`，写入按 `harness/rule/wiki-write.md`；工作区级参数（MR 地址、泳道、构建版本等）只读 `$work/status.yaml`
 
 ## 按需加载
